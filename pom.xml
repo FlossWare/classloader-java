@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.flossware</groupId>
+    <artifactId>jclassloader</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <name>JClassLoader</name>
+    <description>A Java ClassLoader capable of loading classes from local and remote (HTTP/HTTPS) locations with caching support</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <junit.version>5.10.2</junit.version>
+        <message>Automated Version Bump ${project.version} [ci skip]</message>
+    </properties>
+
+    <scm>
+        <connection>scm:git:https://github.com/FlossWare/jclassloader.git</connection>
+        <developerConnection>scm:git:https://github.com/FlossWare/jclassloader.git</developerConnection>
+        <url>https://github.com/FlossWare/jclassloader</url>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>packagecloud-flossware</id>
+            <name>packagecloud-flossware</name>
+            <url>https://packagecloud.io/flossware/java/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <dependencies>
+        <!-- SFTP/SCP Support -->
+        <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch</artifactId>
+            <version>0.1.55</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- WebDAV Support -->
+        <dependency>
+            <groupId>com.github.lookfirst</groupId>
+            <artifactId>sardine</artifactId>
+            <version>5.10</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Database/JDBC Support -->
+        <!-- Users provide their own JDBC driver -->
+
+        <!-- JSON parsing for REST APIs -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- AWS S3 Support -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.25.16</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Azure Blob Storage Support -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-blob</artifactId>
+            <version>12.25.3</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Google Cloud Storage Support -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>2.36.1</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Google Drive API Support -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-drive</artifactId>
+            <version>v3-rev20240123-2.0.0</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>1.23.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Dropbox SDK Support -->
+        <dependency>
+            <groupId>com.dropbox.core</groupId>
+            <artifactId>dropbox-core-sdk</artifactId>
+            <version>6.1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Microsoft Graph (OneDrive) Support -->
+        <dependency>
+            <groupId>com.microsoft.graph</groupId>
+            <artifactId>microsoft-graph</artifactId>
+            <version>6.8.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Apache Kafka Support -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>3.6.1</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- RabbitMQ Support -->
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>5.20.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Redis Support -->
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>5.1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Hadoop HDFS Support -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>3.3.6</version>
+            <optional>true</optional>
+            <exclusions>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- JCIFS (SMB/CIFS) Support -->
+        <dependency>
+            <groupId>org.samba.jcifs</groupId>
+            <artifactId>jcifs</artifactId>
+            <version>1.3.19</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- JGit (Git) Support -->
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>6.8.0.202311291450-r</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Kubernetes Client Support -->
+        <dependency>
+            <groupId>io.kubernetes</groupId>
+            <artifactId>client-java</artifactId>
+            <version>19.0.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Docker Java Client -->
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java</artifactId>
+            <version>3.3.4</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Hazelcast Support -->
+        <dependency>
+            <groupId>com.hazelcast</groupId>
+            <artifactId>hazelcast</artifactId>
+            <version>5.3.6</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- IPFS Java Client -->
+        <dependency>
+            <groupId>com.github.ipfs</groupId>
+            <artifactId>java-ipfs-http-client</artifactId>
+            <version>1.4.4</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MinIO Client -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.7</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- JUnit 5 for testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>2.16.0</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-release-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireReleaseDeps/>
+                                <requireReleaseVersion/>
+                                <evaluateBeanshell>
+                                    <condition>
+                                        String v = "${project.version}";
+                                        v.matches("^\\d+\\.\\d+$")
+                                    </condition>
+                                    <message>VERSION ERROR: Version must be X.Y format and NOT a SNAPSHOT.</message>
+                                </evaluateBeanshell>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>2.0.1</version>
+                <configuration>
+                    <providerImplementations>
+                        <git>git</git>
+                    </providerImplementations>
+                    <tag>${project.version}</tag>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

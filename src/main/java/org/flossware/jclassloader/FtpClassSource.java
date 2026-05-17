@@ -1,0 +1,92 @@
+package org.flossware.jclassloader;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Base64;
+import java.util.Objects;
+
+public class FtpClassSource implements ClassSource {
+    private final String baseUrl;
+    private final String username;
+    private final String password;
+
+    public FtpClassSource(String baseUrl, String username, String password) {
+        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
+
+        if (!baseUrl.startsWith("ftp://") && !baseUrl.startsWith("ftps://")) {
+            throw new IllegalArgumentException("baseUrl must start with ftp:// or ftps://");
+        }
+
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        this.username = username;
+        this.password = password;
+    }
+
+    public FtpClassSource(String baseUrl) {
+        this(baseUrl, null, null);
+    }
+
+    @Override
+    public byte[] loadClassData(String className) throws IOException {
+        String classPath = className.replace('.', '/') + ".class";
+        URL url = buildUrl(classPath);
+
+        URLConnection connection = url.openConnection();
+        configureConnection(connection);
+
+        try (InputStream in = connection.getInputStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+
+            return out.toByteArray();
+        }
+    }
+
+    @Override
+    public boolean canLoad(String className) {
+        try {
+            String classPath = className.replace('.', '/') + ".class";
+            URL url = buildUrl(classPath);
+            URLConnection connection = url.openConnection();
+            configureConnection(connection);
+
+            try (InputStream in = connection.getInputStream()) {
+                return in.read() != -1;
+            }
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public String getDescription() {
+        return "FtpClassSource[" + baseUrl + ", authenticated=" + (username != null) + "]";
+    }
+
+    private URL buildUrl(String classPath) throws IOException {
+        if (username != null && password != null) {
+            String protocol = baseUrl.startsWith("ftps://") ? "ftps://" : "ftp://";
+            String hostAndPath = baseUrl.substring(protocol.length());
+            return new URL(protocol + username + ":" + password + "@" + hostAndPath + classPath);
+        } else {
+            return new URL(baseUrl + classPath);
+        }
+    }
+
+    private void configureConnection(URLConnection connection) {
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(30000);
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+}
