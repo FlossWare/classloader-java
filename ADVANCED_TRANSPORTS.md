@@ -212,6 +212,29 @@ JClassLoader loader = JClassLoader.builder()
 ### IPFS (InterPlanetary File System)
 Decentralized class loading from IPFS.
 
+> **⚠️ Manual Setup Required**: IPFS support requires adding the JitPack repository and dependency manually:
+>
+> ```xml
+> <repositories>
+>     <repository>
+>         <id>jitpack.io</id>
+>         <url>https://jitpack.io</url>
+>     </repository>
+> </repositories>
+>
+> <dependencies>
+>     <dependency>
+>         <groupId>com.github.ipfs</groupId>
+>         <artifactId>java-ipfs-http-client</artifactId>
+>         <version>v1.5.1</version>
+>     </dependency>
+> </dependencies>
+> ```
+>
+> The IpfsClassSource implementation is available in: `src/main/java/org/flossware/jclassloader/p2p/IpfsClassSource.java.optional`
+>
+> Rename it to `.java` after adding the dependency.
+
 ```java
 // With root directory CID
 IpfsClassSource ipfs = IpfsClassSource.builder()
