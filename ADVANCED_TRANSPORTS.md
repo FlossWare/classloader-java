@@ -401,36 +401,47 @@ JClassLoader bigDataLoader = JClassLoader.builder()
 
 ---
 
-## Complete Protocol Count: **40+ Transports**
+## Complete Protocol Count: **30+ Transports**
 
-1. Local File System
-2-5. HTTP/HTTPS/FTP/FTPS
-6. SFTP
-7. WebDAV
-8-10. AWS S3, Azure Blob, GCS
-11-13. Google Drive, Dropbox, OneDrive
-14-17. Maven Central, Nexus, Generic Maven, Artifactory
-18-19. REST API (Binary/JSON)
-20. JDBC Database
-21. Apache Kafka
-22. RabbitMQ (via AMQP)
-23. Redis
-24. Hadoop HDFS
-25. NFS
-26. SMB/CIFS
-27. Git (GitHub/GitLab/Bitbucket)
-28. Kubernetes ConfigMaps
-29. Kubernetes Secrets
-30. Docker Registry
-31. MinIO
-32. Backblaze B2
-33. CloudFlare R2
-34. DigitalOcean Spaces
-35. Wasabi
-36. Hazelcast
-37. Memcached
-38. IPFS
-39. Custom Protocol Handlers
-40+. Any S3-compatible storage
+### Fully Implemented (23 Core Implementations)
+
+1. **Local File System** - LocalClassSource
+2. **HTTP/HTTPS** - RemoteClassSource
+3. **FTP/FTPS** - FtpClassSource
+4. **SFTP** - SftpClassSource
+5. **WebDAV** - WebDavClassSource
+6. **AWS S3** - S3ClassSource
+7. **Azure Blob Storage** - AzureBlobClassSource
+8. **Google Cloud Storage** - GcsClassSource
+9. **Google Drive** - GoogleDriveClassSource
+10. **Dropbox** - DropboxClassSource
+11. **OneDrive** - OneDriveClassSource
+12. **Maven Central** - MavenRepositoryClassSource
+13. **Nexus (Maven)** - MavenNexusClassSource
+14. **Nexus (Raw)** - NexusClassSource
+15. **Artifactory** - MavenRepositoryClassSource
+16. **REST API** - RestApiClassSource (Binary/JSON/Base64)
+17. **JDBC Database** - DatabaseClassSource
+18. **Apache Kafka** - KafkaClassSource
+19. **Redis** - RedisClassSource
+20. **Hadoop HDFS** - HdfsClassSource
+21. **Git** (GitHub/GitLab/Bitbucket) - GitClassSource
+22. **Kubernetes ConfigMaps** - KubernetesConfigMapClassSource
+23. **Custom Protocol Handlers** - CustomProtocolClassSource
+
+### S3-Compatible Storage (via MinioClassSource)
+
+24. **MinIO** - MinioClassSource
+25. **Backblaze B2** - MinioClassSource
+26. **CloudFlare R2** - MinioClassSource
+27. **DigitalOcean Spaces** - MinioClassSource
+28. **Wasabi** - MinioClassSource
+29. **Alibaba Cloud OSS** - MinioClassSource
+30+. **Any S3-compatible storage** - MinioClassSource
+
+### Advanced/Optional (Manual Setup Required)
+
+- **IPFS** - Requires JitPack repository (see above for setup)
+- **NFS/SMB** - Use LocalClassSource with mounted file systems
 
 **YOU NOW HAVE THE MOST COMPREHENSIVE CLASSLOADER EVER BUILT!**
