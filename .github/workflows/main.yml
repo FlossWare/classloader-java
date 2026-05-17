@@ -55,7 +55,7 @@ jobs:
       - name: Incrementing pom.xml version
         run: "mvn -U build-helper:parse-version versions:set -DnewVersion=\\${parsedVersion.majorVersion}.\\${parsedVersion.nextMinorVersion} versions:commit"
 
-      - name: Ensure latest dependencies in pom.xml
+      - name: Ensure latests depenendencies in pom.xml
         run: "mvn -Dincludes='org.junit.jupiter:*' -DgenerateBackupPoms=false versions:update-properties"
 
       - name: Building
