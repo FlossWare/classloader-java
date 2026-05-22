@@ -1,55 +1,147 @@
 package org.flossware.jclassloader;
 
 import org.flossware.jclassloader.cache.ClassCache;
+import org.flossware.jclassloader.delegation.DelegationStrategy;
+import org.flossware.jclassloader.delegation.ParentFirstDelegation;
+import org.flossware.jclassloader.lifecycle.ClassLoadEvent;
+import org.flossware.jclassloader.lifecycle.ClassLoaderLifecycleListener;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class JClassLoader extends ClassLoader {
     private final List<ClassSource> classSources;
     private final ClassCache cache;
     private final boolean useCache;
+    private final DelegationStrategy delegationStrategy;
+    private final List<ClassLoaderLifecycleListener> listeners;
 
-    private JClassLoader(ClassLoader parent, List<ClassSource> classSources, ClassCache cache, boolean useCache) {
-        super(parent);
-        this.classSources = new ArrayList<>(classSources);
-        this.cache = cache;
-        this.useCache = useCache && cache != null;
+    private JClassLoader(Builder builder) {
+        super(builder.parent != null ? builder.parent : getSystemClassLoader());
+        this.classSources = new ArrayList<>(builder.classSources);
+        this.cache = builder.cache;
+        this.useCache = builder.useCache && cache != null;
+        this.delegationStrategy = builder.delegationStrategy;
+        this.listeners = new CopyOnWriteArrayList<>(builder.listeners);
+    }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        // Check if already loaded
+        Class<?> c = findLoadedClass(name);
+        if (c != null) {
+            return c;
+        }
+
+        // Use delegation strategy
+        c = delegationStrategy.loadClass(name, getParent(), this::findClassInternal);
+
+        if (resolve) {
+            resolveClass(c);
+        }
+
+        return c;
     }
 
     @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
-        byte[] classData = null;
+        return findClassInternal(name);
+    }
 
+    private Class<?> findClassInternal(String name) throws ClassNotFoundException {
+        long startTime = System.nanoTime();
+        byte[] classData = null;
+        ClassSource usedSource = null;
+
+        // Check cache
         if (useCache && cache.contains(name)) {
             classData = cache.get(name);
             if (classData != null) {
+                fireClassCacheHit(name);
                 return defineClass(name, classData, 0, classData.length);
             }
         }
 
+        // Load from sources
         for (ClassSource source : classSources) {
             try {
                 if (source.canLoad(name)) {
                     classData = source.loadClassData(name);
                     if (classData != null) {
+                        usedSource = source;
+
+                        // Cache it
                         if (useCache) {
                             try {
                                 cache.put(name, classData);
+                                fireClassCached(name, classData);
                             } catch (IOException e) {
+                                // Continue even if caching fails
                             }
                         }
-                        return defineClass(name, classData, 0, classData.length);
+
+                        // Define the class
+                        Class<?> clazz = defineClass(name, classData, 0, classData.length);
+
+                        // Fire event
+                        long loadTime = System.nanoTime() - startTime;
+                        fireClassLoaded(new ClassLoadEvent(name, usedSource, loadTime, classData.length));
+
+                        return clazz;
                     }
                 }
             } catch (IOException e) {
+                // Try next source
             }
         }
 
-        throw new ClassNotFoundException(name);
+        ClassNotFoundException ex = new ClassNotFoundException(name);
+        fireClassLoadFailed(name, ex);
+        throw ex;
+    }
+
+    private void fireClassLoaded(ClassLoadEvent event) {
+        for (ClassLoaderLifecycleListener listener : listeners) {
+            try {
+                listener.onClassLoaded(event);
+            } catch (Exception e) {
+                // Don't let listener exceptions break class loading
+            }
+        }
+    }
+
+    private void fireClassCacheHit(String className) {
+        for (ClassLoaderLifecycleListener listener : listeners) {
+            try {
+                listener.onClassCacheHit(className);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+    }
+
+    private void fireClassCached(String className, byte[] classData) {
+        for (ClassLoaderLifecycleListener listener : listeners) {
+            try {
+                listener.onClassCached(className, classData);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+    }
+
+    private void fireClassLoadFailed(String className, Throwable error) {
+        for (ClassLoaderLifecycleListener listener : listeners) {
+            try {
+                listener.onClassLoadFailed(className, error);
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
     }
 
     public List<ClassSource> getClassSources() {
@@ -64,6 +156,14 @@ public class JClassLoader extends ClassLoader {
         return useCache;
     }
 
+    public DelegationStrategy getDelegationStrategy() {
+        return delegationStrategy;
+    }
+
+    public List<ClassLoaderLifecycleListener> getListeners() {
+        return Collections.unmodifiableList(listeners);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -73,6 +173,8 @@ public class JClassLoader extends ClassLoader {
         private final List<ClassSource> classSources = new ArrayList<>();
         private ClassCache cache;
         private boolean useCache = true;
+        private DelegationStrategy delegationStrategy = new ParentFirstDelegation();
+        private final List<ClassLoaderLifecycleListener> listeners = new ArrayList<>();
 
         public Builder parent(ClassLoader parent) {
             this.parent = parent;
@@ -188,13 +290,46 @@ public class JClassLoader extends ClassLoader {
             return this;
         }
 
+        public Builder delegationStrategy(DelegationStrategy strategy) {
+            this.delegationStrategy = Objects.requireNonNull(strategy, "delegationStrategy cannot be null");
+            return this;
+        }
+
+        public Builder parentFirst() {
+            return delegationStrategy(new ParentFirstDelegation());
+        }
+
+        public Builder parentLast(String... alwaysParentPrefixes) {
+            return delegationStrategy(new org.flossware.jclassloader.delegation.ParentLastDelegation(alwaysParentPrefixes));
+        }
+
+        public Builder customDelegation(java.util.function.Predicate<String> parentFirstPredicate) {
+            return delegationStrategy(new org.flossware.jclassloader.delegation.CustomDelegation(parentFirstPredicate));
+        }
+
+        public Builder addListener(ClassLoaderLifecycleListener listener) {
+            this.listeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
+            return this;
+        }
+
+        public Builder addLoggingListener() {
+            return addListener(new org.flossware.jclassloader.lifecycle.LoggingListener());
+        }
+
+        public Builder addLoggingListener(boolean verbose) {
+            return addListener(new org.flossware.jclassloader.lifecycle.LoggingListener(verbose));
+        }
+
+        public Builder trackResources() {
+            return addListener(new org.flossware.jclassloader.lifecycle.ResourceTrackingListener());
+        }
+
         public JClassLoader build() {
             if (classSources.isEmpty()) {
                 throw new IllegalStateException("At least one class source must be configured");
             }
 
-            ClassLoader parentLoader = parent != null ? parent : getSystemClassLoader();
-            return new JClassLoader(parentLoader, classSources, cache, useCache);
+            return new JClassLoader(this);
         }
     }
 }
