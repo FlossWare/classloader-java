@@ -6,7 +6,7 @@
 <dependency>
     <groupId>org.flossware</groupId>
     <artifactId>jclassloader</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0</version>
 </dependency>
 ```
 
@@ -97,6 +97,36 @@ JClassLoader loader = JClassLoader.builder()
     .addMavenCentral("commons:lang:3.12.0")          // Then Maven Central
     .cache(new FileSystemCache("/tmp/cache"))         // With caching
     .build();
+```
+
+### Parent-Last Isolation (NEW in 1.0)
+```java
+// For plugin systems, containers, isolation
+JClassLoader pluginLoader = JClassLoader.builder()
+    .addLocalSource("/plugins/my-plugin")
+    .parentLast("com.myapp.api.")  // Only API from parent
+    .addLoggingListener()           // Monitor class loading
+    .build();
+```
+
+### Resource Tracking (NEW in 1.0)
+```java
+import org.flossware.jclassloader.lifecycle.ResourceTrackingListener;
+
+ResourceTrackingListener tracker = new ResourceTrackingListener();
+
+JClassLoader loader = JClassLoader.builder()
+    .addLocalSource("/path/to/classes")
+    .addListener(tracker)
+    .build();
+
+// Later: get statistics
+System.out.println("Classes loaded: " + tracker.getTotalClassesLoaded());
+System.out.println("Cache hit rate: " + 
+    (tracker.getCacheHits() * 100.0 / tracker.getTotalClassesLoaded()) + "%");
+
+// Cleanup when done
+tracker.closeAllResources();
 ```
 
 ## Common Use Cases
