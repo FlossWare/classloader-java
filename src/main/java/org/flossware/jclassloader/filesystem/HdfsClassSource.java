@@ -11,7 +11,9 @@ import java.io.InputStream;
 import java.util.Objects;
 
 /**
- * Loads classes from Hadoop HDFS.
+ * ClassSource implementation for loading classes from Hadoop HDFS.
+ * Supports distributed file system access for class loading in Hadoop clusters.
+ * Requires the Hadoop client dependency.
  */
 public class HdfsClassSource implements ClassSource {
     private final FileSystem hdfs;

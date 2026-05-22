@@ -6,6 +6,10 @@ import org.flossware.jclassloader.cache.FileSystemCache;
 import javax.sql.DataSource;
 import java.io.IOException;
 
+/**
+ * Examples for various protocol support.
+ * Demonstrates SFTP, WebDAV, database, and REST API class loading.
+ */
 public class ProtocolExamples {
 
     public static void main(String[] args) throws Exception {

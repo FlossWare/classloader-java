@@ -16,6 +16,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
+
+/**
+ * ClassSource implementation for loading classes from Google Drive.
+ * Supports service account and OAuth credentials authentication.
+ * Requires the Google Drive API SDK dependency.
+ */
 import java.util.Map;
 import java.util.Objects;
 

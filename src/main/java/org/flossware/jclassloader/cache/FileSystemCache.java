@@ -7,14 +7,33 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
+/**
+ * File-system based implementation of ClassCache.
+ * Caches class bytecode as .class files in a specified directory.
+ * Thread-safe for concurrent read/write operations.
+ */
 public class FileSystemCache implements ClassCache {
     private final Path cacheDirectory;
 
+    /**
+     * Creates a file system cache with the specified directory.
+     * The directory is created if it doesn't exist.
+     *
+     * @param cacheDirectory The directory path to use for caching
+     * @throws IOException if the directory cannot be created
+     * @throws NullPointerException if cacheDirectory is null
+     */
     public FileSystemCache(Path cacheDirectory) throws IOException {
         this.cacheDirectory = Objects.requireNonNull(cacheDirectory, "cacheDirectory cannot be null");
         Files.createDirectories(cacheDirectory);
     }
 
+    /**
+     * Creates a file system cache with the specified directory path string.
+     *
+     * @param cacheDirectory The directory path string to use for caching
+     * @throws IOException if the directory cannot be created
+     */
     public FileSystemCache(String cacheDirectory) throws IOException {
         this(Paths.get(cacheDirectory));
     }
@@ -73,6 +92,11 @@ public class FileSystemCache implements ClassCache {
         return cacheDirectory.resolve(fileName);
     }
 
+    /**
+     * Gets the cache directory path.
+     *
+     * @return The cache directory path
+     */
     public Path getCacheDirectory() {
         return cacheDirectory;
     }

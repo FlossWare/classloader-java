@@ -8,6 +8,10 @@ import org.flossware.jclassloader.cache.FileSystemCache;
 
 import java.io.IOException;
 
+/**
+ * Nexus repository usage examples.
+ * Demonstrates loading classes from Nexus RAW and Maven repositories with authentication.
+ */
 public class NexusExample {
 
     public static void main(String[] args) throws Exception {

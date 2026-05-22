@@ -11,6 +11,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from Azure Blob Storage.
+ * Supports connection string and shared key credential authentication.
+ * Requires the Azure Storage Blob SDK dependency.
+ */
 public class AzureBlobClassSource implements ClassSource {
     private final BlobContainerClient containerClient;
     private final String prefix;

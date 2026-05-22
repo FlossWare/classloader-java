@@ -14,6 +14,11 @@ import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+/**
+ * ClassSource implementation for loading classes from Maven artifacts stored in Nexus.
+ * Downloads JARs from Nexus and extracts class files from them.
+ * Includes in-memory caching of loaded classes for performance.
+ */
 public class MavenNexusClassSource implements ClassSource {
     private final String nexusUrl;
     private final String repository;
@@ -21,6 +26,16 @@ public class MavenNexusClassSource implements ClassSource {
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
 
+    /**
+     * Creates a Maven Nexus class source with full configuration.
+     *
+     * @param nexusUrl The Nexus server URL
+     * @param repository The Maven repository name
+     * @param artifacts The list of Maven artifacts to load classes from
+     * @param authConfig The authentication configuration
+     * @throws NullPointerException if nexusUrl, repository, or artifacts is null
+     * @throws IllegalArgumentException if artifacts list is empty
+     */
     public MavenNexusClassSource(String nexusUrl, String repository, List<MavenArtifact> artifacts, AuthConfig authConfig) {
         Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
         Objects.requireNonNull(artifacts, "artifacts cannot be null");
@@ -36,6 +51,13 @@ public class MavenNexusClassSource implements ClassSource {
         this.classCache = new HashMap<>();
     }
 
+    /**
+     * Creates a Maven Nexus class source without authentication.
+     *
+     * @param nexusUrl The Nexus server URL
+     * @param repository The Maven repository name
+     * @param artifacts The list of Maven artifacts to load classes from
+     */
     public MavenNexusClassSource(String nexusUrl, String repository, List<MavenArtifact> artifacts) {
         this(nexusUrl, repository, artifacts, AuthConfig.none());
     }

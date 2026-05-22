@@ -8,6 +8,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from a JDBC database.
+ * Class bytecode is stored in a table with columns for class name and class bytes.
+ */
 public class DatabaseClassSource implements ClassSource {
     private final DataSource dataSource;
     private final String tableName;
@@ -15,6 +19,15 @@ public class DatabaseClassSource implements ClassSource {
     private final String classBytesColumn;
     private final String selectQuery;
 
+    /**
+     * Creates a database class source.
+     *
+     * @param dataSource The JDBC DataSource to use
+     * @param tableName The table name containing class data
+     * @param classNameColumn The column name containing fully qualified class names
+     * @param classBytesColumn The column name containing class bytecode (BLOB/BINARY)
+     * @throws NullPointerException if any parameter is null
+     */
     public DatabaseClassSource(DataSource dataSource, String tableName,
                               String classNameColumn, String classBytesColumn) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource cannot be null");

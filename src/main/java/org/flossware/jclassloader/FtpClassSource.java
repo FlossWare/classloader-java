@@ -8,11 +8,24 @@ import java.net.URLConnection;
 import java.util.Base64;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from FTP/FTPS servers.
+ * Supports both anonymous and authenticated access.
+ */
 public class FtpClassSource implements ClassSource {
     private final String baseUrl;
     private final String username;
     private final String password;
 
+    /**
+     * Creates an FTP class source with authentication.
+     *
+     * @param baseUrl The base FTP/FTPS URL (must start with ftp:// or ftps://)
+     * @param username The username for authentication (null for anonymous)
+     * @param password The password for authentication (null for anonymous)
+     * @throws NullPointerException if baseUrl is null
+     * @throws IllegalArgumentException if baseUrl doesn't start with ftp:// or ftps://
+     */
     public FtpClassSource(String baseUrl, String username, String password) {
         Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
 
@@ -25,6 +38,11 @@ public class FtpClassSource implements ClassSource {
         this.password = password;
     }
 
+    /**
+     * Creates an FTP class source for anonymous access.
+     *
+     * @param baseUrl The base FTP/FTPS URL
+     */
     public FtpClassSource(String baseUrl) {
         this(baseUrl, null, null);
     }
@@ -86,6 +104,11 @@ public class FtpClassSource implements ClassSource {
         connection.setReadTimeout(30000);
     }
 
+    /**
+     * Gets the base FTP URL for this class source.
+     *
+     * @return The base URL
+     */
     public String getBaseUrl() {
         return baseUrl;
     }

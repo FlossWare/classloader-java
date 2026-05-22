@@ -8,6 +8,11 @@ import java.io.InputStream;
 import java.util.Objects;
 import java.util.Properties;
 
+/**
+ * ClassSource implementation for loading classes from SFTP servers.
+ * Supports both password and private key authentication.
+ * Requires the JSch library dependency.
+ */
 public class SftpClassSource implements ClassSource {
     private final String host;
     private final int port;

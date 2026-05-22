@@ -6,6 +6,10 @@ import org.flossware.jclassloader.cloud.GcsClassSource;
 import org.flossware.jclassloader.cloud.S3ClassSource;
 import software.amazon.awssdk.regions.Region;
 
+/**
+ * Cloud storage usage examples.
+ * Demonstrates loading classes from AWS S3, Azure Blob Storage, and Google Cloud Storage.
+ */
 public class CloudStorageExamples {
 
     public static void main(String[] args) {

@@ -11,8 +11,10 @@ import java.io.InputStream;
 import java.util.Objects;
 
 /**
- * Loads classes from MinIO object storage (S3-compatible).
- * Also works with other S3-compatible services like Backblaze B2, CloudFlare R2, etc.
+ * ClassSource implementation for loading classes from MinIO object storage.
+ * MinIO is an S3-compatible object storage system.
+ * Also compatible with other S3-compatible services like Backblaze B2, Cloudflare R2, etc.
+ * Requires the MinIO SDK dependency.
  */
 public class MinioClassSource implements ClassSource {
     private final MinioClient minioClient;

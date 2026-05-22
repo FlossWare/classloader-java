@@ -2,10 +2,20 @@ package org.flossware.jclassloader;
 
 import java.util.Objects;
 
+/**
+ * Configuration for authentication when accessing remote class sources.
+ * Supports Basic authentication (username/password) and Bearer token authentication.
+ */
 public class AuthConfig {
+    /**
+     * Authentication type enumeration.
+     */
     public enum AuthType {
+        /** No authentication */
         NONE,
+        /** HTTP Basic authentication (username and password) */
         BASIC,
+        /** Bearer token authentication */
         BEARER
     }
 
@@ -21,33 +31,73 @@ public class AuthConfig {
         this.token = token;
     }
 
+    /**
+     * Creates an authentication configuration with no authentication.
+     *
+     * @return AuthConfig with NONE type
+     */
     public static AuthConfig none() {
         return new AuthConfig(AuthType.NONE, null, null, null);
     }
 
+    /**
+     * Creates an authentication configuration using HTTP Basic authentication.
+     *
+     * @param username The username for authentication
+     * @param password The password for authentication
+     * @return AuthConfig with BASIC type
+     * @throws NullPointerException if username or password is null
+     */
     public static AuthConfig basic(String username, String password) {
         Objects.requireNonNull(username, "username cannot be null");
         Objects.requireNonNull(password, "password cannot be null");
         return new AuthConfig(AuthType.BASIC, username, password, null);
     }
 
+    /**
+     * Creates an authentication configuration using Bearer token authentication.
+     *
+     * @param token The bearer token for authentication
+     * @return AuthConfig with BEARER type
+     * @throws NullPointerException if token is null
+     */
     public static AuthConfig bearer(String token) {
         Objects.requireNonNull(token, "token cannot be null");
         return new AuthConfig(AuthType.BEARER, null, null, token);
     }
 
+    /**
+     * Gets the authentication type.
+     *
+     * @return The authentication type
+     */
     public AuthType getAuthType() {
         return authType;
     }
 
+    /**
+     * Gets the username for Basic authentication.
+     *
+     * @return The username, or null if not using Basic authentication
+     */
     public String getUsername() {
         return username;
     }
 
+    /**
+     * Gets the password for Basic authentication.
+     *
+     * @return The password, or null if not using Basic authentication
+     */
     public String getPassword() {
         return password;
     }
 
+    /**
+     * Gets the token for Bearer authentication.
+     *
+     * @return The token, or null if not using Bearer authentication
+     */
     public String getToken() {
         return token;
     }

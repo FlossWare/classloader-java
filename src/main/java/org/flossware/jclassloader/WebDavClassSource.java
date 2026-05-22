@@ -8,12 +8,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from WebDAV servers.
+ * Uses the Sardine WebDAV client library for HTTP-based distributed authoring and versioning.
+ * Requires the Sardine library dependency.
+ */
 public class WebDavClassSource implements ClassSource {
     private final String baseUrl;
     private final String username;
     private final String password;
     private final Sardine sardine;
 
+    /**
+     * Creates a WebDAV class source with authentication.
+     *
+     * @param baseUrl The base WebDAV URL
+     * @param username The username for authentication (null for anonymous)
+     * @param password The password for authentication (null for anonymous)
+     * @throws NullPointerException if baseUrl is null
+     */
     public WebDavClassSource(String baseUrl, String username, String password) {
         Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
@@ -27,6 +40,11 @@ public class WebDavClassSource implements ClassSource {
         }
     }
 
+    /**
+     * Creates a WebDAV class source for anonymous access.
+     *
+     * @param baseUrl The base WebDAV URL
+     */
     public WebDavClassSource(String baseUrl) {
         this(baseUrl, null, null);
     }

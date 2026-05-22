@@ -12,6 +12,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from custom REST APIs.
+ * Provides flexible configuration for URL templates, headers, query parameters, and response formats.
+ * Useful for integrating with custom class distribution services.
+ */
 public class RestApiClassSource implements ClassSource {
     private final String baseUrl;
     private final String classPathTemplate;
@@ -20,9 +25,15 @@ public class RestApiClassSource implements ClassSource {
     private final AuthConfig authConfig;
     private final ResponseFormat responseFormat;
 
+    /**
+     * Response format for the REST API.
+     */
     public enum ResponseFormat {
+        /** Binary class bytes directly in response body */
         BINARY,
+        /** Class bytes as Base64 in a JSON field */
         BASE64_JSON_FIELD,
+        /** Direct response (same as BINARY) */
         DIRECT
     }
 

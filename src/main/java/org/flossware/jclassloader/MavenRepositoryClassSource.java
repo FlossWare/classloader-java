@@ -9,12 +9,26 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+/**
+ * ClassSource implementation for loading classes from Maven repositories (Maven Central, custom repos).
+ * Downloads JARs from the repository and extracts class files from them.
+ * Includes in-memory caching of loaded classes for performance.
+ */
 public class MavenRepositoryClassSource implements ClassSource {
     private final String repositoryUrl;
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
 
+    /**
+     * Creates a Maven repository class source with full configuration.
+     *
+     * @param repositoryUrl The Maven repository URL (e.g., "https://repo1.maven.org/maven2/")
+     * @param artifacts The list of Maven artifacts to load classes from
+     * @param authConfig The authentication configuration
+     * @throws NullPointerException if repositoryUrl or artifacts is null
+     * @throws IllegalArgumentException if artifacts list is empty
+     */
     public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig) {
         Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
         Objects.requireNonNull(artifacts, "artifacts cannot be null");
@@ -29,6 +43,12 @@ public class MavenRepositoryClassSource implements ClassSource {
         this.classCache = new HashMap<>();
     }
 
+    /**
+     * Creates a Maven repository class source without authentication.
+     *
+     * @param repositoryUrl The Maven repository URL
+     * @param artifacts The list of Maven artifacts to load classes from
+     */
     public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts) {
         this(repositoryUrl, artifacts, AuthConfig.none());
     }

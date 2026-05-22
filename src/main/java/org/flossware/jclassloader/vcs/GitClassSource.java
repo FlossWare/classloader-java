@@ -13,6 +13,12 @@ import org.flossware.jclassloader.ClassSource;
 
 import java.io.File;
 import java.io.IOException;
+
+/**
+ * ClassSource implementation for loading classes from Git repositories.
+ * Loads classes from a specific commit or branch in a Git repository.
+ * Requires the JGit library dependency.
+ */
 import java.util.Objects;
 
 /**
