@@ -17,6 +17,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from AWS S3.
+ * Supports IAM role authentication, access key authentication, and regional buckets.
+ * Requires the AWS SDK for Java 2.x dependency.
+ */
 public class S3ClassSource implements ClassSource {
     private final S3Client s3Client;
     private final String bucketName;

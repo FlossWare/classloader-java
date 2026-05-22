@@ -13,8 +13,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Loads classes from Kubernetes ConfigMaps.
- * Classes are stored as Base64-encoded values in ConfigMap data with key = fully.qualified.ClassName
+ * ClassSource implementation for loading classes from Kubernetes ConfigMaps.
+ * Class bytecode is stored as Base64-encoded data in ConfigMap fields.
+ * Requires the Kubernetes Java client dependency.
  */
 public class KubernetesConfigMapClassSource implements ClassSource {
     private final CoreV1Api api;

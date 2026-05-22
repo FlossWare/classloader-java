@@ -14,6 +14,13 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * ClassSource implementation for loading classes from Apache Kafka topics.
+ * Useful for dynamic class loading in microservices and event-driven systems.
+ * Classes are published to Kafka with the class name as the key and bytecode as the value.
+ * Requires the Apache Kafka clients dependency.
+ */
+
+/**
  * Loads classes from Kafka topics.
  * Classes are published to topics with key = fully qualified class name, value = class bytes.
  */

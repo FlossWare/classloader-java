@@ -11,6 +11,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from Dropbox.
+ * Supports OAuth access token authentication.
+ * Requires the Dropbox Core SDK dependency.
+ */
 public class DropboxClassSource implements ClassSource {
     private final DbxClientV2 client;
     private final String basePath;

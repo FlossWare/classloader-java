@@ -7,6 +7,10 @@ import org.flossware.jclassloader.cache.FileSystemCache;
 
 import java.io.IOException;
 
+/**
+ * Basic usage examples for JClassLoader.
+ * Demonstrates local, remote (HTTP/HTTPS), and FTP class loading with caching.
+ */
 public class Example {
 
     public static void main(String[] args) throws Exception {

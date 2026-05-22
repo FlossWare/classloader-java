@@ -9,16 +9,32 @@ import java.net.URLConnection;
 import java.util.Base64;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from remote HTTP/HTTPS servers.
+ * Supports optional authentication (Basic or Bearer token).
+ */
 public class RemoteClassSource implements ClassSource {
     private final String baseUrl;
     private final AuthConfig authConfig;
 
+    /**
+     * Creates a remote class source with the specified base URL and authentication.
+     *
+     * @param baseUrl The base URL for class files (e.g., "https://example.com/classes/")
+     * @param authConfig The authentication configuration (null for no authentication)
+     * @throws NullPointerException if baseUrl is null
+     */
     public RemoteClassSource(String baseUrl, AuthConfig authConfig) {
         Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
     }
 
+    /**
+     * Creates a remote class source with the specified base URL and no authentication.
+     *
+     * @param baseUrl The base URL for class files
+     */
     public RemoteClassSource(String baseUrl) {
         this(baseUrl, AuthConfig.none());
     }
@@ -97,10 +113,20 @@ public class RemoteClassSource implements ClassSource {
         }
     }
 
+    /**
+     * Gets the base URL for this remote class source.
+     *
+     * @return The base URL
+     */
     public String getBaseUrl() {
         return baseUrl;
     }
 
+    /**
+     * Gets the authentication configuration for this remote class source.
+     *
+     * @return The authentication configuration
+     */
     public AuthConfig getAuthConfig() {
         return authConfig;
     }

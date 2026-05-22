@@ -3,8 +3,18 @@ package org.flossware.jclassloader;
 import java.net.HttpURLConnection;
 import java.util.Base64;
 
+/**
+ * Utility class for configuring HTTP authentication on connections.
+ * Provides helper methods to apply Basic or Bearer token authentication.
+ */
 public class AuthHelper {
 
+    /**
+     * Configures authentication headers on an HTTP connection based on the provided AuthConfig.
+     *
+     * @param connection The HTTP connection to configure
+     * @param authConfig The authentication configuration (null for no authentication)
+     */
     public static void configureAuth(HttpURLConnection connection, AuthConfig authConfig) {
         if (authConfig == null) {
             return;

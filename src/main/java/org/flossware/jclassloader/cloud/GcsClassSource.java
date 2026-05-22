@@ -9,6 +9,11 @@ import org.flossware.jclassloader.ClassSource;
 import java.io.IOException;
 import java.util.Objects;
 
+/**
+ * ClassSource implementation for loading classes from Google Cloud Storage (GCS).
+ * Supports service account and application default credentials authentication.
+ * Requires the Google Cloud Storage SDK dependency.
+ */
 public class GcsClassSource implements ClassSource {
     private final Storage storage;
     private final String bucketName;

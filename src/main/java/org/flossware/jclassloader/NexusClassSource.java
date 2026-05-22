@@ -12,6 +12,10 @@ import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
+/**
+ * ClassSource implementation for loading classes from Sonatype Nexus repositories.
+ * Supports both RAW repositories (direct .class files) and MAVEN repositories (classes from JARs).
+ */
 public class NexusClassSource implements ClassSource {
     private final String nexusUrl;
     private final String repository;
@@ -19,11 +23,25 @@ public class NexusClassSource implements ClassSource {
     private final NexusMode mode;
     private final Map<String, byte[]> jarCache;
 
+    /**
+     * Nexus repository mode.
+     */
     public enum NexusMode {
+        /** Raw repository with direct .class files */
         RAW,
+        /** Maven repository with JAR files */
         MAVEN
     }
 
+    /**
+     * Creates a Nexus class source with full configuration.
+     *
+     * @param nexusUrl The Nexus server URL (e.g., "https://nexus.example.com")
+     * @param repository The repository name
+     * @param mode The repository mode (RAW or MAVEN)
+     * @param authConfig The authentication configuration
+     * @throws NullPointerException if nexusUrl or repository is null
+     */
     public NexusClassSource(String nexusUrl, String repository, NexusMode mode, AuthConfig authConfig) {
         Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
         this.nexusUrl = nexusUrl.endsWith("/") ? nexusUrl : nexusUrl + "/";
@@ -33,10 +51,23 @@ public class NexusClassSource implements ClassSource {
         this.jarCache = new HashMap<>();
     }
 
+    /**
+     * Creates a Nexus class source without authentication.
+     *
+     * @param nexusUrl The Nexus server URL
+     * @param repository The repository name
+     * @param mode The repository mode
+     */
     public NexusClassSource(String nexusUrl, String repository, NexusMode mode) {
         this(nexusUrl, repository, mode, AuthConfig.none());
     }
 
+    /**
+     * Creates a Nexus class source in MAVEN mode without authentication.
+     *
+     * @param nexusUrl The Nexus server URL
+     * @param repository The repository name
+     */
     public NexusClassSource(String nexusUrl, String repository) {
         this(nexusUrl, repository, NexusMode.MAVEN, AuthConfig.none());
     }
