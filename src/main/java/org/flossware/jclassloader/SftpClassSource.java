@@ -16,7 +16,7 @@ import java.util.Properties;
 
 /**
  * ClassSource implementation for loading classes from SFTP servers.
- * Supports both password and private key authentication.
+ * Supports both password and private key authentication with retry logic.
  * Requires the JSch library dependency.
  * Implements AutoCloseable for proper resource management - call close() when done.
  */
@@ -32,12 +32,13 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
     private final String privateKeyPath;
     private final String basePath;
     private final String knownHostsFile;
+    private final RetryPolicy retryPolicy;
     private JSch jsch;
     private Session session;
     private ChannelSftp sftpChannel;
 
     private SftpClassSource(String host, int port, String username, String password,
-                           String privateKeyPath, String basePath, String knownHostsFile) {
+                           String privateKeyPath, String basePath, String knownHostsFile, RetryPolicy retryPolicy) {
         this.host = Objects.requireNonNull(host, "host cannot be null");
         this.port = port > 0 ? port : 22;
         this.username = Objects.requireNonNull(username, "username cannot be null");
@@ -45,6 +46,7 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
         this.privateKeyPath = privateKeyPath;
         this.basePath = basePath != null ? basePath : "/";
         this.knownHostsFile = knownHostsFile;
+        this.retryPolicy = retryPolicy != null ? retryPolicy : RetryPolicy.defaultPolicy();
     }
 
     private synchronized void ensureConnected() throws IOException {
@@ -85,25 +87,27 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
-        ensureConnected();
+        return retryPolicy.execute(() -> {
+            ensureConnected();
 
-        String classPath = basePath + (basePath.endsWith("/") ? "" : "/") +
-                          className.replace('.', '/') + ".class";
+            String classPath = basePath + (basePath.endsWith("/") ? "" : "/") +
+                              className.replace('.', '/') + ".class";
 
-        try (InputStream in = sftpChannel.get(classPath);
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            try (InputStream in = sftpChannel.get(classPath);
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+
+                return out.toByteArray();
+
+            } catch (SftpException e) {
+                throw new IOException("Failed to load class from SFTP: " + classPath, e);
             }
-
-            return out.toByteArray();
-
-        } catch (SftpException e) {
-            throw new IOException("Failed to load class from SFTP: " + classPath, e);
-        }
+        });
     }
 
     @Override
@@ -122,6 +126,15 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
     @Override
     public String getDescription() {
         return "SftpClassSource[" + username + "@" + host + ":" + port + basePath + "]";
+    }
+
+    /**
+     * Gets the retry policy for this SFTP class source.
+     *
+     * @return The retry policy
+     */
+    public RetryPolicy getRetryPolicy() {
+        return retryPolicy;
     }
 
     /**
@@ -158,6 +171,7 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
         private String privateKeyPath;
         private String basePath = "/";
         private String knownHostsFile;
+        private RetryPolicy retryPolicy;
 
         public Builder host(String host) {
             this.host = host;
@@ -194,6 +208,11 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        public Builder retryPolicy(RetryPolicy retryPolicy) {
+            this.retryPolicy = retryPolicy;
+            return this;
+        }
+
         public SftpClassSource build() {
             Objects.requireNonNull(host, "host must be set");
             Objects.requireNonNull(username, "username must be set");
@@ -203,7 +222,7 @@ public class SftpClassSource implements ClassSource, AutoCloseable {
             if (port <= 0 || port > 65535) {
                 throw new IllegalArgumentException("port must be between 1 and 65535");
             }
-            return new SftpClassSource(host, port, username, password, privateKeyPath, basePath, knownHostsFile);
+            return new SftpClassSource(host, port, username, password, privateKeyPath, basePath, knownHostsFile, retryPolicy);
         }
     }
 }

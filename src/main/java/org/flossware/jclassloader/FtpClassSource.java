@@ -10,7 +10,7 @@ import java.util.Objects;
 
 /**
  * ClassSource implementation for loading classes from FTP/FTPS servers.
- * Supports both anonymous and authenticated access.
+ * Supports both anonymous and authenticated access with retry logic.
  */
 public class FtpClassSource implements ClassSource {
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
@@ -20,17 +20,19 @@ public class FtpClassSource implements ClassSource {
     private final String baseUrl;
     private final String username;
     private final String password;
+    private final RetryPolicy retryPolicy;
 
     /**
-     * Creates an FTP class source with authentication.
+     * Creates an FTP class source with authentication and retry policy.
      *
      * @param baseUrl The base FTP/FTPS URL (must start with ftp:// or ftps://)
      * @param username The username for authentication (null for anonymous)
      * @param password The password for authentication (null for anonymous)
+     * @param retryPolicy The retry policy for handling transient failures (null for default policy)
      * @throws NullPointerException if baseUrl is null
      * @throws IllegalArgumentException if baseUrl doesn't start with ftp:// or ftps://
      */
-    public FtpClassSource(String baseUrl, String username, String password) {
+    public FtpClassSource(String baseUrl, String username, String password, RetryPolicy retryPolicy) {
         Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
 
         if (!baseUrl.startsWith("ftp://") && !baseUrl.startsWith("ftps://")) {
@@ -40,6 +42,20 @@ public class FtpClassSource implements ClassSource {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         this.username = username;
         this.password = password;
+        this.retryPolicy = retryPolicy != null ? retryPolicy : RetryPolicy.defaultPolicy();
+    }
+
+    /**
+     * Creates an FTP class source with authentication using default retry policy.
+     *
+     * @param baseUrl The base FTP/FTPS URL (must start with ftp:// or ftps://)
+     * @param username The username for authentication (null for anonymous)
+     * @param password The password for authentication (null for anonymous)
+     * @throws NullPointerException if baseUrl is null
+     * @throws IllegalArgumentException if baseUrl doesn't start with ftp:// or ftps://
+     */
+    public FtpClassSource(String baseUrl, String username, String password) {
+        this(baseUrl, username, password, null);
     }
 
     /**
@@ -48,28 +64,30 @@ public class FtpClassSource implements ClassSource {
      * @param baseUrl The base FTP/FTPS URL
      */
     public FtpClassSource(String baseUrl) {
-        this(baseUrl, null, null);
+        this(baseUrl, null, null, null);
     }
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
-        String classPath = className.replace('.', '/') + ".class";
-        URL url = buildUrl(classPath);
+        return retryPolicy.execute(() -> {
+            String classPath = className.replace('.', '/') + ".class";
+            URL url = buildUrl(classPath);
 
-        URLConnection connection = url.openConnection();
-        configureConnection(connection);
+            URLConnection connection = url.openConnection();
+            configureConnection(connection);
 
-        try (InputStream in = connection.getInputStream();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            try (InputStream in = connection.getInputStream();
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+
+                return out.toByteArray();
             }
-
-            return out.toByteArray();
-        }
+        });
     }
 
     @Override
@@ -115,5 +133,14 @@ public class FtpClassSource implements ClassSource {
      */
     public String getBaseUrl() {
         return baseUrl;
+    }
+
+    /**
+     * Gets the retry policy for this FTP class source.
+     *
+     * @return The retry policy
+     */
+    public RetryPolicy getRetryPolicy() {
+        return retryPolicy;
     }
 }
