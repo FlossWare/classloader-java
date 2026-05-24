@@ -181,21 +181,44 @@ public final class RetryPolicy {
         private boolean jitter = true;
 
         public Builder maxRetries(int maxRetries) {
+            if (maxRetries < 0) {
+                throw new IllegalArgumentException("maxRetries must be >= 0, got: " + maxRetries);
+            }
             this.maxRetries = maxRetries;
             return this;
         }
 
         public Builder initialDelay(Duration initialDelay) {
-            this.initialDelayMs = initialDelay.toMillis();
+            long ms = initialDelay.toMillis();
+            if (ms < 0) {
+                throw new IllegalArgumentException("initialDelay must be >= 0, got: " + ms + "ms");
+            }
+            if (ms > maxDelayMs) {
+                throw new IllegalArgumentException(
+                    "initialDelay (" + ms + "ms) must be <= maxDelay (currently " + maxDelayMs + "ms)");
+            }
+            this.initialDelayMs = ms;
             return this;
         }
 
         public Builder maxDelay(Duration maxDelay) {
-            this.maxDelayMs = maxDelay.toMillis();
+            long ms = maxDelay.toMillis();
+            if (ms < 0) {
+                throw new IllegalArgumentException("maxDelay must be >= 0, got: " + ms + "ms");
+            }
+            if (ms < initialDelayMs) {
+                throw new IllegalArgumentException(
+                    "maxDelay (" + ms + "ms) must be >= initialDelay (currently " + initialDelayMs + "ms)");
+            }
+            this.maxDelayMs = ms;
             return this;
         }
 
         public Builder backoffMultiplier(double backoffMultiplier) {
+            if (backoffMultiplier < 1.0) {
+                throw new IllegalArgumentException(
+                    "backoffMultiplier must be >= 1.0, got: " + backoffMultiplier);
+            }
             this.backoffMultiplier = backoffMultiplier;
             return this;
         }
