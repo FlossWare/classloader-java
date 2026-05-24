@@ -1,14 +1,24 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.cache.ClassCache;
 import org.flossware.jclassloader.cache.FileSystemCache;
+import org.flossware.jclassloader.delegation.ParentFirstDelegation;
+import org.flossware.jclassloader.delegation.ParentLastDelegation;
+import org.flossware.jclassloader.lifecycle.ClassLoadEvent;
+import org.flossware.jclassloader.lifecycle.ClassLoaderLifecycleListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class JClassLoaderTest {
 
@@ -114,5 +124,314 @@ class JClassLoaderTest {
         assertThrows(ClassNotFoundException.class, () -> {
             loader.loadClass("com.example.NonExistentClass");
         });
+    }
+
+    @Test
+    void testLoadClassAfterClose(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        loader.close();
+
+        assertThrows(IllegalStateException.class, () -> {
+            loader.loadClass("com.example.TestClass");
+        });
+    }
+
+    @Test
+    void testMultipleClose(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        loader.close();
+        assertDoesNotThrow(() -> loader.close());
+    }
+
+    @Test
+    void testWithLifecycleListener(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        AtomicInteger loadCount = new AtomicInteger(0);
+        ClassLoaderLifecycleListener listener = new ClassLoaderLifecycleListener() {
+            @Override
+            public void onClassLoaded(ClassLoadEvent event) {
+                loadCount.incrementAndGet();
+            }
+        };
+
+        Path sourceDir = tempDir.resolve("src");
+        Files.createDirectories(sourceDir);
+        Path sourceFile = sourceDir.resolve("TestClass2.java");
+        Files.writeString(sourceFile, "public class TestClass2 { }");
+
+        ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
+        Process process = pb.start();
+        assertEquals(0, process.waitFor());
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .addListener(listener)
+            .build();
+
+        loader.loadClass("TestClass2");
+        assertTrue(loadCount.get() > 0);
+    }
+
+    @Test
+    void testCacheBehavior(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Path cacheDir = tempDir.resolve("cache");
+
+        ClassCache mockCache = mock(ClassCache.class);
+        when(mockCache.contains(anyString())).thenReturn(false);
+
+        Path sourceDir = tempDir.resolve("src");
+        Files.createDirectories(sourceDir);
+        Path sourceFile = sourceDir.resolve("TestClass3.java");
+        Files.writeString(sourceFile, "public class TestClass3 { }");
+
+        ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
+        assertEquals(0, pb.start().waitFor());
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .cache(mockCache)
+            .useCache(true)
+            .build();
+
+        loader.loadClass("TestClass3");
+
+        verify(mockCache, atLeastOnce()).contains("TestClass3");
+        verify(mockCache, atLeastOnce()).put(eq("TestClass3"), any(byte[].class));
+    }
+
+    @Test
+    void testCacheHit(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        byte[] fakeClassData = new byte[]{(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE, 0, 0, 0, 52};
+
+        ClassCache mockCache = mock(ClassCache.class);
+        when(mockCache.contains("com.example.CachedClass")).thenReturn(true);
+        when(mockCache.get("com.example.CachedClass")).thenReturn(fakeClassData);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .cache(mockCache)
+            .useCache(true)
+            .build();
+
+        assertThrows(ClassFormatError.class, () -> {
+            loader.loadClass("com.example.CachedClass");
+        });
+
+        verify(mockCache).get("com.example.CachedClass");
+    }
+
+    @Test
+    void testParentLastDelegation(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .delegationStrategy(new ParentLastDelegation())
+            .build();
+
+        assertNotNull(loader);
+        Class<?> stringClass = loader.loadClass("java.lang.String");
+        assertEquals("java.lang.String", stringClass.getName());
+    }
+
+    @Test
+    void testParentFirstDelegation(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .delegationStrategy(new ParentFirstDelegation())
+            .build();
+
+        assertNotNull(loader);
+        Class<?> stringClass = loader.loadClass("java.lang.String");
+        assertEquals("java.lang.String", stringClass.getName());
+    }
+
+    @Test
+    void testMultipleSources(@TempDir Path tempDir) throws Exception {
+        Path classDir1 = tempDir.resolve("classes1");
+        Path classDir2 = tempDir.resolve("classes2");
+        Files.createDirectories(classDir1);
+        Files.createDirectories(classDir2);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir1.toString())
+            .addLocalSource(classDir2.toString())
+            .useCache(false)
+            .build();
+
+        assertEquals(2, loader.getClassSources().size());
+    }
+
+    @Test
+    void testMultipleListeners(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        ClassLoaderLifecycleListener listener1 = mock(ClassLoaderLifecycleListener.class);
+        ClassLoaderLifecycleListener listener2 = mock(ClassLoaderLifecycleListener.class);
+
+        Path sourceDir = tempDir.resolve("src");
+        Files.createDirectories(sourceDir);
+        Path sourceFile = sourceDir.resolve("TestClass4.java");
+        Files.writeString(sourceFile, "public class TestClass4 { }");
+
+        ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
+        assertEquals(0, pb.start().waitFor());
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .addListener(listener1)
+            .addListener(listener2)
+            .build();
+
+        loader.loadClass("TestClass4");
+
+        verify(listener1, atLeastOnce()).onClassLoaded(any(ClassLoadEvent.class));
+        verify(listener2, atLeastOnce()).onClassLoaded(any(ClassLoadEvent.class));
+    }
+
+    @Test
+    void testGetClassSources(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        assertNotNull(loader.getClassSources());
+        assertFalse(loader.getClassSources().isEmpty());
+        assertEquals(1, loader.getClassSources().size());
+    }
+
+    @Test
+    void testCustomParent(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        ClassLoader customParent = Thread.currentThread().getContextClassLoader();
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .parent(customParent)
+            .build();
+
+        assertNotNull(loader);
+        assertEquals(customParent, loader.getParent());
+    }
+
+    @Test
+    void testTryWithResources(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        AtomicBoolean closed = new AtomicBoolean(false);
+
+        try (JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build()) {
+            assertNotNull(loader);
+        }
+
+        assertTrue(true);
+    }
+
+    @Test
+    void testLoadClassWithResolve(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        Path sourceDir = tempDir.resolve("src");
+        Files.createDirectories(sourceDir);
+        Path sourceFile = sourceDir.resolve("TestClass5.java");
+        Files.writeString(sourceFile, "public class TestClass5 { }");
+
+        ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
+        assertEquals(0, pb.start().waitFor());
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        Class<?> clazz = loader.loadClass("TestClass5", true);
+        assertNotNull(clazz);
+        assertEquals("TestClass5", clazz.getSimpleName());
+    }
+
+    @Test
+    void testCacheDisabled(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Path cacheDir = tempDir.resolve("cache");
+        Files.createDirectories(classDir);
+
+        FileSystemCache cache = new FileSystemCache(cacheDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .cache(cache)
+            .useCache(false)
+            .build();
+
+        assertFalse(loader.isCacheEnabled());
+    }
+
+    @Test
+    void testSourcePriority(@TempDir Path tempDir) throws Exception {
+        Path classDir1 = tempDir.resolve("classes1");
+        Path classDir2 = tempDir.resolve("classes2");
+        Files.createDirectories(classDir1);
+        Files.createDirectories(classDir2);
+
+        Path src1 = tempDir.resolve("src1");
+        Files.createDirectories(src1);
+        Path srcFile1 = src1.resolve("TestPriority.java");
+        Files.writeString(srcFile1, "public class TestPriority { public int getValue() { return 1; } }");
+
+        ProcessBuilder pb1 = new ProcessBuilder("javac", "-d", classDir1.toString(), srcFile1.toString());
+        assertEquals(0, pb1.start().waitFor());
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir1.toString())
+            .addLocalSource(classDir2.toString())
+            .useCache(false)
+            .build();
+
+        Class<?> clazz = loader.loadClass("TestPriority");
+        Object instance = clazz.getDeclaredConstructor().newInstance();
+        int value = (int) clazz.getMethod("getValue").invoke(instance);
+        assertEquals(1, value);
     }
 }

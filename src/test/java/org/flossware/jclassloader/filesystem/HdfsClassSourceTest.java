@@ -132,5 +132,6 @@ class HdfsClassSourceTest {
 
         assertNotNull(source);
     }
+
 }
 

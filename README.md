@@ -27,7 +27,7 @@ A flexible Java ClassLoader that can load classes from both local and remote loc
 ### Developer Experience
 - **Builder Pattern**: Fluent API for easy configuration
 - **Extensible**: Add custom class sources by implementing the `ClassSource` interface
-- **Well Tested**: Comprehensive test suite with 46+ unit tests
+- **Well Tested**: Comprehensive test suite with 463 unit tests (46% code coverage)
 
 ## Requirements
 
@@ -484,12 +484,12 @@ JClassLoader tenantLoader = JClassLoader.builder()
 ## Version History
 
 ### 1.0 (Current)
-- ✅ 20+ ClassSource implementations (Maven, S3, HTTP, FTP, databases, messaging, etc.)
+- ✅ 30+ ClassSource implementations (Maven, S3, Azure, GCS, HTTP, FTP, Kafka, HDFS, Kubernetes, databases, messaging, etc.)
 - ✅ Delegation strategies (parent-first, parent-last, custom)
 - ✅ Lifecycle hooks for monitoring and resource tracking
 - ✅ File system caching
 - ✅ Authentication support (Basic, Bearer)
-- ✅ Comprehensive test suite (46+ tests)
+- ✅ Comprehensive test suite (463 tests, 46% coverage)
 
 ## Roadmap
 

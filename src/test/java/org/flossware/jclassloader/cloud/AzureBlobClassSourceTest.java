@@ -135,4 +135,5 @@ class AzureBlobClassSourceTest {
 
         assertTrue(source.getDescription().contains("prefix="));
     }
+
 }

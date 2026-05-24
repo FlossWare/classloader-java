@@ -87,4 +87,5 @@ class GcsClassSourceTest {
 
         assertTrue(source.getDescription().contains("prefix="));
     }
+
 }

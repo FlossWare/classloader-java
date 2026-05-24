@@ -200,4 +200,5 @@ class S3ClassSourceTest {
 
         assertTrue(source.getDescription().contains("prefix=very/long/path/to/classes/directory/"));
     }
+
 }
