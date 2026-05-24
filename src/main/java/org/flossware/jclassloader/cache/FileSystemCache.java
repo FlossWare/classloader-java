@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
 
 /**
  * File-system based implementation of ClassCache.
@@ -20,6 +21,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * Thread-safe for concurrent read/write operations using atomic file operations.
  */
 public class FileSystemCache implements ClassCache {
+    /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError */
+    private static final long MAX_CLASS_FILE_SIZE = 100 * 1024 * 1024;
+
     private final Path cacheDirectory;
     private final Lock writeLock = new ReentrantLock();
 
@@ -52,10 +56,18 @@ public class FileSystemCache implements ClassCache {
         try {
             Path classFile = getClassFilePath(className);
             if (Files.exists(classFile)) {
+                // Validate file size before loading to prevent OutOfMemoryError
+                long fileSize = Files.size(classFile);
+                if (fileSize > MAX_CLASS_FILE_SIZE) {
+                    // File is too large - possibly corrupted or malicious
+                    // Delete it and return null to force re-fetch from source
+                    Files.deleteIfExists(classFile);
+                    return null;
+                }
                 return Files.readAllBytes(classFile);
             }
         } catch (IOException e) {
-            // Invalid class name or path traversal attempt
+            // Invalid class name, path traversal attempt, or I/O error
             return null;
         }
         return null;
@@ -100,36 +112,50 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public void clear() throws IOException {
-        if (Files.exists(cacheDirectory)) {
-            List<IOException> errors = new ArrayList<>();
-            Files.walk(cacheDirectory)
-                .sorted((a, b) -> b.compareTo(a))
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException e) {
-                        // Collect errors to report after attempting all deletions
-                        errors.add(e);
-                    }
-                });
+        // Use same lock as put() to prevent race conditions
+        writeLock.lock();
+        try {
+            if (Files.exists(cacheDirectory)) {
+                List<IOException> errors = new ArrayList<>();
 
-            // Report any errors that occurred
-            if (!errors.isEmpty()) {
-                IOException exception = new IOException(
-                    "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
-                );
-                errors.forEach(exception::addSuppressed);
-                throw exception;
+                // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
+                try (Stream<Path> paths = Files.walk(cacheDirectory)) {
+                    // Sort by depth (deepest first) to delete files before directories
+                    paths.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
+                         .forEach(path -> {
+                             try {
+                                 Files.deleteIfExists(path);
+                             } catch (IOException e) {
+                                 // Collect errors to report after attempting all deletions
+                                 errors.add(e);
+                             }
+                         });
+                }
+
+                // Report any errors that occurred
+                if (!errors.isEmpty()) {
+                    IOException exception = new IOException(
+                        "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
+                    );
+                    errors.forEach(exception::addSuppressed);
+                    throw exception;
+                }
             }
-
-            Files.createDirectories(cacheDirectory);
+        } finally {
+            writeLock.unlock();
         }
     }
 
     @Override
     public void remove(String className) throws IOException {
-        Path classFile = getClassFilePath(className);
-        Files.deleteIfExists(classFile);
+        // Use same lock as put() to prevent race conditions
+        writeLock.lock();
+        try {
+            Path classFile = getClassFilePath(className);
+            Files.deleteIfExists(classFile);
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     private Path getClassFilePath(String className) throws IOException {
