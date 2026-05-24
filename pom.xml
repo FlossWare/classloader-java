@@ -71,6 +71,14 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Cloud Storage Client -->
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>cloud-storage-client</artifactId>
+            <version>1.0</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Database/JDBC Support -->
         <!-- Users provide their own JDBC driver -->
 
