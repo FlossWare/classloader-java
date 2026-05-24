@@ -1,6 +1,6 @@
 # JClassLoader
 
-A flexible Java ClassLoader that can load classes from both local and remote locations (HTTP/HTTPS/FTP/FTPS) with built-in caching support and authentication.
+A flexible Java ClassLoader that can load classes from 34+ transport protocols with built-in caching support and authentication.
 
 ## Features
 
@@ -10,12 +10,12 @@ A flexible Java ClassLoader that can load classes from both local and remote loc
 - **FTP/FTPS Support**: Load classes from FTP and FTPS servers
 - **Nexus Repository Support**: Load classes from Sonatype Nexus repositories (both raw and Maven repositories)
 - **Maven Artifact Resolution**: Automatically extract classes from Maven JARs hosted in Nexus
-- **Cloud Storage**: Support for AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive via [jcloudstorage](https://github.com/FlossWare/jcloudstorage)
+- **Cloud Storage** (via [jcloudstorage](https://github.com/FlossWare/jcloudstorage)): AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive
+- **File Transfer** (via [jfiletransfer](https://github.com/FlossWare/jfiletransfer)): SFTP, WebDAV, SMB/CIFS, FTP/FTPS
+- **Messaging** (via [jmessaging](https://github.com/FlossWare/jmessaging)): Kafka, RabbitMQ, Redis
+- **Containers** (via [jcontainer](https://github.com/FlossWare/jcontainer)): Kubernetes ConfigMaps, Docker, Hazelcast
+- **Version Control** (via [jvcs](https://github.com/FlossWare/jvcs)): Git (local and remote)
 - **Databases**: Load classes from JDBC-accessible databases
-- **Messaging**: Load classes from Kafka, RabbitMQ, Redis
-- **Containers**: Load classes from Docker and Kubernetes
-- **Version Control**: Load classes from Git repositories
-- **File Systems**: Support for SFTP, WebDAV, SMB/CIFS
 
 ### Isolation & Control
 - **Delegation Strategies**: Choose parent-first (standard), parent-last (isolation), or custom delegation
@@ -42,7 +42,7 @@ A flexible Java ClassLoader that can load classes from both local and remote loc
 <dependency>
     <groupId>org.flossware</groupId>
     <artifactId>jclassloader</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
 </dependency>
 ```
 
@@ -287,6 +287,128 @@ Supported cloud providers (via jcloudstorage):
 - OneDrive
 
 See [jcloudstorage documentation](https://github.com/FlossWare/jcloudstorage) for provider-specific configuration.
+
+### File Transfer Support
+
+Load classes via file transfer protocols using [jfiletransfer](https://github.com/FlossWare/jfiletransfer):
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jfiletransfer</artifactId>
+    <version>1.0</version>
+</dependency>
+```
+
+```java
+import org.flossware.filetransfer.FileTransferClient;
+import org.flossware.filetransfer.SftpFileTransferClient;
+import org.flossware.jclassloader.FileTransferClassSource;
+
+// SFTP example
+FileTransferClient sftp = SftpFileTransferClient.builder()
+    .host("sftp.example.com")
+    .username("deploy")
+    .password("secret")
+    .basePath("/opt/classes")
+    .build();
+
+JClassLoader loader = JClassLoader.builder()
+    .addClassSource(new FileTransferClassSource(sftp))
+    .build();
+```
+
+Supported protocols: SFTP, WebDAV, SMB/CIFS, FTP/FTPS. See [jfiletransfer docs](https://github.com/FlossWare/jfiletransfer).
+
+### Messaging System Support
+
+Load classes from messaging systems using [jmessaging](https://github.com/FlossWare/jmessaging):
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jmessaging</artifactId>
+    <version>1.0</version>
+</dependency>
+```
+
+```java
+import org.flossware.messaging.MessageClient;
+import org.flossware.messaging.KafkaMessageClient;
+import org.flossware.jclassloader.MessageClientClassSource;
+
+// Kafka example
+MessageClient kafka = KafkaMessageClient.builder()
+    .bootstrapServers("kafka:9092")
+    .topic("class-definitions")
+    .build();
+
+JClassLoader loader = JClassLoader.builder()
+    .addClassSource(new MessageClientClassSource(kafka))
+    .build();
+```
+
+Supported systems: Kafka, RabbitMQ, Redis. See [jmessaging docs](https://github.com/FlossWare/jmessaging).
+
+### Container System Support
+
+Load classes from containers using [jcontainer](https://github.com/FlossWare/jcontainer):
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jcontainer</artifactId>
+    <version>1.0</version>
+</dependency>
+```
+
+```java
+import org.flossware.container.ContainerClient;
+import org.flossware.container.KubernetesContainerClient;
+import org.flossware.jclassloader.ContainerClientClassSource;
+
+// Kubernetes ConfigMap example
+ContainerClient k8s = KubernetesContainerClient.builder()
+    .namespace("production")
+    .build();
+
+JClassLoader loader = JClassLoader.builder()
+    .addClassSource(new ContainerClientClassSource(k8s, "app-classes"))
+    .build();
+```
+
+Supported systems: Kubernetes ConfigMaps, Docker, Hazelcast. See [jcontainer docs](https://github.com/FlossWare/jcontainer).
+
+### Version Control Support
+
+Load classes from version control using [jvcs](https://github.com/FlossWare/jvcs):
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jvcs</artifactId>
+    <version>1.0</version>
+</dependency>
+```
+
+```java
+import org.flossware.vcs.VcsClient;
+import org.flossware.vcs.GitVcsClient;
+import org.flossware.jclassloader.VcsClientClassSource;
+
+// Git repository example
+VcsClient git = GitVcsClient.builder()
+    .repositoryPath("/opt/app-repo")
+    .branch("release/v1.0")
+    .basePath("build/classes")
+    .build();
+
+JClassLoader loader = JClassLoader.builder()
+    .addClassSource(new VcsClientClassSource(git))
+    .build();
+```
+
+Supported systems: Git (local and remote). See [jvcs docs](https://github.com/FlossWare/jvcs).
 
 ### Custom Parent ClassLoader
 

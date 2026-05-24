@@ -439,23 +439,6 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             return addClassSource(builder.build());
         }
 
-        public Builder addSftpSource(String host, String username, String password, String basePath) {
-            return addClassSource(SftpClassSource.builder()
-                .host(host)
-                .username(username)
-                .password(password)
-                .basePath(basePath)
-                .build());
-        }
-
-        public Builder addWebDavSource(String baseUrl) {
-            return addClassSource(new WebDavClassSource(baseUrl));
-        }
-
-        public Builder addWebDavSource(String baseUrl, String username, String password) {
-            return addClassSource(new WebDavClassSource(baseUrl, username, password));
-        }
-
         public Builder addDatabaseSource(javax.sql.DataSource dataSource, String tableName,
                                         String classNameColumn, String classBytesColumn) {
             return addClassSource(new DatabaseClassSource(dataSource, tableName,
