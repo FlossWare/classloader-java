@@ -90,60 +90,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- AWS S3 Support -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
-            <version>2.44.12</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Azure Blob Storage Support -->
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-blob</artifactId>
-            <version>12.34.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Google Cloud Storage Support -->
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-storage</artifactId>
-            <version>2.68.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Google Drive API Support -->
-        <dependency>
-            <groupId>com.google.apis</groupId>
-            <artifactId>google-api-services-drive</artifactId>
-            <version>v3-rev20260428-2.0.0</version>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.google.auth</groupId>
-            <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>1.47.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Dropbox SDK Support -->
-        <dependency>
-            <groupId>com.dropbox.core</groupId>
-            <artifactId>dropbox-core-sdk</artifactId>
-            <version>7.0.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Microsoft Graph (OneDrive) Support -->
-        <dependency>
-            <groupId>com.microsoft.graph</groupId>
-            <artifactId>microsoft-graph</artifactId>
-            <version>6.65.0</version>
-            <optional>true</optional>
-        </dependency>
-
         <!-- Apache Kafka Support -->
         <dependency>
             <groupId>org.apache.kafka</groupId>

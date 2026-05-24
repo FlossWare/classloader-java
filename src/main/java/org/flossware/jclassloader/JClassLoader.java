@@ -470,30 +470,6 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             return addClassSource(new CloudStorageClassSource(client));
         }
 
-        public Builder addS3Source(org.flossware.jclassloader.cloud.S3ClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addAzureBlobSource(org.flossware.jclassloader.cloud.AzureBlobClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addGcsSource(org.flossware.jclassloader.cloud.GcsClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addGoogleDriveSource(org.flossware.jclassloader.cloud.GoogleDriveClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addDropboxSource(org.flossware.jclassloader.cloud.DropboxClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addOneDriveSource(org.flossware.jclassloader.cloud.OneDriveClassSource source) {
-            return addClassSource(source);
-        }
-
         public Builder cache(ClassCache cache) {
             this.cache = cache;
             return this;
