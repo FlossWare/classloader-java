@@ -101,5 +101,6 @@ class KubernetesConfigMapClassSourceTest {
 
         assertNotNull(source);
     }
+
 }
 
