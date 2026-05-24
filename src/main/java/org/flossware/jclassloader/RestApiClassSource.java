@@ -1,6 +1,8 @@
 package org.flossware.jclassloader;
 
 import java.io.ByteArrayOutputStream;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -66,7 +68,7 @@ public class RestApiClassSource implements ClassSource {
             try (InputStream in = connection.getInputStream();
                  ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-                byte[] buffer = new byte[8192];
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                 int bytesRead;
                 while ((bytesRead = in.read(buffer)) != -1) {
                     out.write(buffer, 0, bytesRead);

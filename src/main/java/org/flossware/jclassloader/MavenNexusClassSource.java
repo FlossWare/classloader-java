@@ -3,16 +3,18 @@ package org.flossware.jclassloader;
 import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
@@ -20,6 +22,9 @@ import java.util.jar.JarInputStream;
  * ClassSource implementation for loading classes from Maven artifacts stored in Nexus.
  * Downloads JARs from Nexus and extracts class files from them.
  * Includes in-memory caching of loaded classes for performance.
+ *
+ * <p><b>Thread Safety:</b> This class is thread-safe. The internal class cache uses
+ * ConcurrentHashMap to support concurrent class loading operations.</p>
  */
 public class MavenNexusClassSource implements ClassSource {
     private final String nexusUrl;
@@ -50,7 +55,7 @@ public class MavenNexusClassSource implements ClassSource {
         this.repository = Objects.requireNonNull(repository, "repository cannot be null");
         this.artifacts = new ArrayList<>(artifacts);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
-        this.classCache = new HashMap<>();
+        this.classCache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -124,7 +129,7 @@ public class MavenNexusClassSource implements ClassSource {
             while ((entry = jarIn.getNextJarEntry()) != null) {
                 if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[8192];
+                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                     int bytesRead;
                     while ((bytesRead = jarIn.read(buffer)) != -1) {
                         out.write(buffer, 0, bytesRead);

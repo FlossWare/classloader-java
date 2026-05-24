@@ -2,6 +2,8 @@ package org.flossware.jclassloader;
 
 import org.flossware.jclassloader.util.ClassNameUtil;
 import org.slf4j.Logger;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
@@ -28,7 +30,6 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(JarRemoteClassSource.class);
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
     private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
-    private static final int DEFAULT_BUFFER_SIZE = 8192;
 
     private final String jarUrl;
     private final AuthConfig authConfig;

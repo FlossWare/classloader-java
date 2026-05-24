@@ -1,6 +1,8 @@
 package org.flossware.jclassloader.filesystem;
 
 import org.apache.hadoop.conf.Configuration;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.flossware.jclassloader.ClassSource;
@@ -32,7 +34,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         try (InputStream in = hdfs.open(classPath);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);

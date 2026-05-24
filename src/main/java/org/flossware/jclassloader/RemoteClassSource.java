@@ -3,6 +3,8 @@ package org.flossware.jclassloader;
 import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -16,8 +18,6 @@ import javax.net.ssl.HttpsURLConnection;
  * Supports optional authentication (Basic or Bearer token), configurable timeouts, and retry logic.
  */
 public class RemoteClassSource implements ClassSource {
-    private static final int DEFAULT_BUFFER_SIZE = 8192;
-
     /** Default connection timeout in milliseconds (10 seconds) */
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
 
