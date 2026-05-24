@@ -19,6 +19,35 @@ import java.util.Properties;
  * Supports both password and private key authentication with retry logic.
  * Requires the JSch library dependency.
  * Implements AutoCloseable for proper resource management - call close() when done.
+ *
+ * <h2>Connection Management</h2>
+ * <p>This class reuses a single SFTP connection across multiple class loads for efficiency.
+ * The connection is established on first use and maintained until close() is called.</p>
+ *
+ * <h3>Concurrency Limitation</h3>
+ * <p><b>NOTE:</b> Connection establishment is synchronized, which creates a bottleneck for
+ * concurrent access. All threads share the same SFTP channel. For high-concurrency scenarios,
+ * consider creating multiple SftpClassSource instances or using a different protocol.</p>
+ *
+ * <h3>Connection Lifecycle</h3>
+ * <pre>{@code
+ * try (SftpClassSource source = SftpClassSource.builder()
+ *         .host("sftp.example.com")
+ *         .username("deploy")
+ *         .password("secret")
+ *         .build()) {
+ *
+ *     // Connection established on first load
+ *     byte[] class1 = source.loadClassData("com.example.Class1");
+ *
+ *     // Reuses existing connection (fast)
+ *     byte[] class2 = source.loadClassData("com.example.Class2");
+ *
+ * }  // Connection closed automatically
+ * }</pre>
+ *
+ * @see #close()
+ * @see #disconnect()
  */
 public class SftpClassSource implements ClassSource, AutoCloseable {
     private static final int DEFAULT_SESSION_TIMEOUT_MS = 30000;

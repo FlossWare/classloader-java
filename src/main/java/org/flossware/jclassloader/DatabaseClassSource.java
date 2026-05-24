@@ -11,6 +11,41 @@ import java.util.Objects;
 /**
  * ClassSource implementation for loading classes from a JDBC database.
  * Class bytecode is stored in a table with columns for class name and class bytes.
+ *
+ * <h2>Performance: Connection Pooling</h2>
+ * <p><b>IMPORTANT:</b> This class creates a new database connection for every class load operation.
+ * For production use, always provide a pooled DataSource (HikariCP, Apache DBCP, etc.) to avoid
+ * connection overhead and resource exhaustion.</p>
+ *
+ * <h3>Recommended Setup (HikariCP)</h3>
+ * <pre>{@code
+ * // Create a connection pool
+ * HikariConfig config = new HikariConfig();
+ * config.setJdbcUrl("jdbc:postgresql://localhost/classes");
+ * config.setUsername("user");
+ * config.setPassword("password");
+ * config.setMaximumPoolSize(10);
+ * config.setMinimumIdle(2);
+ * config.setConnectionTimeout(30000);
+ *
+ * DataSource pooledDataSource = new HikariDataSource(config);
+ *
+ * // Pass the pooled DataSource to DatabaseClassSource
+ * DatabaseClassSource source = new DatabaseClassSource(
+ *     pooledDataSource,  // Reuses connections from pool
+ *     "class_table",
+ *     "class_name",
+ *     "class_bytes"
+ * );
+ * }</pre>
+ *
+ * <h3>Performance Impact</h3>
+ * <ul>
+ *   <li><b>Without pooling:</b> Loading 100 classes = ~200 new connections (slow)</li>
+ *   <li><b>With pooling:</b> Loading 100 classes = reuses 10 pooled connections (fast)</li>
+ * </ul>
+ *
+ * @see javax.sql.DataSource
  */
 public class DatabaseClassSource implements ClassSource {
     private final DataSource dataSource;
