@@ -27,16 +27,29 @@ public class DatabaseClassSource implements ClassSource {
      * @param classNameColumn The column name containing fully qualified class names
      * @param classBytesColumn The column name containing class bytecode (BLOB/BINARY)
      * @throws NullPointerException if any parameter is null
+     * @throws IllegalArgumentException if table or column names contain invalid characters
      */
     public DatabaseClassSource(DataSource dataSource, String tableName,
                               String classNameColumn, String classBytesColumn) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource cannot be null");
-        this.tableName = Objects.requireNonNull(tableName, "tableName cannot be null");
-        this.classNameColumn = Objects.requireNonNull(classNameColumn, "classNameColumn cannot be null");
-        this.classBytesColumn = Objects.requireNonNull(classBytesColumn, "classBytesColumn cannot be null");
+        this.tableName = validateIdentifier(tableName, "tableName");
+        this.classNameColumn = validateIdentifier(classNameColumn, "classNameColumn");
+        this.classBytesColumn = validateIdentifier(classBytesColumn, "classBytesColumn");
 
         this.selectQuery = "SELECT " + classBytesColumn + " FROM " + tableName +
                           " WHERE " + classNameColumn + " = ?";
+    }
+
+    /**
+     * Validates that an identifier (table/column name) contains only safe characters.
+     * Prevents SQL injection by ensuring identifiers are alphanumeric with underscores only.
+     */
+    private static String validateIdentifier(String identifier, String paramName) {
+        Objects.requireNonNull(identifier, paramName + " cannot be null");
+        if (!identifier.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
+            throw new IllegalArgumentException(paramName + " must be a valid SQL identifier (alphanumeric and underscore only): " + identifier);
+        }
+        return identifier;
     }
 
     @Override
