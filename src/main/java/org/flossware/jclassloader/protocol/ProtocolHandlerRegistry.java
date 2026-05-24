@@ -1,5 +1,6 @@
 package org.flossware.jclassloader.protocol;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,7 +36,7 @@ public class ProtocolHandlerRegistry {
     public void register(String protocol, Class<? extends ProtocolHandler> handlerClass) {
         Objects.requireNonNull(protocol, "protocol cannot be null");
         Objects.requireNonNull(handlerClass, "handlerClass cannot be null");
-        handlers.put(protocol.toLowerCase(), handlerClass);
+        handlers.put(protocol.toLowerCase(Locale.ROOT), handlerClass);
     }
 
     /**
@@ -44,7 +45,7 @@ public class ProtocolHandlerRegistry {
      * @param protocol The protocol name to unregister (case-insensitive)
      */
     public void unregister(String protocol) {
-        handlers.remove(protocol.toLowerCase());
+        handlers.remove(protocol.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -54,7 +55,7 @@ public class ProtocolHandlerRegistry {
      * @return The handler class, or null if not registered
      */
     public Class<? extends ProtocolHandler> getHandler(String protocol) {
-        return handlers.get(protocol.toLowerCase());
+        return handlers.get(protocol.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -64,7 +65,7 @@ public class ProtocolHandlerRegistry {
      * @return true if the protocol is registered, false otherwise
      */
     public boolean isRegistered(String protocol) {
-        return handlers.containsKey(protocol.toLowerCase());
+        return handlers.containsKey(protocol.toLowerCase(Locale.ROOT));
     }
 
     /**
