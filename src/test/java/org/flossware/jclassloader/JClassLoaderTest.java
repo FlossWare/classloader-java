@@ -226,7 +226,7 @@ class JClassLoaderTest {
 
         loader.loadClass("TestClass3");
 
-        verify(mockCache, atLeastOnce()).contains("TestClass3");
+        verify(mockCache, atLeastOnce()).get("TestClass3");
         verify(mockCache, atLeastOnce()).put(eq("TestClass3"), any(byte[].class));
     }
 

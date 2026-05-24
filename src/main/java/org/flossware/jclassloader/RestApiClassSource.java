@@ -192,7 +192,7 @@ public class RestApiClassSource implements ClassSource {
         private ResponseFormat responseFormat = ResponseFormat.BINARY;
 
         public Builder baseUrl(String baseUrl) {
-            this.baseUrl = baseUrl;
+            this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
             return this;
         }
 
@@ -202,11 +202,15 @@ public class RestApiClassSource implements ClassSource {
         }
 
         public Builder addHeader(String name, String value) {
+            Objects.requireNonNull(name, "header name cannot be null");
+            Objects.requireNonNull(value, "header value cannot be null");
             this.headers.put(name, value);
             return this;
         }
 
         public Builder addQueryParam(String name, String value) {
+            Objects.requireNonNull(name, "query param name cannot be null");
+            Objects.requireNonNull(value, "query param value cannot be null");
             this.queryParams.put(name, value);
             return this;
         }

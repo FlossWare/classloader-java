@@ -89,7 +89,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         }
 
         public Builder basePath(String basePath) {
-            this.basePath = basePath;
+            this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null");
             return this;
         }
 
