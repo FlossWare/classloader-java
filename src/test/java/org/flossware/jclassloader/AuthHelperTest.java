@@ -1,6 +1,7 @@
 package org.flossware.jclassloader;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -8,6 +9,8 @@ import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
 /**
@@ -121,5 +124,72 @@ class AuthHelperTest {
         AuthConfig bearer = AuthConfig.bearer("token");
         assertEquals(AuthConfig.AuthType.BEARER, bearer.getAuthType());
         assertEquals("token", bearer.getToken());
+    }
+
+    @Test
+    void testConfigureAuthBasicWithNullUsername() throws IOException {
+        URL url = new URL("http://example.com");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        AuthConfig mockAuth = Mockito.mock(AuthConfig.class);
+        Mockito.when(mockAuth.getAuthType()).thenReturn(AuthConfig.AuthType.BASIC);
+        Mockito.when(mockAuth.getUsername()).thenReturn(null);
+        Mockito.when(mockAuth.getPassword()).thenReturn("password");
+
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
+            AuthHelper.configureAuth(connection, mockAuth);
+        });
+
+        assertTrue(thrown.getMessage().contains("Username and password must not be null"));
+    }
+
+    @Test
+    void testConfigureAuthBasicWithNullPassword() throws IOException {
+        URL url = new URL("http://example.com");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        AuthConfig mockAuth = Mockito.mock(AuthConfig.class);
+        Mockito.when(mockAuth.getAuthType()).thenReturn(AuthConfig.AuthType.BASIC);
+        Mockito.when(mockAuth.getUsername()).thenReturn("username");
+        Mockito.when(mockAuth.getPassword()).thenReturn(null);
+
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
+            AuthHelper.configureAuth(connection, mockAuth);
+        });
+
+        assertTrue(thrown.getMessage().contains("Username and password must not be null"));
+    }
+
+    @Test
+    void testConfigureAuthBasicWithBothNull() throws IOException {
+        URL url = new URL("http://example.com");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        AuthConfig mockAuth = Mockito.mock(AuthConfig.class);
+        Mockito.when(mockAuth.getAuthType()).thenReturn(AuthConfig.AuthType.BASIC);
+        Mockito.when(mockAuth.getUsername()).thenReturn(null);
+        Mockito.when(mockAuth.getPassword()).thenReturn(null);
+
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
+            AuthHelper.configureAuth(connection, mockAuth);
+        });
+
+        assertTrue(thrown.getMessage().contains("Username and password must not be null"));
+    }
+
+    @Test
+    void testConfigureAuthBearerWithNullToken() throws IOException {
+        URL url = new URL("http://example.com");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        AuthConfig mockAuth = Mockito.mock(AuthConfig.class);
+        Mockito.when(mockAuth.getAuthType()).thenReturn(AuthConfig.AuthType.BEARER);
+        Mockito.when(mockAuth.getToken()).thenReturn(null);
+
+        IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
+            AuthHelper.configureAuth(connection, mockAuth);
+        });
+
+        assertTrue(thrown.getMessage().contains("Token must not be null"));
     }
 }
