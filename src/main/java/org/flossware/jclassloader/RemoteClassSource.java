@@ -11,7 +11,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 /**
  * ClassSource implementation for loading classes from remote HTTP/HTTPS servers.
- * Supports optional authentication (Basic or Bearer token) and configurable timeouts.
+ * Supports optional authentication (Basic or Bearer token), configurable timeouts, and retry logic.
  */
 public class RemoteClassSource implements ClassSource {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
@@ -31,8 +31,30 @@ public class RemoteClassSource implements ClassSource {
     /** Read timeout in milliseconds */
     private final int readTimeoutMs;
 
+    /** Retry policy for handling transient failures */
+    private final RetryPolicy retryPolicy;
+
     /**
-     * Creates a remote class source with the specified base URL, authentication, and timeouts.
+     * Creates a remote class source with the specified base URL, authentication, timeouts, and retry policy.
+     *
+     * @param baseUrl The base URL for class files (e.g., "https://example.com/classes/")
+     * @param authConfig The authentication configuration (null for no authentication)
+     * @param connectTimeoutMs Connection timeout in milliseconds (0 for infinite)
+     * @param readTimeoutMs Read timeout in milliseconds (0 for infinite)
+     * @param retryPolicy The retry policy for handling transient failures (null for default policy)
+     * @throws NullPointerException if baseUrl is null
+     */
+    public RemoteClassSource(String baseUrl, AuthConfig authConfig, int connectTimeoutMs, int readTimeoutMs, RetryPolicy retryPolicy) {
+        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
+        this.connectTimeoutMs = connectTimeoutMs;
+        this.readTimeoutMs = readTimeoutMs;
+        this.retryPolicy = retryPolicy != null ? retryPolicy : RetryPolicy.defaultPolicy();
+    }
+
+    /**
+     * Creates a remote class source with the specified base URL, authentication, and timeouts using default retry policy.
      *
      * @param baseUrl The base URL for class files (e.g., "https://example.com/classes/")
      * @param authConfig The authentication configuration (null for no authentication)
@@ -41,11 +63,7 @@ public class RemoteClassSource implements ClassSource {
      * @throws NullPointerException if baseUrl is null
      */
     public RemoteClassSource(String baseUrl, AuthConfig authConfig, int connectTimeoutMs, int readTimeoutMs) {
-        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
-        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
-        this.connectTimeoutMs = connectTimeoutMs;
-        this.readTimeoutMs = readTimeoutMs;
+        this(baseUrl, authConfig, connectTimeoutMs, readTimeoutMs, null);
     }
 
     /**
@@ -56,7 +74,7 @@ public class RemoteClassSource implements ClassSource {
      * @throws NullPointerException if baseUrl is null
      */
     public RemoteClassSource(String baseUrl, AuthConfig authConfig) {
-        this(baseUrl, authConfig, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
+        this(baseUrl, authConfig, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
     }
 
     /**
@@ -65,40 +83,42 @@ public class RemoteClassSource implements ClassSource {
      * @param baseUrl The base URL for class files
      */
     public RemoteClassSource(String baseUrl) {
-        this(baseUrl, AuthConfig.none(), DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
+        this(baseUrl, AuthConfig.none(), DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
     }
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
-        String classPath = className.replace('.', '/') + ".class";
-        URL url = new URL(baseUrl + classPath);
+        return retryPolicy.execute(() -> {
+            String classPath = className.replace('.', '/') + ".class";
+            URL url = new URL(baseUrl + classPath);
 
-        URLConnection connection = url.openConnection();
-        connection.setConnectTimeout(connectTimeoutMs);
-        connection.setReadTimeout(readTimeoutMs);
+            URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
 
-        if (connection instanceof HttpURLConnection) {
-            HttpURLConnection httpConnection = (HttpURLConnection) connection;
-            configureSSL(httpConnection);
-            configureAuthentication(httpConnection);
+            if (connection instanceof HttpURLConnection) {
+                HttpURLConnection httpConnection = (HttpURLConnection) connection;
+                configureSSL(httpConnection);
+                configureAuthentication(httpConnection);
 
-            int responseCode = httpConnection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
-            }
-        }
-
-        try (InputStream in = connection.getInputStream();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+                int responseCode = httpConnection.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+                }
             }
 
-            return out.toByteArray();
-        }
+            try (InputStream in = connection.getInputStream();
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+
+                return out.toByteArray();
+            }
+        });
     }
 
     @Override
@@ -168,5 +188,14 @@ public class RemoteClassSource implements ClassSource {
      */
     public AuthConfig getAuthConfig() {
         return authConfig;
+    }
+
+    /**
+     * Gets the retry policy for this remote class source.
+     *
+     * @return The retry policy
+     */
+    public RetryPolicy getRetryPolicy() {
+        return retryPolicy;
     }
 }
