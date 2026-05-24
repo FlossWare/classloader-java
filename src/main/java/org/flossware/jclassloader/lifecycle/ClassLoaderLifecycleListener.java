@@ -37,6 +37,15 @@ public interface ClassLoaderLifecycleListener {
     default void onClassLoadFailed(String className, Throwable error) {}
 
     /**
+     * Called when caching a class fails.
+     * Cache failures should not prevent class loading from succeeding.
+     *
+     * @param className The name of the class that failed to cache
+     * @param error The error that occurred during caching
+     */
+    default void onClassCacheFailed(String className, Throwable error) {}
+
+    /**
      * Called when a resource is opened (for tracking cleanup).
      *
      * @param resourceName The name of the resource
