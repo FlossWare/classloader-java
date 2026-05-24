@@ -15,21 +15,40 @@ import javax.net.ssl.HttpsURLConnection;
  */
 public class RemoteClassSource implements ClassSource {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
+    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;  // 10 seconds
+    private static final int DEFAULT_READ_TIMEOUT_MS = 30000;     // 30 seconds
 
     private final String baseUrl;
     private final AuthConfig authConfig;
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
 
     /**
-     * Creates a remote class source with the specified base URL and authentication.
+     * Creates a remote class source with the specified base URL, authentication, and timeouts.
+     *
+     * @param baseUrl The base URL for class files (e.g., "https://example.com/classes/")
+     * @param authConfig The authentication configuration (null for no authentication)
+     * @param connectTimeoutMs Connection timeout in milliseconds (0 for infinite)
+     * @param readTimeoutMs Read timeout in milliseconds (0 for infinite)
+     * @throws NullPointerException if baseUrl is null
+     */
+    public RemoteClassSource(String baseUrl, AuthConfig authConfig, int connectTimeoutMs, int readTimeoutMs) {
+        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
+        this.connectTimeoutMs = connectTimeoutMs;
+        this.readTimeoutMs = readTimeoutMs;
+    }
+
+    /**
+     * Creates a remote class source with the specified base URL and authentication using default timeouts.
      *
      * @param baseUrl The base URL for class files (e.g., "https://example.com/classes/")
      * @param authConfig The authentication configuration (null for no authentication)
      * @throws NullPointerException if baseUrl is null
      */
     public RemoteClassSource(String baseUrl, AuthConfig authConfig) {
-        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
-        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
+        this(baseUrl, authConfig, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
     }
 
     /**
@@ -38,7 +57,7 @@ public class RemoteClassSource implements ClassSource {
      * @param baseUrl The base URL for class files
      */
     public RemoteClassSource(String baseUrl) {
-        this(baseUrl, AuthConfig.none());
+        this(baseUrl, AuthConfig.none(), DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS);
     }
 
     @Override
@@ -47,6 +66,8 @@ public class RemoteClassSource implements ClassSource {
         URL url = new URL(baseUrl + classPath);
 
         URLConnection connection = url.openConnection();
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
 
         if (connection instanceof HttpURLConnection) {
             HttpURLConnection httpConnection = (HttpURLConnection) connection;
@@ -79,6 +100,8 @@ public class RemoteClassSource implements ClassSource {
             String classPath = className.replace('.', '/') + ".class";
             URL url = new URL(baseUrl + classPath);
             URLConnection connection = url.openConnection();
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
 
             if (connection instanceof HttpURLConnection) {
                 httpConnection = (HttpURLConnection) connection;
