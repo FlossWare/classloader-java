@@ -4,16 +4,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * File-system based implementation of ClassCache.
  * Caches class bytecode as .class files in a specified directory.
- * Thread-safe for concurrent read/write operations.
+ * Thread-safe for concurrent read/write operations using atomic file operations.
  */
 public class FileSystemCache implements ClassCache {
     private final Path cacheDirectory;
+    private final Lock writeLock = new ReentrantLock();
 
     /**
      * Creates a file system cache with the specified directory.
@@ -57,8 +61,26 @@ public class FileSystemCache implements ClassCache {
         Objects.requireNonNull(classData, "classData cannot be null");
 
         Path classFile = getClassFilePath(className);
-        Files.createDirectories(classFile.getParent());
-        Files.write(classFile, classData, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+
+        // Use atomic write via temp file to prevent corruption from concurrent writes
+        writeLock.lock();
+        try {
+            Files.createDirectories(classFile.getParent());
+
+            // Write to temporary file first
+            Path tempFile = Files.createTempFile(classFile.getParent(), ".tmp-", ".class");
+            try {
+                Files.write(tempFile, classData, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                // Atomically move temp file to final location
+                Files.move(tempFile, classFile, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                // Clean up temp file on failure
+                Files.deleteIfExists(tempFile);
+                throw e;
+            }
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     @Override

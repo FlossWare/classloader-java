@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
 
@@ -101,7 +102,7 @@ public class RemoteClassSource implements ClassSource {
         switch (authConfig.getAuthType()) {
             case BASIC:
                 String credentials = authConfig.getUsername() + ":" + authConfig.getPassword();
-                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes());
+                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
                 connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
                 break;
             case BEARER:

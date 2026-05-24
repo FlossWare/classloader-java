@@ -1,6 +1,12 @@
 package org.flossware.jclassloader;
 
-import com.jcraft.jsch.*;
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelSftp;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.JSchException;
+import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpATTRS;
+import com.jcraft.jsch.SftpException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -159,6 +165,14 @@ public class SftpClassSource implements ClassSource {
         }
 
         public SftpClassSource build() {
+            Objects.requireNonNull(host, "host must be set");
+            Objects.requireNonNull(username, "username must be set");
+            if (password == null && privateKeyPath == null) {
+                throw new IllegalStateException("Either password or privateKey must be set");
+            }
+            if (port <= 0 || port > 65535) {
+                throw new IllegalArgumentException("port must be between 1 and 65535");
+            }
             return new SftpClassSource(host, port, username, password, privateKeyPath, basePath);
         }
     }

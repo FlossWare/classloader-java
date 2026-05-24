@@ -1,6 +1,7 @@
 package org.flossware.jclassloader;
 
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 /**
@@ -23,7 +24,7 @@ public class AuthHelper {
         switch (authConfig.getAuthType()) {
             case BASIC:
                 String credentials = authConfig.getUsername() + ":" + authConfig.getPassword();
-                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes());
+                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
                 connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
                 break;
             case BEARER:
