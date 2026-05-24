@@ -67,8 +67,10 @@ public class MavenRepositoryClassSource implements ClassSource {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         String cacheKey = className;
-        if (classCache.containsKey(cacheKey)) {
-            return classCache.get(cacheKey);
+        // Atomic get() - avoids TOCTOU race condition with contains() + get()
+        byte[] cachedData = classCache.get(cacheKey);
+        if (cachedData != null) {
+            return cachedData;
         }
 
         String classFileName = ClassNameUtil.toClassFilePath(className);

@@ -116,8 +116,10 @@ public class NexusClassSource implements ClassSource {
         }
 
         String cachedKey = packagePath;
-        if (jarCache.containsKey(cachedKey)) {
-            return jarCache.get(cachedKey);
+        // Atomic get() - avoids TOCTOU race condition with contains() + get()
+        byte[] cachedData = jarCache.get(cachedKey);
+        if (cachedData != null) {
+            return cachedData;
         }
 
         String simpleClassName = getSimpleClassName(className);
