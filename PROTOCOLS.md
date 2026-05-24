@@ -1,5 +1,23 @@
 # JClassLoader Protocol Support
 
+> **⚠️ DEPRECATED DOCUMENTATION**: This file contains legacy examples from version 1.0. 
+> 
+> **For current documentation**, see:
+> - [README.md](README.md) - Current examples with FlossWare libraries
+> - [QUICK_START.md](QUICK_START.md) - Updated quick start guide
+> - [ADVANCED_TRANSPORTS.md](ADVANCED_TRANSPORTS.md) - Advanced protocol usage with new libraries
+>
+> **Version 1.1+ Changes**:
+> - File transfer protocols (SFTP, WebDAV, SMB/CIFS, FTP/FTPS) moved to [jfiletransfer](https://github.com/FlossWare/jfiletransfer)
+> - Messaging systems (Kafka, RabbitMQ, Redis) moved to [jmessaging](https://github.com/FlossWare/jmessaging)
+> - Container systems (Kubernetes, Docker, Hazelcast) moved to [jcontainer](https://github.com/FlossWare/jcontainer)
+> - Version control (Git) moved to [jvcs](https://github.com/FlossWare/jvcs)
+> - Use adapter classes: `FileTransferClassSource`, `MessageClientClassSource`, `ContainerClientClassSource`, `VcsClientClassSource`
+
+---
+
+## Legacy Documentation (Version 1.0)
+
 Comprehensive guide to all supported protocols and storage systems.
 
 ## Table of Contents
