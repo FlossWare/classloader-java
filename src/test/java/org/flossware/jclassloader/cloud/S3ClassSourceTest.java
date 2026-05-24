@@ -3,7 +3,13 @@ package org.flossware.jclassloader.cloud;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.regions.Region;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 /**
  * Tests for S3ClassSource builder and configuration.

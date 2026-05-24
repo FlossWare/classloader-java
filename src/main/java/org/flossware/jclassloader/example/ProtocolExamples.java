@@ -1,6 +1,12 @@
 package org.flossware.jclassloader.example;
 
-import org.flossware.jclassloader.*;
+import org.flossware.jclassloader.AuthConfig;
+import org.flossware.jclassloader.ClassSource;
+import org.flossware.jclassloader.JClassLoader;
+import org.flossware.jclassloader.MavenRepositoryClassSource;
+import org.flossware.jclassloader.RestApiClassSource;
+import org.flossware.jclassloader.SftpClassSource;
+import org.flossware.jclassloader.WebDavClassSource;
 import org.flossware.jclassloader.cache.FileSystemCache;
 
 import javax.sql.DataSource;
