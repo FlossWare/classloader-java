@@ -26,6 +26,26 @@
         <url>https://github.com/FlossWare/jclassloader</url>
     </scm>
 
+    <organization>
+        <name>FlossWare</name>
+        <url>https://github.com/FlossWare</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>sfloess</id>
+            <name>Scot P. Floess</name>
+            <email>scot.floess@gmail.com</email>
+            <organization>FlossWare</organization>
+            <organizationUrl>https://github.com/FlossWare</organizationUrl>
+        </developer>
+    </developers>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/FlossWare/jclassloader/issues</url>
+    </issueManagement>
+
     <distributionManagement>
         <repository>
             <id>packagecloud-flossware</id>
