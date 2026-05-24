@@ -92,6 +92,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
     private final boolean useCache;
     private final DelegationStrategy delegationStrategy;
     private final List<ClassLoaderLifecycleListener> listeners;
+    private final BytecodeVerifier bytecodeVerifier;
     private volatile boolean closed = false;
 
     private JClassLoader(Builder builder) {
@@ -101,6 +102,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
         this.useCache = builder.useCache && cache != null;
         this.delegationStrategy = builder.delegationStrategy;
         this.listeners = new CopyOnWriteArrayList<>(builder.listeners);
+        this.bytecodeVerifier = builder.bytecodeVerifier;
     }
 
     @Override
@@ -140,6 +142,19 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             classData = cache.get(name);
             if (classData != null) {
                 fireClassCacheHit(name);
+
+                // Verify bytecode if verifier is configured
+                if (bytecodeVerifier != null) {
+                    try {
+                        bytecodeVerifier.verify(name, classData);
+                    } catch (SecurityException e) {
+                        ClassNotFoundException ex = new ClassNotFoundException(
+                            "Bytecode verification failed: " + name, e);
+                        fireClassLoadFailed(name, ex);
+                        throw ex;
+                    }
+                }
+
                 return defineClass(name, classData, 0, classData.length);
             }
         }
@@ -151,6 +166,18 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
                 classData = source.loadClassData(name);
                 if (classData != null) {
                     usedSource = source;
+
+                    // Verify bytecode if verifier is configured
+                    if (bytecodeVerifier != null) {
+                        try {
+                            bytecodeVerifier.verify(name, classData);
+                        } catch (SecurityException e) {
+                            ClassNotFoundException ex = new ClassNotFoundException(
+                                "Bytecode verification failed: " + name, e);
+                            fireClassLoadFailed(name, ex);
+                            throw ex;
+                        }
+                    }
 
                     // Cache it
                     if (useCache) {
@@ -334,6 +361,10 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
         return Collections.unmodifiableList(listeners);
     }
 
+    public BytecodeVerifier getBytecodeVerifier() {
+        return bytecodeVerifier;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -345,6 +376,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
         private boolean useCache = true;
         private DelegationStrategy delegationStrategy = new ParentFirstDelegation();
         private final List<ClassLoaderLifecycleListener> listeners = new ArrayList<>();
+        private BytecodeVerifier bytecodeVerifier;
 
         public Builder parent(ClassLoader parent) {
             this.parent = parent;
@@ -500,6 +532,11 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
 
         public Builder trackResources() {
             return addListener(new org.flossware.jclassloader.lifecycle.ResourceTrackingListener());
+        }
+
+        public Builder bytecodeVerifier(BytecodeVerifier verifier) {
+            this.bytecodeVerifier = verifier;
+            return this;
         }
 
         public JClassLoader build() {
