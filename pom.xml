@@ -6,7 +6,7 @@
 
     <groupId>org.flossware</groupId>
     <artifactId>jclassloader</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
     <packaging>jar</packaging>
 
     <name>JClassLoader</name>
@@ -55,26 +55,38 @@
     </distributionManagement>
 
     <dependencies>
-        <!-- SFTP/SCP Support -->
-        <dependency>
-            <groupId>com.github.mwiede</groupId>
-            <artifactId>jsch</artifactId>
-            <version>0.2.21</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- WebDAV Support -->
-        <dependency>
-            <groupId>com.github.lookfirst</groupId>
-            <artifactId>sardine</artifactId>
-            <version>5.13</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- JCloudStorage -->
+        <!-- FlossWare Libraries -->
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jcloudstorage</artifactId>
+            <version>1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jfiletransfer</artifactId>
+            <version>1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jmessaging</artifactId>
+            <version>1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jcontainer</artifactId>
+            <version>1.0</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jvcs</artifactId>
             <version>1.0</version>
             <optional>true</optional>
         </dependency>
@@ -90,30 +102,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Apache Kafka Support -->
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>4.3.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- RabbitMQ Support -->
-        <dependency>
-            <groupId>com.rabbitmq</groupId>
-            <artifactId>amqp-client</artifactId>
-            <version>5.30.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Redis Support -->
-        <dependency>
-            <groupId>redis.clients</groupId>
-            <artifactId>jedis</artifactId>
-            <version>7.5.0</version>
-            <optional>true</optional>
-        </dependency>
-
         <!-- Hadoop HDFS Support -->
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -126,46 +114,6 @@
                     <artifactId>log4j</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <!-- JCIFS (SMB/CIFS) Support -->
-        <dependency>
-            <groupId>eu.agno3.jcifs</groupId>
-            <artifactId>jcifs-ng</artifactId>
-            <version>2.1.10</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- JGit (Git) Support -->
-        <dependency>
-            <groupId>org.eclipse.jgit</groupId>
-            <artifactId>org.eclipse.jgit</artifactId>
-            <version>7.6.0.202603022253-r</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Kubernetes Client Support -->
-        <dependency>
-            <groupId>io.kubernetes</groupId>
-            <artifactId>client-java</artifactId>
-            <version>26.0.0</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Docker Java Client -->
-        <dependency>
-            <groupId>com.github.docker-java</groupId>
-            <artifactId>docker-java</artifactId>
-            <version>3.7.1</version>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- Hazelcast Support -->
-        <dependency>
-            <groupId>com.hazelcast</groupId>
-            <artifactId>hazelcast</artifactId>
-            <version>5.7.0</version>
-            <optional>true</optional>
         </dependency>
 
         <!-- MinIO Client -->
@@ -311,6 +259,64 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doclint>none</doclint>
+                    <quiet>true</quiet>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.4.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                    <tokenAuth>true</tokenAuth>
+                </configuration>
             </plugin>
 
             <plugin>
