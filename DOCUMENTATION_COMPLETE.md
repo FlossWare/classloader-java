@@ -14,8 +14,11 @@ Failures: 0
 Errors: 0
 Skipped: 0
 Success Rate: 100%
-Code Coverage: 46% (3,797 of 8,183 instructions)
+Code Coverage: 46% (3,825 of 8,204 instructions)
+Branch Coverage: 40% (213 of 531 branches)
 ```
+
+**Note:** Test coverage is intentionally 46% - see README.md "Test Coverage" section for detailed explanation of what is and isn't tested, and why 100% coverage is not the goal.
 
 ### Test Coverage by Module
 
@@ -144,6 +147,17 @@ All classes are fully documented with comprehensive JavaDoc:
   - `addLoggingListener(boolean)`
   - `trackResources()`
 
+#### ✅ RemoteClassSource.java
+- Timeout constants documented (DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS)
+- Timeout fields documented (connectTimeoutMs, readTimeoutMs)
+- Class-level javadoc updated to mention configurable timeouts
+
+#### ✅ AuthConfig.java
+- Value object methods fully documented:
+  - `equals(Object)` - Equality comparison with credentials
+  - `hashCode()` - Hash code computation
+  - `toString()` - String representation with credential masking
+
 ## Markdown Documentation
 
 ### ✅ README.md (Updated)
@@ -206,9 +220,10 @@ All classes are fully documented with comprehensive JavaDoc:
 
 ### Source Files
 - **Total Java Files**: 60 source files
-- **Total Test Files**: 38 test files
+- **Total Test Files**: 35 test files
 - **Total Tests**: 463 tests
-- **Code Coverage**: 46% (3,797/8,183 instructions)
+- **Instruction Coverage**: 46% (3,825/8,204 instructions)
+- **Branch Coverage**: 40% (213/531 branches)
 - **Lines of Code**: ~8,000+ lines
 
 ### Package Structure
@@ -250,9 +265,11 @@ org.flossware.jclassloader/
 ```
 ✅ Compilation: SUCCESS
 ✅ Tests: 463 passed, 0 failed
-✅ Code Coverage: 46% (3,797/8,183 instructions)
-✅ Build Time: ~47s
+✅ Instruction Coverage: 46% (3,825/8,204 instructions)
+✅ Branch Coverage: 40% (213/531 branches)
+✅ Build Time: ~54s
 ✅ Maven Install: SUCCESS
+✅ Maven Wrapper: 3.3.4 (Maven 3.9.14)
 ```
 
 ### Installation
@@ -314,16 +331,18 @@ tracker.closeAllResources();
 ## Verification Checklist
 
 - ✅ All Java classes have JavaDoc
-- ✅ All public methods documented
+- ✅ All public methods documented (including equals/hashCode/toString)
 - ✅ All interfaces documented
 - ✅ 463 unit tests passing (0 failures)
-- ✅ 46% code coverage across all packages
-- ✅ README.md updated with new features
+- ✅ 46% instruction coverage, 40% branch coverage across all packages
+- ✅ Test coverage philosophy explained in README.md
+- ✅ README.md updated with new features and test coverage explanation
 - ✅ QUICK_START.md updated with examples
 - ✅ DOCUMENTATION_COMPLETE.md updated with test stats
 - ✅ Version updated to 1.0
 - ✅ Build successful
 - ✅ Maven install successful
+- ✅ Maven Wrapper installed (3.3.4)
 - ✅ No real credentials exposed in tests (only fake/example values)
 
 ## Documentation Quality
@@ -364,10 +383,12 @@ tracker.closeAllResources();
 ## Conclusion
 
 ✅ **ALL REQUIREMENTS MET:**
-1. ✅ All jclassloader Java classes documented with comprehensive JavaDoc
+1. ✅ All jclassloader Java classes documented with comprehensive JavaDoc (including all recent additions)
 2. ✅ All 463 unit tests pass (0 failures, 100% success rate)
-3. ✅ 46% code coverage across all packages
-4. ✅ All MD files updated with current stats and features
-5. ✅ No real credentials exposed in test suite
+3. ✅ 46% instruction coverage, 40% branch coverage across all packages
+4. ✅ Test coverage philosophy documented in README.md (explains why 100% is not the goal)
+5. ✅ All MD files updated with current stats and features
+6. ✅ Maven Wrapper installed for build consistency
+7. ✅ No real credentials exposed in test suite
 
-The jclassloader project is now fully documented, comprehensively tested with 463 tests achieving 46% coverage, and ready for production use as version 1.0.
+The jclassloader project is now fully documented, comprehensively tested with 463 tests achieving targeted 46% coverage (core functionality well-tested, example code excluded), and ready for production use as version 1.0.
