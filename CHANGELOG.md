@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1] - 2026-05-24
 
+### Changed
+- **BREAKING**: Extracted protocol implementations into standalone FlossWare libraries
+  - File transfer protocols (SFTP, WebDAV, SMB/CIFS, FTP/FTPS) → [jfiletransfer](https://github.com/FlossWare/jfiletransfer) 1.0
+  - Messaging systems (Kafka, RabbitMQ, Redis) → [jmessaging](https://github.com/FlossWare/jmessaging) 1.0
+  - Container systems (Kubernetes, Docker, Hazelcast) → [jcontainer](https://github.com/FlossWare/jcontainer) 1.0
+  - Version control (Git) → [jvcs](https://github.com/FlossWare/jvcs) 1.0
+- Replaced direct protocol implementations with adapter classes:
+  - `FileTransferClassSource` - wraps jfiletransfer clients
+  - `MessageClientClassSource` - wraps jmessaging clients
+  - `ContainerClientClassSource` - wraps jcontainer clients
+  - `VcsClientClassSource` - wraps jvcs clients
+- Added packagecloud.io repository configuration for FlossWare dependencies
+
+### Removed
+- `SftpClassSource`, `WebDavClassSource`, `FtpClassSource` - use `FileTransferClassSource` + jfiletransfer
+- `KafkaClassSource`, `RedisClassSource` - use `MessageClientClassSource` + jmessaging
+- `KubernetesConfigMapClassSource` - use `ContainerClientClassSource` + jcontainer
+- `GitClassSource` - use `VcsClientClassSource` + jvcs
+- Removed `addSftpSource()` and `addWebDavSource()` convenience methods from Builder
+- Removed outdated example files (Example.java, ProtocolExamples.java, NexusExample.java)
+
 ### Added
 - `ClassLoaderStatistics` utility class in `org.flossware.jclassloader.util` package
   - Track classes loaded count
@@ -25,11 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Diagnostic logging for troubleshooting
 - Test coverage for new utility classes (12 tests)
 
-### Features
-- Prevent ClassLoader memory leaks in dynamic loading scenarios
-- Statistics tracking for monitoring and debugging
-- Leak detection with automatic GC triggering
-- Per-application cleanup isolation
+### Benefits
+- Cleaner separation of concerns - transport protocols in dedicated libraries
+- Users only include dependencies they need via optional transitive dependencies
+- Easier to maintain and test individual protocol implementations
+- Consistent API across all FlossWare libraries
+- Now supports 34+ transport protocols via modular architecture
 
 ## [1.0] - 2026-05-23
 
