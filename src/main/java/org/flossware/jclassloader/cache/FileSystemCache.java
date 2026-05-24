@@ -170,6 +170,12 @@ public class FileSystemCache implements ClassCache {
         if (className.contains("..")) {
             throw new IOException("Invalid class name (contains '..'): " + className);
         }
+        if (className.contains("/")) {
+            throw new IOException("Invalid class name (contains '/'): " + className);
+        }
+        if (className.contains("\\")) {
+            throw new IOException("Invalid class name (contains '\\'): " + className);
+        }
 
         // Convert class name to file path (e.g., "com.example.MyClass" → "com/example/MyClass.class")
         String fileName = ClassNameUtil.toClassFilePath(className);
