@@ -28,8 +28,9 @@ public class FileSystemCache implements ClassCache {
      * @throws NullPointerException if cacheDirectory is null
      */
     public FileSystemCache(Path cacheDirectory) throws IOException {
-        this.cacheDirectory = Objects.requireNonNull(cacheDirectory, "cacheDirectory cannot be null");
-        Files.createDirectories(cacheDirectory);
+        this.cacheDirectory = Objects.requireNonNull(cacheDirectory, "cacheDirectory cannot be null")
+                .toAbsolutePath().normalize();
+        Files.createDirectories(this.cacheDirectory);
     }
 
     /**
@@ -44,13 +45,14 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public byte[] get(String className) {
-        Path classFile = getClassFilePath(className);
-        if (Files.exists(classFile)) {
-            try {
+        try {
+            Path classFile = getClassFilePath(className);
+            if (Files.exists(classFile)) {
                 return Files.readAllBytes(classFile);
-            } catch (IOException e) {
-                return null;
             }
+        } catch (IOException e) {
+            // Invalid class name or path traversal attempt
+            return null;
         }
         return null;
     }
@@ -85,7 +87,11 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public boolean contains(String className) {
-        return Files.exists(getClassFilePath(className));
+        try {
+            return Files.exists(getClassFilePath(className));
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     @Override
@@ -97,6 +103,8 @@ public class FileSystemCache implements ClassCache {
                     try {
                         Files.deleteIfExists(path);
                     } catch (IOException e) {
+                        // Ignore deletion errors to ensure we attempt to delete all files
+                        // The cache directory will be recreated below
                     }
                 });
             Files.createDirectories(cacheDirectory);
@@ -109,9 +117,21 @@ public class FileSystemCache implements ClassCache {
         Files.deleteIfExists(classFile);
     }
 
-    private Path getClassFilePath(String className) {
+    private Path getClassFilePath(String className) throws IOException {
+        // Prevent path traversal attacks
+        if (className.contains("..") || className.contains("/") || className.contains("\\")) {
+            throw new IOException("Invalid class name (potential path traversal): " + className);
+        }
+
         String fileName = className.replace('.', '/') + ".class";
-        return cacheDirectory.resolve(fileName);
+        Path resolvedPath = cacheDirectory.resolve(fileName).normalize();
+
+        // Ensure the resolved path is within cacheDirectory
+        if (!resolvedPath.startsWith(cacheDirectory)) {
+            throw new IOException("Path traversal attempt detected: " + className);
+        }
+
+        return resolvedPath;
     }
 
     /**

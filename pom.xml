@@ -37,9 +37,9 @@
     <dependencies>
         <!-- SFTP/SCP Support -->
         <dependency>
-            <groupId>com.jcraft</groupId>
+            <groupId>com.github.mwiede</groupId>
             <artifactId>jsch</artifactId>
-            <version>0.1.55</version>
+            <version>0.2.21</version>
             <optional>true</optional>
         </dependency>
 

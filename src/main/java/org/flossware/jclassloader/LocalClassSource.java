@@ -20,7 +20,7 @@ public class LocalClassSource implements ClassSource {
      * @throws NullPointerException if basePath is null
      */
     public LocalClassSource(Path basePath) {
-        this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null");
+        this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null").toAbsolutePath().normalize();
     }
 
     /**
@@ -43,8 +43,12 @@ public class LocalClassSource implements ClassSource {
 
     @Override
     public boolean canLoad(String className) {
-        Path classFile = getClassFilePath(className);
-        return Files.exists(classFile) && Files.isRegularFile(classFile);
+        try {
+            Path classFile = getClassFilePath(className);
+            return Files.exists(classFile) && Files.isRegularFile(classFile);
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     @Override
@@ -52,9 +56,21 @@ public class LocalClassSource implements ClassSource {
         return "LocalClassSource[" + basePath + "]";
     }
 
-    private Path getClassFilePath(String className) {
+    private Path getClassFilePath(String className) throws IOException {
+        // Prevent path traversal attacks
+        if (className.contains("..") || className.contains("/") || className.contains("\\")) {
+            throw new IOException("Invalid class name (potential path traversal): " + className);
+        }
+
         String fileName = className.replace('.', '/') + ".class";
-        return basePath.resolve(fileName);
+        Path resolvedPath = basePath.resolve(fileName).normalize();
+
+        // Ensure the resolved path is within basePath
+        if (!resolvedPath.startsWith(basePath)) {
+            throw new IOException("Path traversal attempt detected: " + className);
+        }
+
+        return resolvedPath;
     }
 
     /**

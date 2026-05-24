@@ -18,26 +18,33 @@ import java.util.Properties;
  * ClassSource implementation for loading classes from SFTP servers.
  * Supports both password and private key authentication.
  * Requires the JSch library dependency.
+ * Implements AutoCloseable for proper resource management - call close() when done.
  */
-public class SftpClassSource implements ClassSource {
+public class SftpClassSource implements ClassSource, AutoCloseable {
+    private static final int DEFAULT_SESSION_TIMEOUT_MS = 30000;
+    private static final int DEFAULT_CHANNEL_TIMEOUT_MS = 10000;
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
+
     private final String host;
     private final int port;
     private final String username;
     private final String password;
     private final String privateKeyPath;
     private final String basePath;
+    private final String knownHostsFile;
     private JSch jsch;
     private Session session;
     private ChannelSftp sftpChannel;
 
     private SftpClassSource(String host, int port, String username, String password,
-                           String privateKeyPath, String basePath) {
+                           String privateKeyPath, String basePath, String knownHostsFile) {
         this.host = Objects.requireNonNull(host, "host cannot be null");
         this.port = port > 0 ? port : 22;
         this.username = Objects.requireNonNull(username, "username cannot be null");
         this.password = password;
         this.privateKeyPath = privateKeyPath;
         this.basePath = basePath != null ? basePath : "/";
+        this.knownHostsFile = knownHostsFile;
     }
 
     private synchronized void ensureConnected() throws IOException {
@@ -47,6 +54,10 @@ public class SftpClassSource implements ClassSource {
 
         try {
             jsch = new JSch();
+
+            if (knownHostsFile != null) {
+                jsch.setKnownHosts(knownHostsFile);
+            }
 
             if (privateKeyPath != null) {
                 jsch.addIdentity(privateKeyPath);
@@ -59,12 +70,12 @@ public class SftpClassSource implements ClassSource {
             }
 
             Properties config = new Properties();
-            config.put("StrictHostKeyChecking", "no");
+            config.put("StrictHostKeyChecking", "yes");
             session.setConfig(config);
-            session.connect(30000);
+            session.connect(DEFAULT_SESSION_TIMEOUT_MS);
 
             Channel channel = session.openChannel("sftp");
-            channel.connect(10000);
+            channel.connect(DEFAULT_CHANNEL_TIMEOUT_MS);
             sftpChannel = (ChannelSftp) channel;
 
         } catch (JSchException e) {
@@ -82,7 +93,7 @@ public class SftpClassSource implements ClassSource {
         try (InputStream in = sftpChannel.get(classPath);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
@@ -113,6 +124,10 @@ public class SftpClassSource implements ClassSource {
         return "SftpClassSource[" + username + "@" + host + ":" + port + basePath + "]";
     }
 
+    /**
+     * Disconnects the SFTP session and channel.
+     * Should be called when done using this class source to free resources.
+     */
     public void disconnect() {
         if (sftpChannel != null && sftpChannel.isConnected()) {
             sftpChannel.disconnect();
@@ -120,6 +135,15 @@ public class SftpClassSource implements ClassSource {
         if (session != null && session.isConnected()) {
             session.disconnect();
         }
+    }
+
+    /**
+     * Closes the SFTP connection and releases all resources.
+     * Implementation of AutoCloseable interface.
+     */
+    @Override
+    public void close() {
+        disconnect();
     }
 
     public static Builder builder() {
@@ -133,6 +157,7 @@ public class SftpClassSource implements ClassSource {
         private String password;
         private String privateKeyPath;
         private String basePath = "/";
+        private String knownHostsFile;
 
         public Builder host(String host) {
             this.host = host;
@@ -164,6 +189,11 @@ public class SftpClassSource implements ClassSource {
             return this;
         }
 
+        public Builder knownHostsFile(String knownHostsFile) {
+            this.knownHostsFile = knownHostsFile;
+            return this;
+        }
+
         public SftpClassSource build() {
             Objects.requireNonNull(host, "host must be set");
             Objects.requireNonNull(username, "username must be set");
@@ -173,7 +203,7 @@ public class SftpClassSource implements ClassSource {
             if (port <= 0 || port > 65535) {
                 throw new IllegalArgumentException("port must be between 1 and 65535");
             }
-            return new SftpClassSource(host, port, username, password, privateKeyPath, basePath);
+            return new SftpClassSource(host, port, username, password, privateKeyPath, basePath, knownHostsFile);
         }
     }
 }
