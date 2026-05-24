@@ -4,11 +4,16 @@ Complete guide to all advanced transport protocols supported by JClassLoader.
 
 ## Messaging Systems
 
+Requires [jmessaging](https://github.com/FlossWare/jmessaging) library.
+
 ### Apache Kafka
 Load classes distributed via Kafka topics. Perfect for dynamic class loading in microservices.
 
 ```java
-KafkaClassSource kafka = KafkaClassSource.builder()
+import org.flossware.messaging.KafkaMessageClient;
+import org.flossware.jclassloader.MessageClientClassSource;
+
+MessageClient kafka = KafkaMessageClient.builder()
     .bootstrapServers("localhost:9092")
     .topic("class-updates")
     .groupId("jclassloader-consumer")
@@ -16,7 +21,7 @@ KafkaClassSource kafka = KafkaClassSource.builder()
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addClassSource(kafka)
+    .addClassSource(new MessageClientClassSource(kafka))
     .build();
 ```
 
@@ -32,7 +37,9 @@ JClassLoader loader = JClassLoader.builder()
 Ultra-fast class loading from Redis cache/store.
 
 ```java
-RedisClassSource redis = RedisClassSource.builder()
+import org.flossware.messaging.RedisMessageClient;
+
+MessageClient redis = RedisMessageClient.builder()
     .host("localhost")
     .port(6379)
     .password("secret")
@@ -41,7 +48,7 @@ RedisClassSource redis = RedisClassSource.builder()
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addClassSource(redis)
+    .addClassSource(new MessageClientClassSource(redis))
     .build();
 ```
 
@@ -81,19 +88,24 @@ JClassLoader loader = JClassLoader.builder()
 
 ## Version Control Systems
 
+Requires [jvcs](https://github.com/FlossWare/jvcs) library.
+
 ### Git Repositories
 Load classes directly from Git repositories (local or remote).
 
 ```java
+import org.flossware.vcs.GitVcsClient;
+import org.flossware.jclassloader.VcsClientClassSource;
+
 // From local Git repository
-GitClassSource localGit = GitClassSource.builder()
+VcsClient localGit = GitVcsClient.builder()
     .repositoryPath("/path/to/repo")
     .branch("main")
     .basePath("target/classes")
     .build();
 
 // Clone from remote repository
-GitClassSource remoteGit = GitClassSource.builder()
+VcsClient remoteGit = GitVcsClient.builder()
     .remoteUrl("https://github.com/user/repo.git")
     .branch("release/v1.0")
     .basePath("build/classes")
@@ -101,7 +113,7 @@ GitClassSource remoteGit = GitClassSource.builder()
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addClassSource(remoteGit)
+    .addClassSource(new VcsClientClassSource(remoteGit))
     .build();
 ```
 
@@ -121,17 +133,21 @@ JClassLoader loader = JClassLoader.builder()
 
 ## Container & Orchestration
 
+Requires [jcontainer](https://github.com/FlossWare/jcontainer) library.
+
 ### Kubernetes ConfigMaps
 Load classes from Kubernetes ConfigMaps.
 
 ```java
-KubernetesConfigMapClassSource k8s = KubernetesConfigMapClassSource.builder()
+import org.flossware.container.KubernetesContainerClient;
+import org.flossware.jclassloader.ContainerClientClassSource;
+
+ContainerClient k8s = KubernetesContainerClient.builder()
     .namespace("production")
-    .configMapName("app-classes")
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addClassSource(k8s)
+    .addClassSource(new ContainerClientClassSource(k8s, "app-classes"))
     .build();
 ```
 
@@ -149,8 +165,8 @@ metadata:
   name: app-classes
   namespace: production
 data:
-  com.example.MyClass: <base64-encoded-class-bytes>
-  com.example.Another: <base64-encoded-class-bytes>
+  com/example/MyClass.class: <base64-encoded-class-bytes>
+  com/example/Another.class: <base64-encoded-class-bytes>
 ```
 
 ---
@@ -275,21 +291,28 @@ JClassLoader loader = JClassLoader.builder()
 
 ### Enterprise Hybrid Architecture
 ```java
+import org.flossware.messaging.*;
+import org.flossware.jclassloader.MessageClientClassSource;
+
+MessageClient redis = RedisMessageClient.builder()
+    .host("redis-cluster.internal")
+    .keyPrefix("prod:class:")
+    .build();
+
+MessageClient kafka = KafkaMessageClient.builder()
+    .bootstrapServers("kafka.internal:9092")
+    .topic("class-updates")
+    .build();
+
 JClassLoader enterpriseLoader = JClassLoader.builder()
     // 1. Local development
     .addLocalSource("/opt/app/classes")
 
     // 2. Redis cache for hot classes
-    .addClassSource(RedisClassSource.builder()
-        .host("redis-cluster.internal")
-        .keyPrefix("prod:class:")
-        .build())
+    .addClassSource(new MessageClientClassSource(redis))
 
     // 3. Kafka for dynamic updates
-    .addClassSource(KafkaClassSource.builder()
-        .bootstrapServers("kafka.internal:9092")
-        .topic("class-updates")
-        .build())
+    .addClassSource(new MessageClientClassSource(kafka))
 
     // 4. HDFS for big data classes
     .addClassSource(HdfsClassSource.builder()
@@ -312,20 +335,27 @@ JClassLoader enterpriseLoader = JClassLoader.builder()
 
 ### Cloud-Native Kubernetes
 ```java
+import org.flossware.container.KubernetesContainerClient;
+import org.flossware.messaging.RedisMessageClient;
+import org.flossware.jclassloader.ContainerClientClassSource;
+
+ContainerClient k8s = KubernetesContainerClient.builder()
+    .namespace("production")
+    .build();
+
+MessageClient redis = RedisMessageClient.builder()
+    .host("redis-service")
+    .build();
+
 JClassLoader k8sLoader = JClassLoader.builder()
     // ConfigMaps for configuration
-    .addClassSource(KubernetesConfigMapClassSource.builder()
-        .namespace("production")
-        .configMapName("app-classes")
-        .build())
+    .addClassSource(new ContainerClientClassSource(k8s, "app-classes"))
 
     // Redis for cross-pod sharing
-    .addClassSource(RedisClassSource.builder()
-        .host("redis-service")
-        .build())
+    .addClassSource(new MessageClientClassSource(redis))
 
     // S3 for persistence
-    .addS3Source(s3Classes)
+    .addCloudStorage(s3Classes)
 
     .build();
 ```
@@ -401,50 +431,62 @@ JClassLoader bigDataLoader = JClassLoader.builder()
 
 ---
 
-## Complete Protocol Count: **30+ Transports**
+## Complete Protocol Count: **34+ Transports**
 
-### Fully Implemented (23 Core Implementations)
+### Core jclassloader (14 implementations)
 
 1. **Local File System** - LocalClassSource
 2. **HTTP/HTTPS** - RemoteClassSource with JAR support
-3. **FTP/FTPS** - FtpClassSource
-4. **SFTP** - SftpClassSource
-5. **WebDAV** - WebDavClassSource
-6. **SMB/CIFS** - SmbClassSource
-7. **Maven Central** - MavenRepositoryClassSource
-8. **Nexus (Maven)** - MavenNexusClassSource
-9. **Nexus (Raw)** - NexusClassSource
-10. **Artifactory** - MavenRepositoryClassSource
-11. **REST API** - RestApiClassSource (Binary/JSON/Base64)
-12. **JDBC Database** - DatabaseClassSource
-13. **Apache Kafka** - KafkaClassSource
-14. **RabbitMQ** - RabbitMqClassSource
-15. **Redis** - RedisClassSource
-16. **Hadoop HDFS** - HdfsClassSource
-17. **Git** (GitHub/GitLab/Bitbucket) - GitClassSource
-18. **Kubernetes ConfigMaps** - KubernetesConfigMapClassSource
-19. **Docker** - DockerClassSource
-20. **Hazelcast** - HazelcastClassSource
-21. **Custom Protocol Handlers** - CustomProtocolClassSource
+3. **Maven Central** - MavenRepositoryClassSource
+4. **Nexus (Maven)** - MavenNexusClassSource
+5. **Nexus (Raw)** - NexusClassSource
+6. **Artifactory** - MavenRepositoryClassSource
+7. **REST API** - RestApiClassSource (Binary/JSON/Base64)
+8. **JDBC Database** - DatabaseClassSource
+9. **Hadoop HDFS** - HdfsClassSource
+10. **MinIO** - MinioClassSource
+11. **Custom Protocol Handlers** - CustomProtocolClassSource
+12. **JarRemoteClassSource** - Load from remote JAR files
+13. **Backblaze B2** - MinioClassSource (S3-compatible)
+14. **CloudFlare R2** - MinioClassSource (S3-compatible)
 
-### Cloud Storage (via jcloudstorage library + CloudStorageClassSource adapter)
+### Cloud Storage (via [jcloudstorage](https://github.com/FlossWare/jcloudstorage) + CloudStorageClassSource)
 
-22. **AWS S3** - S3CloudStorageClient
-23. **Azure Blob Storage** - AzureBlobCloudStorageClient
-24. **Google Cloud Storage** - GcsCloudStorageClient
-25. **Google Drive** - GoogleDriveCloudStorageClient
-26. **Dropbox** - DropboxCloudStorageClient
-27. **OneDrive** - OneDriveCloudStorageClient
+15. **AWS S3** - S3CloudStorageClient
+16. **Azure Blob Storage** - AzureBlobCloudStorageClient
+17. **Google Cloud Storage** - GcsCloudStorageClient
+18. **Google Drive** - GoogleDriveCloudStorageClient
+19. **Dropbox** - DropboxCloudStorageClient
+20. **OneDrive** - OneDriveCloudStorageClient
 
-### S3-Compatible Storage (via MinioClassSource)
+### File Transfer (via [jfiletransfer](https://github.com/FlossWare/jfiletransfer) + FileTransferClassSource)
 
-28. **MinIO** - MinioClassSource
-29. **Backblaze B2** - MinioClassSource
-30. **CloudFlare R2** - MinioClassSource
-31. **DigitalOcean Spaces** - MinioClassSource
-32. **Wasabi** - MinioClassSource
-33. **Alibaba Cloud OSS** - MinioClassSource
-34+. **Any S3-compatible storage** - MinioClassSource
+21. **SFTP** - SftpFileTransferClient
+22. **WebDAV** - WebDavFileTransferClient
+23. **SMB/CIFS** - SmbFileTransferClient
+24. **FTP/FTPS** - FtpFileTransferClient
+
+### Messaging Systems (via [jmessaging](https://github.com/FlossWare/jmessaging) + MessageClientClassSource)
+
+25. **Apache Kafka** - KafkaMessageClient
+26. **RabbitMQ** - RabbitMqMessageClient
+27. **Redis** - RedisMessageClient
+
+### Container Systems (via [jcontainer](https://github.com/FlossWare/jcontainer) + ContainerClientClassSource)
+
+28. **Kubernetes ConfigMaps** - KubernetesContainerClient
+29. **Docker** - DockerContainerClient
+30. **Hazelcast** - HazelcastContainerClient
+
+### Version Control (via [jvcs](https://github.com/FlossWare/jvcs) + VcsClientClassSource)
+
+31. **Git (local)** - GitVcsClient
+32. **Git (remote)** - GitVcsClient with auto-clone
+33. **GitHub/GitLab/Bitbucket** - GitVcsClient
+
+### S3-Compatible Storage (additional via MinioClassSource)
+
+34+. **DigitalOcean Spaces, Wasabi, Alibaba Cloud OSS, etc.** - MinioClassSource
 
 ### Advanced/Optional (Manual Setup Required)
 
