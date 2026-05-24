@@ -10,28 +10,22 @@
 </dependency>
 ```
 
-**Note**: All cloud/protocol dependencies are `optional`. Only include the ones you need:
+**Note**: All protocol dependencies are `optional`. Only include the ones you need:
 
 ```xml
-<!-- For AWS S3 -->
+<!-- For Cloud Storage (S3, Azure, GCS, Google Drive, Dropbox, OneDrive) -->
 <dependency>
-    <groupId>software.amazon.awssdk</groupId>
-    <artifactId>s3</artifactId>
-    <version>2.25.16</version>
+    <groupId>org.flossware</groupId>
+    <artifactId>jcloudstorage</artifactId>
+    <version>1.0</version>
 </dependency>
-
-<!-- For Azure Blob -->
-<dependency>
-    <groupId>com.azure</groupId>
-    <artifactId>azure-storage-blob</artifactId>
-    <version>12.25.3</version>
-</dependency>
+<!-- Plus provider SDK (e.g., AWS SDK, Azure SDK) -->
 
 <!-- For SFTP -->
 <dependency>
-    <groupId>com.jcraft</groupId>
+    <groupId>com.github.mwiede</groupId>
     <artifactId>jsch</artifactId>
-    <version>0.1.55</version>
+    <version>0.2.21</version>
 </dependency>
 <!-- etc. -->
 ```
@@ -49,25 +43,29 @@ Class<?> stringUtils = loader.loadClass("org.apache.commons.lang3.StringUtils");
 
 ### Load from AWS S3
 ```java
-S3ClassSource s3 = S3ClassSource.builder()
-    .region(Region.US_EAST_1)
+import org.flossware.cloud.storage.S3CloudStorageClient;
+
+CloudStorageClient s3 = S3CloudStorageClient.builder()
+    .region("us-east-1")
     .bucket("my-classes-bucket")
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addS3Source(s3)
+    .addCloudStorage(s3)
     .build();
 ```
 
 ### Load from Google Drive
 ```java
-GoogleDriveClassSource drive = GoogleDriveClassSource.builder()
-    .credentialsFromStream(new FileInputStream("credentials.json"))
+import org.flossware.cloud.storage.GoogleDriveCloudStorageClient;
+
+CloudStorageClient drive = GoogleDriveCloudStorageClient.builder()
+    .credentialsPath("credentials.json")
     .folderId("folder-id-here")
     .build();
 
 JClassLoader loader = JClassLoader.builder()
-    .addGoogleDriveSource(drive)
+    .addCloudStorage(drive)
     .build();
 ```
 
@@ -93,7 +91,7 @@ import org.flossware.jclassloader.cache.FileSystemCache;
 
 JClassLoader loader = JClassLoader.builder()
     .addLocalSource("/opt/app/classes")              // Check local first
-    .addS3Source(s3Production)                       // Then S3
+    .addCloudStorage(s3Production)                   // Then S3
     .addMavenCentral("commons:lang:3.12.0")          // Then Maven Central
     .cache(new FileSystemCache("/tmp/cache"))         // With caching
     .build();
@@ -134,7 +132,7 @@ tracker.closeAllResources();
 ### 1. Cloud-First with Local Fallback
 ```java
 JClassLoader loader = JClassLoader.builder()
-    .addS3Source(productionS3)
+    .addCloudStorage(productionS3)
     .addLocalSource("/opt/backup/classes")
     .cache(new FileSystemCache("/var/cache/classes"))
     .build();
@@ -143,9 +141,9 @@ JClassLoader loader = JClassLoader.builder()
 ### 2. Multi-Cloud Redundancy
 ```java
 JClassLoader loader = JClassLoader.builder()
-    .addS3Source(awsS3Primary)           // Primary: AWS
-    .addAzureBlobSource(azureBackup)     // Backup: Azure
-    .addGcsSource(gcsShared)             // Shared: GCS
+    .addCloudStorage(awsS3Primary)       // Primary: AWS
+    .addCloudStorage(azureBackup)        // Backup: Azure
+    .addCloudStorage(gcsShared)          // Shared: GCS
     .build();
 ```
 
@@ -153,7 +151,7 @@ JClassLoader loader = JClassLoader.builder()
 ```java
 JClassLoader loader = JClassLoader.builder()
     .addLocalSource("/home/dev/overrides")
-    .addGoogleDriveSource(teamDrive)
+    .addCloudStorage(teamDrive)
     .addMavenRepository(internalMaven)
     .build();
 ```
@@ -190,7 +188,7 @@ JClassLoader loader = JClassLoader.builder()
 FileSystemCache cache = new FileSystemCache("/var/cache/jclassloader");
 
 JClassLoader loader = JClassLoader.builder()
-    .addS3Source(s3)
+    .addCloudStorage(s3)
     .cache(cache)
     .useCache(true)  // Important!
     .build();
@@ -200,7 +198,7 @@ JClassLoader loader = JClassLoader.builder()
 ```java
 JClassLoader loader = JClassLoader.builder()
     .addLocalSource(...)       // Fastest
-    .addS3Source(...)          // Fast
+    .addCloudStorage(...)      // Fast
     .addSftpSource(...)        // Slower
     .addRestApiSource(...)     // Slowest
     .build();
@@ -208,16 +206,18 @@ JClassLoader loader = JClassLoader.builder()
 
 ### 3. Use Authentication for Security
 ```java
+import org.flossware.cloud.storage.S3CloudStorageClient;
+
 // Good - Authenticated
-S3ClassSource s3 = S3ClassSource.builder()
-    .region(Region.US_EAST_1)
+CloudStorageClient s3 = S3CloudStorageClient.builder()
+    .region("us-east-1")
     .bucket("private-bucket")
     .credentials(accessKey, secretKey)
     .build();
 
 // Better - IAM Roles (no hardcoded credentials)
-S3ClassSource s3Auto = S3ClassSource.builder()
-    .region(Region.US_EAST_1)
+CloudStorageClient s3Auto = S3CloudStorageClient.builder()
+    .region("us-east-1")
     .bucket("private-bucket")
     // Uses IAM role automatically
     .build();

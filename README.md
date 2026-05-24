@@ -6,11 +6,11 @@ A flexible Java ClassLoader that can load classes from both local and remote loc
 
 ### Class Loading Sources
 - **Local Class Loading**: Load classes from local file system directories
-- **Remote Class Loading**: Load classes from HTTP/HTTPS URLs
+- **Remote Class Loading**: Load classes from HTTP/HTTPS URLs with JAR support
 - **FTP/FTPS Support**: Load classes from FTP and FTPS servers
 - **Nexus Repository Support**: Load classes from Sonatype Nexus repositories (both raw and Maven repositories)
 - **Maven Artifact Resolution**: Automatically extract classes from Maven JARs hosted in Nexus
-- **Cloud Storage**: Support for AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive
+- **Cloud Storage**: Support for AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive via [jcloudstorage](https://github.com/FlossWare/jcloudstorage)
 - **Databases**: Load classes from JDBC-accessible databases
 - **Messaging**: Load classes from Kafka, RabbitMQ, Redis
 - **Containers**: Load classes from Docker and Kubernetes
@@ -27,7 +27,7 @@ A flexible Java ClassLoader that can load classes from both local and remote loc
 ### Developer Experience
 - **Builder Pattern**: Fluent API for easy configuration
 - **Extensible**: Add custom class sources by implementing the `ClassSource` interface
-- **Well Tested**: Comprehensive test suite with 463 unit tests (46% code coverage)
+- **Well Tested**: Comprehensive test suite with 392 unit tests (46% code coverage)
 
 ## Requirements
 
@@ -235,6 +235,59 @@ JClassLoader loader = JClassLoader.builder()
     .build();
 ```
 
+### Cloud Storage Support
+
+Load classes from cloud storage providers using the [jcloudstorage](https://github.com/FlossWare/jcloudstorage) library:
+
+```xml
+<!-- Add jcloudstorage dependency -->
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jcloudstorage</artifactId>
+    <version>1.0</version>
+</dependency>
+
+<!-- Add provider SDK (only what you need) -->
+<dependency>
+    <groupId>software.amazon.awssdk</groupId>
+    <artifactId>s3</artifactId>
+    <version>2.44.12</version>
+</dependency>
+```
+
+```java
+import org.flossware.cloud.storage.CloudStorageClient;
+import org.flossware.cloud.storage.S3CloudStorageClient;
+import org.flossware.jclassloader.CloudStorageClassSource;
+
+// Create cloud storage client
+CloudStorageClient s3 = S3CloudStorageClient.builder()
+    .bucket("my-classes-bucket")
+    .region("us-east-1")
+    .prefix("production/classes/")
+    .build();
+
+// Use with JClassLoader
+JClassLoader loader = JClassLoader.builder()
+    .addCloudStorage(s3)
+    .build();
+
+// Or wrap manually
+JClassLoader loader2 = JClassLoader.builder()
+    .addClassSource(new CloudStorageClassSource(s3))
+    .build();
+```
+
+Supported cloud providers (via jcloudstorage):
+- AWS S3
+- Azure Blob Storage
+- Google Cloud Storage
+- Google Drive
+- Dropbox
+- OneDrive
+
+See [jcloudstorage documentation](https://github.com/FlossWare/jcloudstorage) for provider-specific configuration.
+
 ### Custom Parent ClassLoader
 
 ```java
@@ -439,9 +492,9 @@ JClassLoader has **463 comprehensive unit tests** achieving **46% instruction co
 
 **What is NOT fully tested (and why):**
 - ❌ **Example code** (0% coverage in `org.flossware.jclassloader.example`): These are demo applications, not production code. Testing them would verify example syntax, not library functionality.
-- ❌ **Deep integration scenarios** (40% coverage in cloud/messaging): Full integration tests with real AWS S3, Azure Blob, Kafka, Redis, etc. would require running external infrastructure. We use mocks for unit tests and rely on real-world usage for integration validation.
+- ❌ **Deep integration scenarios** (66% coverage in messaging): Full integration tests with real Kafka, RabbitMQ, Redis, etc. would require running external infrastructure. We use mocks for unit tests and rely on real-world usage for integration validation.
 - ❌ **Error recovery edge cases**: Some network timeout paths, exotic authentication failures, and rare filesystem conditions are difficult to trigger reliably in unit tests.
-- ❌ **External system quirks**: Vendor-specific behaviors (Nexus API variations, cloud provider retry logic) are validated through manual testing and production usage.
+- ❌ **External system quirks**: Vendor-specific behaviors (Nexus API variations, messaging broker retry logic) are validated through manual testing and production usage.
 
 **Testing Philosophy:**
 - **Unit tests verify logic**, not infrastructure: We mock external services (HTTP clients, FTP connections, database connections) to test our code, not third-party libraries.
@@ -456,7 +509,6 @@ org.flossware.jclassloader.cache         83%  ✅ High reliability needed
 org.flossware.jclassloader.lifecycle     82%  ✅ Critical for monitoring
 org.flossware.jclassloader.delegation    85%  ✅ Core isolation feature
 org.flossware.jclassloader.protocol     100%  ✅ Complete coverage
-org.flossware.jclassloader.cloud         40%  ⚠️  Mocked external APIs
 org.flossware.jclassloader.messaging     66%  ⚠️  Kafka/RabbitMQ mocked
 org.flossware.jclassloader.example        0%  ❌ Demo code, not tested
 ```
@@ -528,20 +580,21 @@ JClassLoader tenantLoader = JClassLoader.builder()
 ## Version History
 
 ### 1.0 (Current)
-- ✅ 30+ ClassSource implementations (Maven, S3, Azure, GCS, HTTP, FTP, Kafka, HDFS, Kubernetes, databases, messaging, etc.)
+- ✅ 30+ ClassSource implementations (HTTP, FTP, SFTP, WebDAV, Maven, databases, Kafka, RabbitMQ, Redis, HDFS, Kubernetes, Docker, Git, MinIO, Hazelcast, etc.)
+- ✅ Cloud storage support via [jcloudstorage](https://github.com/FlossWare/jcloudstorage) library (S3, Azure Blob, GCS, Google Drive, Dropbox, OneDrive)
+- ✅ JAR file loading from remote sources (HTTP/HTTPS)
+- ✅ Bytecode verification and checksum validation (SHA-256)
+- ✅ Retry logic with exponential backoff and jitter
 - ✅ Delegation strategies (parent-first, parent-last, custom)
 - ✅ Lifecycle hooks for monitoring and resource tracking
 - ✅ File system caching
 - ✅ Authentication support (Basic, Bearer)
-- ✅ Comprehensive test suite (463 tests, 46% coverage)
+- ✅ Comprehensive test suite (392 tests, 46% coverage)
 
 ## Roadmap
 
 ### Planned Features
-- [ ] JAR file support for remote sources
-- [ ] Class signature verification
-- [ ] Checksum validation
-- [ ] More cache implementations (in-memory, Redis, etc.)
+- [ ] More cache implementations (in-memory)
 - [ ] Performance metrics dashboard
 - [ ] Class version conflict detection
 - [ ] Hot reload / class reloading support

@@ -298,7 +298,7 @@ JClassLoader enterpriseLoader = JClassLoader.builder()
         .build())
 
     // 5. AWS S3 primary storage
-    .addS3Source(s3Production)
+    .addCloudStorage(s3Production)
 
     // 6. MinIO backup
     .addClassSource(MinioClassSource.builder()
@@ -406,38 +406,45 @@ JClassLoader bigDataLoader = JClassLoader.builder()
 ### Fully Implemented (23 Core Implementations)
 
 1. **Local File System** - LocalClassSource
-2. **HTTP/HTTPS** - RemoteClassSource
+2. **HTTP/HTTPS** - RemoteClassSource with JAR support
 3. **FTP/FTPS** - FtpClassSource
 4. **SFTP** - SftpClassSource
 5. **WebDAV** - WebDavClassSource
-6. **AWS S3** - S3ClassSource
-7. **Azure Blob Storage** - AzureBlobClassSource
-8. **Google Cloud Storage** - GcsClassSource
-9. **Google Drive** - GoogleDriveClassSource
-10. **Dropbox** - DropboxClassSource
-11. **OneDrive** - OneDriveClassSource
-12. **Maven Central** - MavenRepositoryClassSource
-13. **Nexus (Maven)** - MavenNexusClassSource
-14. **Nexus (Raw)** - NexusClassSource
-15. **Artifactory** - MavenRepositoryClassSource
-16. **REST API** - RestApiClassSource (Binary/JSON/Base64)
-17. **JDBC Database** - DatabaseClassSource
-18. **Apache Kafka** - KafkaClassSource
-19. **Redis** - RedisClassSource
-20. **Hadoop HDFS** - HdfsClassSource
-21. **Git** (GitHub/GitLab/Bitbucket) - GitClassSource
-22. **Kubernetes ConfigMaps** - KubernetesConfigMapClassSource
-23. **Custom Protocol Handlers** - CustomProtocolClassSource
+6. **SMB/CIFS** - SmbClassSource
+7. **Maven Central** - MavenRepositoryClassSource
+8. **Nexus (Maven)** - MavenNexusClassSource
+9. **Nexus (Raw)** - NexusClassSource
+10. **Artifactory** - MavenRepositoryClassSource
+11. **REST API** - RestApiClassSource (Binary/JSON/Base64)
+12. **JDBC Database** - DatabaseClassSource
+13. **Apache Kafka** - KafkaClassSource
+14. **RabbitMQ** - RabbitMqClassSource
+15. **Redis** - RedisClassSource
+16. **Hadoop HDFS** - HdfsClassSource
+17. **Git** (GitHub/GitLab/Bitbucket) - GitClassSource
+18. **Kubernetes ConfigMaps** - KubernetesConfigMapClassSource
+19. **Docker** - DockerClassSource
+20. **Hazelcast** - HazelcastClassSource
+21. **Custom Protocol Handlers** - CustomProtocolClassSource
+
+### Cloud Storage (via jcloudstorage library + CloudStorageClassSource adapter)
+
+22. **AWS S3** - S3CloudStorageClient
+23. **Azure Blob Storage** - AzureBlobCloudStorageClient
+24. **Google Cloud Storage** - GcsCloudStorageClient
+25. **Google Drive** - GoogleDriveCloudStorageClient
+26. **Dropbox** - DropboxCloudStorageClient
+27. **OneDrive** - OneDriveCloudStorageClient
 
 ### S3-Compatible Storage (via MinioClassSource)
 
-24. **MinIO** - MinioClassSource
-25. **Backblaze B2** - MinioClassSource
-26. **CloudFlare R2** - MinioClassSource
-27. **DigitalOcean Spaces** - MinioClassSource
-28. **Wasabi** - MinioClassSource
-29. **Alibaba Cloud OSS** - MinioClassSource
-30+. **Any S3-compatible storage** - MinioClassSource
+28. **MinIO** - MinioClassSource
+29. **Backblaze B2** - MinioClassSource
+30. **CloudFlare R2** - MinioClassSource
+31. **DigitalOcean Spaces** - MinioClassSource
+32. **Wasabi** - MinioClassSource
+33. **Alibaba Cloud OSS** - MinioClassSource
+34+. **Any S3-compatible storage** - MinioClassSource
 
 ### Advanced/Optional (Manual Setup Required)
 
