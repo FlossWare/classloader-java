@@ -1,5 +1,7 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.util.ClassNameUtil;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -97,7 +99,7 @@ public class NexusClassSource implements ClassSource {
     }
 
     private byte[] loadFromRaw(String className) throws IOException {
-        String classPath = className.replace('.', '/') + ".class";
+        String classPath = ClassNameUtil.toClassFilePath(className);
         String url = nexusUrl + "repository/" + repository + "/" + classPath;
         return fetchUrl(url);
     }

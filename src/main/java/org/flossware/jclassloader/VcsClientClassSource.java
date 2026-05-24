@@ -1,6 +1,7 @@
 package org.flossware.jclassloader;
 
 import org.flossware.vcs.VcsClient;
+import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.IOException;
 import java.util.Objects;

@@ -1,5 +1,9 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.util.ClassNameUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +25,7 @@ import javax.net.ssl.HttpsURLConnection;
  * Implements AutoCloseable - call close() to release resources and delete temp file.
  */
 public class JarRemoteClassSource implements ClassSource, AutoCloseable {
+    private static final Logger logger = LoggerFactory.getLogger(JarRemoteClassSource.class);
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
     private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
     private static final int DEFAULT_BUFFER_SIZE = 8192;
@@ -124,7 +129,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
     public byte[] loadClassData(String className) throws IOException {
         ensureJarReady();
 
-        String entryName = className.replace('.', '/') + ".class";
+        String entryName = ClassNameUtil.toClassFilePath(className);
         JarEntry entry = jarFile.getJarEntry(entryName);
 
         if (entry == null) {
@@ -148,7 +153,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
     public boolean canLoad(String className) {
         try {
             ensureJarReady();
-            String entryName = className.replace('.', '/') + ".class";
+            String entryName = ClassNameUtil.toClassFilePath(className);
             return jarFile.getJarEntry(entryName) != null;
         } catch (IOException e) {
             return false;
@@ -190,8 +195,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
                     Files.deleteIfExists(tempJarPath);
                 } catch (IOException e) {
                     // Log but don't throw
-                    System.err.println("[JarRemoteClassSource] Failed to delete temp file: " +
-                                     tempJarPath + " - " + e.getMessage());
+                    logger.warn("Failed to delete temp file: {} - {}", tempJarPath, e.getMessage());
                 }
             }
         }

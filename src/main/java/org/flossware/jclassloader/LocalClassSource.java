@@ -1,5 +1,7 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.util.ClassNameUtil;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,7 +64,7 @@ public class LocalClassSource implements ClassSource {
             throw new IOException("Invalid class name (potential path traversal): " + className);
         }
 
-        String fileName = className.replace('.', '/') + ".class";
+        String fileName = ClassNameUtil.toClassFilePath(className);
         Path resolvedPath = basePath.resolve(fileName).normalize();
 
         // Ensure the resolved path is within basePath

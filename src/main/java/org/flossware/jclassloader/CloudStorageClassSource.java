@@ -1,6 +1,7 @@
 package org.flossware.jclassloader;
 
 import org.flossware.cloud.storage.CloudStorageClient;
+import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -90,7 +91,7 @@ public class CloudStorageClassSource implements ClassSource, AutoCloseable {
      * @return The file path (e.g., "com/example/MyClass.class")
      */
     private String classNameToPath(String className) {
-        return className.replace('.', '/') + ".class";
+        return ClassNameUtil.toClassFilePath(className);
     }
 
     /**
