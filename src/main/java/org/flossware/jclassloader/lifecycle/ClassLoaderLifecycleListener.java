@@ -43,4 +43,10 @@ public interface ClassLoaderLifecycleListener {
      * @param resource The opened resource (if AutoCloseable)
      */
     default void onResourceOpened(String resourceName, AutoCloseable resource) {}
+
+    /**
+     * Called when the ClassLoader is being closed/disposed.
+     * Use this to clean up resources, clear caches, and prevent memory leaks.
+     */
+    default void onClassLoaderClosed() {}
 }
