@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -97,16 +99,27 @@ public class FileSystemCache implements ClassCache {
     @Override
     public void clear() throws IOException {
         if (Files.exists(cacheDirectory)) {
+            List<IOException> errors = new ArrayList<>();
             Files.walk(cacheDirectory)
                 .sorted((a, b) -> b.compareTo(a))
                 .forEach(path -> {
                     try {
                         Files.deleteIfExists(path);
                     } catch (IOException e) {
-                        // Ignore deletion errors to ensure we attempt to delete all files
-                        // The cache directory will be recreated below
+                        // Collect errors to report after attempting all deletions
+                        errors.add(e);
                     }
                 });
+
+            // Report any errors that occurred
+            if (!errors.isEmpty()) {
+                IOException exception = new IOException(
+                    "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
+                );
+                errors.forEach(exception::addSuppressed);
+                throw exception;
+            }
+
             Files.createDirectories(cacheDirectory);
         }
     }
