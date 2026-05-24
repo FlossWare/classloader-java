@@ -24,6 +24,9 @@ public class RemoteClassSource implements ClassSource {
     /** Default read timeout in milliseconds (30 seconds) */
     private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
 
+    /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError from malicious sources */
+    private static final int MAX_CLASS_SIZE = 100 * 1024 * 1024;
+
     private final String baseUrl;
     private final AuthConfig authConfig;
 
@@ -92,33 +95,56 @@ public class RemoteClassSource implements ClassSource {
     public byte[] loadClassData(String className) throws IOException {
         return retryPolicy.execute(() -> {
             String classPath = ClassNameUtil.toClassFilePath(className);
-            URL url = new URL(baseUrl + classPath);
+            // Use URL(URL, String) constructor for proper path joining
+            URL baseURL = new URL(baseUrl);
+            URL url = new URL(baseURL, classPath);
 
-            URLConnection connection = url.openConnection();
-            connection.setConnectTimeout(connectTimeoutMs);
-            connection.setReadTimeout(readTimeoutMs);
+            HttpURLConnection httpConnection = null;
+            try {
+                URLConnection connection = url.openConnection();
+                connection.setConnectTimeout(connectTimeoutMs);
+                connection.setReadTimeout(readTimeoutMs);
 
-            if (connection instanceof HttpURLConnection) {
-                HttpURLConnection httpConnection = (HttpURLConnection) connection;
-                configureSSL(httpConnection);
-                configureAuthentication(httpConnection);
+                if (connection instanceof HttpURLConnection) {
+                    httpConnection = (HttpURLConnection) connection;
+                    configureSSL(httpConnection);
+                    configureAuthentication(httpConnection);
 
-                int responseCode = httpConnection.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
-                }
-            }
-
-            try (InputStream in = connection.getInputStream();
-                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                int bytesRead;
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesRead);
+                    int responseCode = httpConnection.getResponseCode();
+                    // Accept any 2xx success code
+                    if (responseCode < 200 || responseCode >= 300) {
+                        throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+                    }
                 }
 
-                return out.toByteArray();
+                // Use content length for initial capacity if available
+                int contentLength = connection.getContentLength();
+                int initialSize = (contentLength > 0 && contentLength < MAX_CLASS_SIZE) ?
+                                  contentLength : 8192;
+
+                try (InputStream in = connection.getInputStream();
+                     ByteArrayOutputStream out = new ByteArrayOutputStream(initialSize)) {
+
+                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                    int bytesRead;
+                    int totalBytes = 0;
+
+                    while ((bytesRead = in.read(buffer)) != -1) {
+                        totalBytes += bytesRead;
+                        if (totalBytes > MAX_CLASS_SIZE) {
+                            throw new IOException("Class file too large: " + totalBytes +
+                                                " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + className);
+                        }
+                        out.write(buffer, 0, bytesRead);
+                    }
+
+                    return out.toByteArray();
+                }
+            } finally {
+                // Ensure HTTP connection is properly closed
+                if (httpConnection != null) {
+                    httpConnection.disconnect();
+                }
             }
         });
     }
@@ -128,7 +154,10 @@ public class RemoteClassSource implements ClassSource {
         HttpURLConnection httpConnection = null;
         try {
             String classPath = ClassNameUtil.toClassFilePath(className);
-            URL url = new URL(baseUrl + classPath);
+            // Use URL(URL, String) constructor for proper path joining
+            URL baseURL = new URL(baseUrl);
+            URL url = new URL(baseURL, classPath);
+
             URLConnection connection = url.openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
@@ -140,14 +169,19 @@ public class RemoteClassSource implements ClassSource {
                 configureAuthentication(httpConnection);
 
                 int responseCode = httpConnection.getResponseCode();
-                return responseCode == HttpURLConnection.HTTP_OK;
+                // Accept any 2xx success code or 304 Not Modified
+                return (responseCode >= 200 && responseCode < 300) ||
+                       responseCode == HttpURLConnection.HTTP_NOT_MODIFIED;
             }
 
+            // For non-HTTP connections, attempt to connect (rare case)
             connection.connect();
             return true;
         } catch (IOException e) {
+            // Network errors, timeouts, or resource not found
             return false;
         } finally {
+            // Ensure connection is properly closed
             if (httpConnection != null) {
                 httpConnection.disconnect();
             }
