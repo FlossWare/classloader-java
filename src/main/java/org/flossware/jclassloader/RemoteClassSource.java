@@ -11,16 +11,24 @@ import javax.net.ssl.HttpsURLConnection;
 
 /**
  * ClassSource implementation for loading classes from remote HTTP/HTTPS servers.
- * Supports optional authentication (Basic or Bearer token).
+ * Supports optional authentication (Basic or Bearer token) and configurable timeouts.
  */
 public class RemoteClassSource implements ClassSource {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
-    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;  // 10 seconds
-    private static final int DEFAULT_READ_TIMEOUT_MS = 30000;     // 30 seconds
+
+    /** Default connection timeout in milliseconds (10 seconds) */
+    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+
+    /** Default read timeout in milliseconds (30 seconds) */
+    private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
 
     private final String baseUrl;
     private final AuthConfig authConfig;
+
+    /** Connection timeout in milliseconds */
     private final int connectTimeoutMs;
+
+    /** Read timeout in milliseconds */
     private final int readTimeoutMs;
 
     /**

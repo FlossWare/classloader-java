@@ -5,8 +5,9 @@ import java.util.Objects;
 /**
  * Configuration for authentication when accessing remote class sources.
  * Supports Basic authentication (username/password) and Bearer token authentication.
+ * Immutable value object with proper equals/hashCode/toString implementations.
  */
-public class AuthConfig {
+public final class AuthConfig {
     /**
      * Authentication type enumeration.
      */
@@ -100,5 +101,54 @@ public class AuthConfig {
      */
     public String getToken() {
         return token;
+    }
+
+    /**
+     * Compares this AuthConfig with another object for equality.
+     * Two AuthConfig instances are equal if they have the same authentication type
+     * and credentials (username/password or token).
+     *
+     * @param o The object to compare with
+     * @return true if the objects are equal, false otherwise
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AuthConfig that = (AuthConfig) o;
+        return authType == that.authType &&
+               Objects.equals(username, that.username) &&
+               Objects.equals(password, that.password) &&
+               Objects.equals(token, that.token);
+    }
+
+    /**
+     * Returns a hash code value for this AuthConfig.
+     * The hash code is computed from the authentication type and credentials.
+     *
+     * @return A hash code value for this object
+     */
+    @Override
+    public int hashCode() {
+        return Objects.hash(authType, username, password, token);
+    }
+
+    /**
+     * Returns a string representation of this AuthConfig.
+     * Credentials are masked for security (passwords and tokens are not exposed).
+     *
+     * @return A string representation showing the type and username (if applicable)
+     */
+    @Override
+    public String toString() {
+        switch (authType) {
+            case BASIC:
+                return "AuthConfig[type=BASIC, username=" + username + "]";
+            case BEARER:
+                return "AuthConfig[type=BEARER, token=***]";
+            case NONE:
+            default:
+                return "AuthConfig[type=NONE]";
+        }
     }
 }
