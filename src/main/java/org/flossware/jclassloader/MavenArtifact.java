@@ -5,8 +5,9 @@ import java.util.Objects;
 /**
  * Represents a Maven artifact with its coordinates (groupId, artifactId, version, classifier, packaging).
  * Provides parsing and path resolution for Maven artifacts.
+ * Immutable value object with proper equals/hashCode/toString implementations.
  */
-public class MavenArtifact {
+public final class MavenArtifact {
     private final String groupId;
     private final String artifactId;
     private final String version;

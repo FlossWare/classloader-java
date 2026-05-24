@@ -9,7 +9,7 @@ import java.util.Objects;
  * ClassSource implementation that delegates to a custom ProtocolHandler.
  * Allows integration of custom protocols and class loading strategies.
  */
-public class CustomProtocolClassSource implements ClassSource {
+public class CustomProtocolClassSource implements ClassSource, AutoCloseable {
     private final ProtocolHandler handler;
 
     /**
@@ -51,6 +51,7 @@ public class CustomProtocolClassSource implements ClassSource {
      *
      * @throws IOException if an I/O error occurs during closing
      */
+    @Override
     public void close() throws IOException {
         handler.close();
     }

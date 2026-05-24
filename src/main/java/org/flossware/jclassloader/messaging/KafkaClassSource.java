@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Loads classes from Kafka topics.
  * Classes are published to topics with key = fully qualified class name, value = class bytes.
  */
-public class KafkaClassSource implements ClassSource {
+public class KafkaClassSource implements ClassSource, AutoCloseable {
     private final KafkaConsumer<String, byte[]> consumer;
     private final String topic;
     private final Map<String, byte[]> classCache;
@@ -87,6 +87,7 @@ public class KafkaClassSource implements ClassSource {
         return "KafkaClassSource[topic=" + topic + ", cached=" + classCache.size() + "]";
     }
 
+    @Override
     public void close() {
         if (consumer != null) {
             consumer.close();

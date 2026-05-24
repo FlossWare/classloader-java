@@ -21,8 +21,9 @@ import java.util.Objects;
  * ClassSource implementation for loading classes from AWS S3.
  * Supports IAM role authentication, access key authentication, and regional buckets.
  * Requires the AWS SDK for Java 2.x dependency.
+ * Implements AutoCloseable to properly release S3Client resources.
  */
-public class S3ClassSource implements ClassSource {
+public class S3ClassSource implements ClassSource, AutoCloseable {
     private final S3Client s3Client;
     private final String bucketName;
     private final String prefix;
@@ -91,6 +92,7 @@ public class S3ClassSource implements ClassSource {
         return prefix + (prefix.endsWith("/") ? "" : "/") + classPath;
     }
 
+    @Override
     public void close() {
         if (s3Client != null) {
             s3Client.close();

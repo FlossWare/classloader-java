@@ -12,7 +12,7 @@ import java.util.Objects;
  * Loads classes from Redis.
  * Classes are stored with key = "class:{fully.qualified.ClassName}" and value = class bytes.
  */
-public class RedisClassSource implements ClassSource {
+public class RedisClassSource implements ClassSource, AutoCloseable {
     private final JedisPool jedisPool;
     private final String keyPrefix;
 
@@ -52,6 +52,7 @@ public class RedisClassSource implements ClassSource {
         return "RedisClassSource[prefix=" + keyPrefix + "]";
     }
 
+    @Override
     public void close() {
         if (jedisPool != null && !jedisPool.isClosed()) {
             jedisPool.close();

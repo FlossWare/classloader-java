@@ -14,6 +14,7 @@ import org.flossware.jclassloader.ClassSource;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.HashMap;
 
@@ -125,7 +126,7 @@ public class GoogleDriveClassSource implements ClassSource {
             return this;
         }
 
-        public GoogleDriveClassSource build() throws Exception {
+        public GoogleDriveClassSource build() throws IOException, GeneralSecurityException {
             if (credentials == null) {
                 credentials = GoogleCredentials.getApplicationDefault()
                     .createScoped(Collections.singletonList("https://www.googleapis.com/auth/drive.readonly"));
