@@ -198,19 +198,7 @@ public class NexusClassSource implements ClassSource {
     }
 
     private void configureAuthentication(HttpURLConnection connection) {
-        switch (authConfig.getAuthType()) {
-            case BASIC:
-                String credentials = authConfig.getUsername() + ":" + authConfig.getPassword();
-                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes());
-                connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
-                break;
-            case BEARER:
-                connection.setRequestProperty("Authorization", "Bearer " + authConfig.getToken());
-                break;
-            case NONE:
-            default:
-                break;
-        }
+        AuthHelper.configureAuth(connection, authConfig);
     }
 
     private String getPackagePath(String className) {
