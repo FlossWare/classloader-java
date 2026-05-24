@@ -133,16 +133,25 @@ public class FileSystemCache implements ClassCache {
     }
 
     private Path getClassFilePath(String className) throws IOException {
-        // Prevent path traversal attacks
-        if (className.contains("..") || className.contains("/") || className.contains("\\")) {
-            throw new IOException("Invalid class name (potential path traversal): " + className);
+        // Validate class name format (must be valid Java fully-qualified class name)
+        // Examples: "MyClass", "com.example.MyClass", "com.example.pkg.MyClass$Inner"
+        if (className == null || className.isEmpty()) {
+            throw new IOException("Class name cannot be null or empty");
         }
 
+        // Check for obvious path traversal attempts before conversion
+        // Valid class names use dots, not slashes or backslashes
+        if (className.contains("..")) {
+            throw new IOException("Invalid class name (contains '..'): " + className);
+        }
+
+        // Convert class name to file path (e.g., "com.example.MyClass" → "com/example/MyClass.class")
         String fileName = ClassNameUtil.toClassFilePath(className);
         Path resolvedPath = cacheDirectory.resolve(fileName).normalize();
 
-        // Ensure the resolved path is within cacheDirectory
-        if (!resolvedPath.startsWith(cacheDirectory)) {
+        // Defense in depth: ensure the resolved path is within cacheDirectory
+        // This catches any path traversal attempts that made it through validation
+        if (!resolvedPath.normalize().startsWith(cacheDirectory.normalize())) {
             throw new IOException("Path traversal attempt detected: " + className);
         }
 
