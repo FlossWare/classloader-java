@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced System.err with SLF4J logging in JarRemoteClassSource for temp file deletion errors (#35)
 - Added AutoCloseable interface to MinioClassSource for API consistency (#36)
 - Fixed locale-sensitive toLowerCase() in ProtocolHandlerRegistry - now uses Locale.ROOT for consistent case conversion across all locales (#38)
+- Documented design decision to use String instead of char[] for credentials in AuthConfig with comprehensive security best practices guidance (#39)
 
 ### Removed
 - `SftpClassSource`, `WebDavClassSource`, `FtpClassSource` - use `FileTransferClassSource` + jfiletransfer
