@@ -369,6 +369,14 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             return addClassSource(new RemoteClassSource(baseUrl, authConfig));
         }
 
+        public Builder addRemoteJar(String jarUrl) {
+            return addClassSource(new JarRemoteClassSource(jarUrl));
+        }
+
+        public Builder addRemoteJar(String jarUrl, AuthConfig authConfig) {
+            return addClassSource(new JarRemoteClassSource(jarUrl, authConfig));
+        }
+
         public Builder addNexusRawSource(String nexusUrl, String repository) {
             return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW));
         }
