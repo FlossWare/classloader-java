@@ -6,15 +6,16 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.Objects;
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * ClassSource implementation for loading classes from remote HTTP/HTTPS servers.
  * Supports optional authentication (Basic or Bearer token).
  */
 public class RemoteClassSource implements ClassSource {
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
+
     private final String baseUrl;
     private final AuthConfig authConfig;
 
@@ -49,6 +50,7 @@ public class RemoteClassSource implements ClassSource {
 
         if (connection instanceof HttpURLConnection) {
             HttpURLConnection httpConnection = (HttpURLConnection) connection;
+            configureSSL(httpConnection);
             configureAuthentication(httpConnection);
 
             int responseCode = httpConnection.getResponseCode();
@@ -60,7 +62,7 @@ public class RemoteClassSource implements ClassSource {
         try (InputStream in = connection.getInputStream();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
@@ -72,14 +74,16 @@ public class RemoteClassSource implements ClassSource {
 
     @Override
     public boolean canLoad(String className) {
+        HttpURLConnection httpConnection = null;
         try {
             String classPath = className.replace('.', '/') + ".class";
             URL url = new URL(baseUrl + classPath);
             URLConnection connection = url.openConnection();
 
             if (connection instanceof HttpURLConnection) {
-                HttpURLConnection httpConnection = (HttpURLConnection) connection;
+                httpConnection = (HttpURLConnection) connection;
                 httpConnection.setRequestMethod("HEAD");
+                configureSSL(httpConnection);
                 configureAuthentication(httpConnection);
 
                 int responseCode = httpConnection.getResponseCode();
@@ -90,6 +94,10 @@ public class RemoteClassSource implements ClassSource {
             return true;
         } catch (IOException e) {
             return false;
+        } finally {
+            if (httpConnection != null) {
+                httpConnection.disconnect();
+            }
         }
     }
 
@@ -98,20 +106,19 @@ public class RemoteClassSource implements ClassSource {
         return "RemoteClassSource[" + baseUrl + ", auth=" + authConfig.getAuthType() + "]";
     }
 
-    private void configureAuthentication(HttpURLConnection connection) {
-        switch (authConfig.getAuthType()) {
-            case BASIC:
-                String credentials = authConfig.getUsername() + ":" + authConfig.getPassword();
-                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
-                connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
-                break;
-            case BEARER:
-                connection.setRequestProperty("Authorization", "Bearer " + authConfig.getToken());
-                break;
-            case NONE:
-            default:
-                break;
+    private void configureSSL(HttpURLConnection connection) {
+        // Ensure SSL/TLS certificate validation for HTTPS connections
+        if (connection instanceof HttpsURLConnection) {
+            HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+            // Use default hostname verifier (performs proper hostname verification)
+            httpsConnection.setHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
+            // Use default SSL socket factory (validates certificates against system trust store)
+            httpsConnection.setSSLSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
         }
+    }
+
+    private void configureAuthentication(HttpURLConnection connection) {
+        AuthHelper.configureAuth(connection, authConfig);
     }
 
     /**

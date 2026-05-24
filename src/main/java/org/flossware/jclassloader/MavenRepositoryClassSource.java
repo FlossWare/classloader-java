@@ -19,6 +19,8 @@ import java.util.jar.JarInputStream;
  * Includes in-memory caching of loaded classes for performance.
  */
 public class MavenRepositoryClassSource implements ClassSource {
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
+
     private final String repositoryUrl;
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
@@ -73,6 +75,7 @@ public class MavenRepositoryClassSource implements ClassSource {
                 classCache.put(cacheKey, classData);
                 return classData;
             } catch (IOException e) {
+                // Continue to next artifact if class not found in this one
             }
         }
 
@@ -117,7 +120,7 @@ public class MavenRepositoryClassSource implements ClassSource {
             while ((entry = jarIn.getNextJarEntry()) != null) {
                 if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[8192];
+                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                     int bytesRead;
                     while ((bytesRead = jarIn.read(buffer)) != -1) {
                         out.write(buffer, 0, bytesRead);

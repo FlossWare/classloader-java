@@ -13,6 +13,10 @@ import java.util.Objects;
  * Supports both anonymous and authenticated access.
  */
 public class FtpClassSource implements ClassSource {
+    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
+    private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
+    private static final int DEFAULT_BUFFER_SIZE = 8192;
+
     private final String baseUrl;
     private final String username;
     private final String password;
@@ -58,7 +62,7 @@ public class FtpClassSource implements ClassSource {
         try (InputStream in = connection.getInputStream();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
@@ -100,8 +104,8 @@ public class FtpClassSource implements ClassSource {
     }
 
     private void configureConnection(URLConnection connection) {
-        connection.setConnectTimeout(10000);
-        connection.setReadTimeout(30000);
+        connection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(DEFAULT_READ_TIMEOUT_MS);
     }
 
     /**
