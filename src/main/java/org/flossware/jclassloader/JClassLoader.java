@@ -13,12 +13,25 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class JClassLoader extends ClassLoader {
+/**
+ * Custom ClassLoader supporting multiple class sources with caching and lifecycle management.
+ * Implements AutoCloseable for proper resource cleanup and memory leak prevention.
+ *
+ * IMPORTANT: Always close this ClassLoader when done to prevent memory leaks,
+ * especially in hot reload scenarios. Use try-with-resources:
+ * <pre>
+ * try (JClassLoader loader = JClassLoader.builder()...build()) {
+ *     // Use loader
+ * }  // Automatically closed
+ * </pre>
+ */
+public class JClassLoader extends ClassLoader implements AutoCloseable {
     private final List<ClassSource> classSources;
     private final ClassCache cache;
     private final boolean useCache;
     private final DelegationStrategy delegationStrategy;
     private final List<ClassLoaderLifecycleListener> listeners;
+    private volatile boolean closed = false;
 
     private JClassLoader(Builder builder) {
         super(builder.parent != null ? builder.parent : getSystemClassLoader());
@@ -53,6 +66,10 @@ public class JClassLoader extends ClassLoader {
     }
 
     private Class<?> findClassInternal(String name) throws ClassNotFoundException {
+        if (closed) {
+            throw new IllegalStateException("JClassLoader is closed");
+        }
+
         long startTime = System.nanoTime();
         byte[] classData = null;
         ClassSource usedSource = null;
@@ -66,36 +83,35 @@ public class JClassLoader extends ClassLoader {
             }
         }
 
-        // Load from sources
+        // Load from sources - Optimistic loading approach
+        // Skip canLoad() check to reduce network calls by 50% for remote sources
         for (ClassSource source : classSources) {
             try {
-                if (source.canLoad(name)) {
-                    classData = source.loadClassData(name);
-                    if (classData != null) {
-                        usedSource = source;
+                classData = source.loadClassData(name);
+                if (classData != null) {
+                    usedSource = source;
 
-                        // Cache it
-                        if (useCache) {
-                            try {
-                                cache.put(name, classData);
-                                fireClassCached(name, classData);
-                            } catch (IOException e) {
-                                // Continue even if caching fails
-                            }
+                    // Cache it
+                    if (useCache) {
+                        try {
+                            cache.put(name, classData);
+                            fireClassCached(name, classData);
+                        } catch (IOException e) {
+                            // Continue even if caching fails
                         }
-
-                        // Define the class
-                        Class<?> clazz = defineClass(name, classData, 0, classData.length);
-
-                        // Fire event
-                        long loadTime = System.nanoTime() - startTime;
-                        fireClassLoaded(new ClassLoadEvent(name, usedSource, loadTime, classData.length));
-
-                        return clazz;
                     }
+
+                    // Define the class
+                    Class<?> clazz = defineClass(name, classData, 0, classData.length);
+
+                    // Fire event
+                    long loadTime = System.nanoTime() - startTime;
+                    fireClassLoaded(new ClassLoadEvent(name, usedSource, loadTime, classData.length));
+
+                    return clazz;
                 }
             } catch (IOException e) {
-                // Try next source
+                // Try next source - exception-based flow is common in Java ClassLoaders
             }
         }
 
@@ -142,6 +158,74 @@ public class JClassLoader extends ClassLoader {
                 // Ignore
             }
         }
+    }
+
+    /**
+     * Closes this ClassLoader and releases all resources.
+     * This includes closing all AutoCloseable class sources, cache, and notifying listeners.
+     * After closing, this ClassLoader cannot load any more classes.
+     *
+     * @throws IOException if an error occurs while closing resources
+     */
+    @Override
+    public void close() throws IOException {
+        if (closed) {
+            return;
+        }
+
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+
+            List<Exception> exceptions = new ArrayList<>();
+
+            // Close all closeable class sources
+            for (ClassSource source : classSources) {
+                if (source instanceof AutoCloseable) {
+                    try {
+                        ((AutoCloseable) source).close();
+                    } catch (Exception e) {
+                        exceptions.add(e);
+                    }
+                }
+            }
+
+            // Close cache if closeable
+            if (cache instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) cache).close();
+                } catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+
+            // Notify listeners
+            for (ClassLoaderLifecycleListener listener : listeners) {
+                try {
+                    listener.onClassLoaderClosed();
+                } catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+
+            // Throw if any exceptions occurred
+            if (!exceptions.isEmpty()) {
+                IOException ex = new IOException("Failed to close JClassLoader");
+                exceptions.forEach(ex::addSuppressed);
+                throw ex;
+            }
+        }
+    }
+
+    /**
+     * Checks if this ClassLoader is closed.
+     *
+     * @return true if closed, false otherwise
+     */
+    public boolean isClosed() {
+        return closed;
     }
 
     public List<ClassSource> getClassSources() {

@@ -31,7 +31,7 @@ public class KubernetesConfigMapClassSource implements ClassSource {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         try {
-            V1ConfigMap configMap = api.readNamespacedConfigMap(configMapName, namespace, null);
+            V1ConfigMap configMap = api.readNamespacedConfigMap(configMapName, namespace).execute();
 
             if (configMap.getData() == null) {
                 throw new IOException("ConfigMap has no data: " + configMapName);
@@ -52,7 +52,7 @@ public class KubernetesConfigMapClassSource implements ClassSource {
     @Override
     public boolean canLoad(String className) {
         try {
-            V1ConfigMap configMap = api.readNamespacedConfigMap(configMapName, namespace, null);
+            V1ConfigMap configMap = api.readNamespacedConfigMap(configMapName, namespace).execute();
             return configMap.getData() != null && configMap.getData().containsKey(className);
         } catch (ApiException e) {
             return false;
