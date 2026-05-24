@@ -15,8 +15,13 @@ import java.util.Objects;
  * MinIO is an S3-compatible object storage system.
  * Also compatible with other S3-compatible services like Backblaze B2, Cloudflare R2, etc.
  * Requires the MinIO SDK dependency.
+ *
+ * <p>This class implements AutoCloseable for consistency with other ClassSource implementations
+ * and to support try-with-resources patterns. Note that MinioClient manages its own connection
+ * pool lifecycle internally, so the close() method is provided for API consistency but does not
+ * perform explicit cleanup.</p>
  */
-public class MinioClassSource implements ClassSource {
+public class MinioClassSource implements ClassSource, AutoCloseable {
     private final MinioClient minioClient;
     private final String bucketName;
     private final String prefix;
@@ -71,6 +76,21 @@ public class MinioClassSource implements ClassSource {
     @Override
     public String getDescription() {
         return "MinioClassSource[bucket=" + bucketName + ", prefix=" + prefix + "]";
+    }
+
+    /**
+     * Closes this MinioClassSource.
+     *
+     * <p>Note: MinioClient manages its own HTTP connection pool lifecycle internally.
+     * This method is provided for API consistency with other ClassSource implementations
+     * that implement AutoCloseable, but does not perform explicit cleanup.
+     * The underlying connection pool will be cleaned up by the MinioClient when the
+     * JVM shuts down or when garbage collection occurs.</p>
+     */
+    @Override
+    public void close() throws IOException {
+        // MinioClient does not provide a close() method in the current SDK
+        // Connection pools are managed internally and cleaned up on JVM shutdown
     }
 
     private String buildObjectName(String className) {

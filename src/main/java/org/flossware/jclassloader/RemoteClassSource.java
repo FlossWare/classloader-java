@@ -1,5 +1,7 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.util.ClassNameUtil;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -89,7 +91,7 @@ public class RemoteClassSource implements ClassSource {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         return retryPolicy.execute(() -> {
-            String classPath = className.replace('.', '/') + ".class";
+            String classPath = ClassNameUtil.toClassFilePath(className);
             URL url = new URL(baseUrl + classPath);
 
             URLConnection connection = url.openConnection();
@@ -125,7 +127,7 @@ public class RemoteClassSource implements ClassSource {
     public boolean canLoad(String className) {
         HttpURLConnection httpConnection = null;
         try {
-            String classPath = className.replace('.', '/') + ".class";
+            String classPath = ClassNameUtil.toClassFilePath(className);
             URL url = new URL(baseUrl + classPath);
             URLConnection connection = url.openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
