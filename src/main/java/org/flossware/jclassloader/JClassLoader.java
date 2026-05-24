@@ -97,7 +97,8 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
                             cache.put(name, classData);
                             fireClassCached(name, classData);
                         } catch (IOException e) {
-                            // Continue even if caching fails
+                            // Log caching failure but continue
+                            logError("Failed to cache class " + name + ": " + e.getMessage());
                         }
                     }
 
@@ -125,7 +126,9 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             try {
                 listener.onClassLoaded(event);
             } catch (Exception e) {
-                // Don't let listener exceptions break class loading
+                // Don't let listener exceptions break class loading, but log them
+                logError("Listener error in " + listener.getClass().getSimpleName() +
+                        ".onClassLoaded: " + e.getMessage());
             }
         }
     }
@@ -135,7 +138,9 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             try {
                 listener.onClassCacheHit(className);
             } catch (Exception e) {
-                // Ignore
+                // Don't let listener exceptions break class loading, but log them
+                logError("Listener error in " + listener.getClass().getSimpleName() +
+                        ".onClassCacheHit: " + e.getMessage());
             }
         }
     }
@@ -145,7 +150,9 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             try {
                 listener.onClassCached(className, classData);
             } catch (Exception e) {
-                // Ignore
+                // Don't let listener exceptions break class loading, but log them
+                logError("Listener error in " + listener.getClass().getSimpleName() +
+                        ".onClassCached: " + e.getMessage());
             }
         }
     }
@@ -155,8 +162,26 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             try {
                 listener.onClassLoadFailed(className, error);
             } catch (Exception e) {
-                // Ignore
+                // Don't let listener exceptions break class loading, but log them
+                logError("Listener error in " + listener.getClass().getSimpleName() +
+                        ".onClassLoadFailed: " + e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Logs an error message. Uses SLF4J if available, otherwise falls back to System.err.
+     */
+    private static void logError(String message) {
+        try {
+            // Try SLF4J if available (optional dependency)
+            Class<?> loggerFactoryClass = Class.forName("org.slf4j.LoggerFactory");
+            Object logger = loggerFactoryClass.getMethod("getLogger", Class.class)
+                .invoke(null, JClassLoader.class);
+            logger.getClass().getMethod("error", String.class).invoke(logger, message);
+        } catch (Exception e) {
+            // SLF4J not available or error occurred, fall back to System.err
+            System.err.println("[JClassLoader ERROR] " + message);
         }
     }
 
