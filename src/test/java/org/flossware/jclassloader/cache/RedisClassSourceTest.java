@@ -4,7 +4,10 @@ import org.flossware.jclassloader.cache.RedisClassSource;
 import org.junit.jupiter.api.Test;
 import redis.clients.jedis.JedisPoolConfig;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 /**
  * Tests for RedisClassSource builder and configuration.
