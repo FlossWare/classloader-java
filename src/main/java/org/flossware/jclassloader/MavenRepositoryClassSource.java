@@ -165,7 +165,7 @@ public class MavenRepositoryClassSource implements ClassSource {
         private AuthConfig authConfig = AuthConfig.none();
 
         public Builder repositoryUrl(String repositoryUrl) {
-            this.repositoryUrl = repositoryUrl;
+            this.repositoryUrl = Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
             return this;
         }
 

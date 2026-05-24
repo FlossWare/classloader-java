@@ -182,12 +182,12 @@ public class MavenNexusClassSource implements ClassSource {
         private AuthConfig authConfig = AuthConfig.none();
 
         public Builder nexusUrl(String nexusUrl) {
-            this.nexusUrl = nexusUrl;
+            this.nexusUrl = Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
             return this;
         }
 
         public Builder repository(String repository) {
-            this.repository = repository;
+            this.repository = Objects.requireNonNull(repository, "repository cannot be null");
             return this;
         }
 

@@ -120,22 +120,22 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         private boolean secure = true;
 
         public Builder endpoint(String endpoint) {
-            this.endpoint = endpoint;
+            this.endpoint = Objects.requireNonNull(endpoint, "endpoint cannot be null");
             return this;
         }
 
         public Builder accessKey(String accessKey) {
-            this.accessKey = accessKey;
+            this.accessKey = Objects.requireNonNull(accessKey, "accessKey cannot be null");
             return this;
         }
 
         public Builder secretKey(String secretKey) {
-            this.secretKey = secretKey;
+            this.secretKey = Objects.requireNonNull(secretKey, "secretKey cannot be null");
             return this;
         }
 
         public Builder bucket(String bucketName) {
-            this.bucketName = bucketName;
+            this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
             return this;
         }
 
