@@ -10,7 +10,7 @@ import java.util.Objects;
  * This adapter allows any cloud storage provider (S3, Azure, GCS, Google Drive, Dropbox, OneDrive)
  * to be used as a class source by converting class names to file paths.
  *
- * <p>Requires the cloud-storage-client library and the provider-specific SDK.</p>
+ * <p>Requires the jcloudstorage library and the provider-specific SDK.</p>
  *
  * <h2>Example Usage</h2>
  * <pre>{@code
