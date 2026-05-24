@@ -92,7 +92,7 @@ public class VcsClientClassSource implements ClassSource, AutoCloseable {
      * @return The file path (e.g., "com/example/MyClass.class")
      */
     private String classNameToPath(String className) {
-        return className.replace('.', '/') + ".class";
+        return ClassNameUtil.toClassFilePath(className);
     }
 
     /**

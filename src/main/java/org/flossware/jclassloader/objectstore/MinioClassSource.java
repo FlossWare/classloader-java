@@ -4,6 +4,7 @@ import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
 import org.flossware.jclassloader.ClassSource;
+import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -94,7 +95,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private String buildObjectName(String className) {
-        String classPath = className.replace('.', '/') + ".class";
+        String classPath = ClassNameUtil.toClassFilePath(className);
 
         if (prefix.isEmpty()) {
             return classPath;

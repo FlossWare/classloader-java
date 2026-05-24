@@ -1,5 +1,7 @@
 package org.flossware.jclassloader;
 
+import org.flossware.jclassloader.util.ClassNameUtil;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,7 +68,7 @@ public class MavenRepositoryClassSource implements ClassSource {
             return classCache.get(cacheKey);
         }
 
-        String classFileName = className.replace('.', '/') + ".class";
+        String classFileName = ClassNameUtil.toClassFilePath(className);
 
         for (MavenArtifact artifact : artifacts) {
             try {

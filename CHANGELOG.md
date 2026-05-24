@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ContainerClientClassSource` - wraps jcontainer clients
   - `VcsClientClassSource` - wraps jvcs clients
 - Added packagecloud.io repository configuration for FlossWare dependencies
+- Refactored code duplication: Extracted `className.replace('.', '/') + ".class"` pattern into `ClassNameUtil.toClassFilePath()` method (#37)
+  - Affects: FileTransferClassSource, MavenNexusClassSource, MessageClientClassSource, VcsClientClassSource, HdfsClassSource, MinioClassSource, NexusClassSource, MavenRepositoryClassSource, and others
+  - Benefits: Single source of truth, easier maintenance, more self-documenting code
+- Replaced System.err with SLF4J logging in JarRemoteClassSource for temp file deletion errors (#35)
+- Added AutoCloseable interface to MinioClassSource for API consistency (#36)
 
 ### Removed
 - `SftpClassSource`, `WebDavClassSource`, `FtpClassSource` - use `FileTransferClassSource` + jfiletransfer
