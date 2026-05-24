@@ -71,10 +71,10 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Cloud Storage Client -->
+        <!-- JCloudStorage -->
         <dependency>
             <groupId>org.flossware</groupId>
-            <artifactId>cloud-storage-client</artifactId>
+            <artifactId>jcloudstorage</artifactId>
             <version>1.0</version>
             <optional>true</optional>
         </dependency>
