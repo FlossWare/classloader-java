@@ -4,6 +4,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.flossware.jclassloader.ClassSource;
+import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -57,7 +58,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     }
 
     private Path getClassPath(String className) {
-        String classFile = className.replace('.', '/') + ".class";
+        String classFile = ClassNameUtil.toClassFilePath(className);
         String fullPath = basePath.endsWith("/") ?
             basePath + classFile :
             basePath + "/" + classFile;

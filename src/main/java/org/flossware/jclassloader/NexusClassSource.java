@@ -116,7 +116,7 @@ public class NexusClassSource implements ClassSource {
         }
 
         String simpleClassName = getSimpleClassName(className);
-        String classFileInJar = className.replace('.', '/') + ".class";
+        String classFileInJar = ClassNameUtil.toClassFilePath(className);
 
         byte[] classData = searchInJars(packagePath, classFileInJar);
         if (classData != null) {
