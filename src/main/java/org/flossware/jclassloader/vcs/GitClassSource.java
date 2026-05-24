@@ -1,6 +1,7 @@
 package org.flossware.jclassloader.vcs;
 
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectLoader;
 import org.eclipse.jgit.lib.Repository;
@@ -25,7 +26,7 @@ import java.util.Objects;
  * Loads classes from a Git repository.
  * Can load from local Git repos or clone from remote URLs.
  */
-public class GitClassSource implements ClassSource {
+public class GitClassSource implements ClassSource, AutoCloseable {
     private final Repository repository;
     private final String branch;
     private final String basePath;
@@ -100,6 +101,7 @@ public class GitClassSource implements ClassSource {
         return normalizedBase + "/" + classFile;
     }
 
+    @Override
     public void close() {
         if (repository != null) {
             repository.close();
@@ -142,7 +144,7 @@ public class GitClassSource implements ClassSource {
             return this;
         }
 
-        public GitClassSource build() throws Exception {
+        public GitClassSource build() throws IOException, GitAPIException {
             Repository repository;
 
             if (remoteUrl != null) {

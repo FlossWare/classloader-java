@@ -15,7 +15,7 @@ import java.util.Objects;
  * Supports distributed file system access for class loading in Hadoop clusters.
  * Requires the Hadoop client dependency.
  */
-public class HdfsClassSource implements ClassSource {
+public class HdfsClassSource implements ClassSource, AutoCloseable {
     private final FileSystem hdfs;
     private final String basePath;
 
@@ -64,6 +64,7 @@ public class HdfsClassSource implements ClassSource {
         return new Path(fullPath);
     }
 
+    @Override
     public void close() throws IOException {
         if (hdfs != null) {
             hdfs.close();
