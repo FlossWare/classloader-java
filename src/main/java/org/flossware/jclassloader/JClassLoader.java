@@ -133,80 +133,129 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             throw new IllegalStateException("JClassLoader is closed");
         }
 
-        long startTime = System.nanoTime();
         byte[] classData = null;
         ClassSource usedSource = null;
 
-        // Check cache
-        if (useCache && cache.contains(name)) {
+        // Try cache first (single operation to avoid TOCTOU race)
+        if (useCache && cache != null) {
             classData = cache.get(name);
             if (classData != null) {
                 fireClassCacheHit(name);
-
-                // Verify bytecode if verifier is configured
-                if (bytecodeVerifier != null) {
-                    try {
-                        bytecodeVerifier.verify(name, classData);
-                    } catch (SecurityException e) {
-                        ClassNotFoundException ex = new ClassNotFoundException(
-                            "Bytecode verification failed: " + name, e);
-                        fireClassLoadFailed(name, ex);
-                        throw ex;
-                    }
-                }
-
+                verifyBytecode(name, classData);
                 return defineClass(name, classData, 0, classData.length);
             }
         }
 
-        // Load from sources - Optimistic loading approach
-        // Skip canLoad() check to reduce network calls by 50% for remote sources
+        // Load from sources with fast-fail approach
+        List<String> attemptedSources = new ArrayList<>();
+        List<String> failureReasons = new ArrayList<>();
+
         for (ClassSource source : classSources) {
+            // Fast path: check if source can load before attempting expensive network call
+            if (!source.canLoad(name)) {
+                continue;
+            }
+
+            attemptedSources.add(source.getDescription());
+
             try {
+                long loadStartTime = System.nanoTime();
                 classData = source.loadClassData(name);
+
                 if (classData != null) {
                     usedSource = source;
+                    long loadTime = System.nanoTime() - loadStartTime;
 
-                    // Verify bytecode if verifier is configured
-                    if (bytecodeVerifier != null) {
-                        try {
-                            bytecodeVerifier.verify(name, classData);
-                        } catch (SecurityException e) {
-                            ClassNotFoundException ex = new ClassNotFoundException(
-                                "Bytecode verification failed: " + name, e);
-                            fireClassLoadFailed(name, ex);
-                            throw ex;
-                        }
-                    }
+                    // Validate class data
+                    validateClassData(name, classData);
 
-                    // Cache it
-                    if (useCache) {
-                        try {
-                            cache.put(name, classData);
-                            fireClassCached(name, classData);
-                        } catch (IOException e) {
-                            // Log caching failure but continue
-                            logError("Failed to cache class " + name + ": " + e.getMessage());
-                        }
+                    // Verify bytecode
+                    verifyBytecode(name, classData);
+
+                    // Cache successful load
+                    if (useCache && cache != null) {
+                        tryCacheClassData(name, classData);
                     }
 
                     // Define the class
                     Class<?> clazz = defineClass(name, classData, 0, classData.length);
 
-                    // Fire event
-                    long loadTime = System.nanoTime() - startTime;
+                    // Fire event with accurate load time
                     fireClassLoaded(new ClassLoadEvent(name, usedSource, loadTime, classData.length));
 
                     return clazz;
                 }
             } catch (IOException e) {
-                // Try next source - exception-based flow is common in Java ClassLoaders
+                failureReasons.add(source.getDescription() + ": " + e.getMessage());
+                // Continue to next source
             }
         }
 
-        ClassNotFoundException ex = new ClassNotFoundException(name);
+        // Build detailed error message
+        String errorMsg = "Class not found: " + name +
+                         " (tried " + attemptedSources.size() + " sources";
+        if (!failureReasons.isEmpty()) {
+            errorMsg += ", failures: " + String.join("; ", failureReasons);
+        }
+        errorMsg += ")";
+
+        ClassNotFoundException ex = new ClassNotFoundException(errorMsg);
         fireClassLoadFailed(name, ex);
         throw ex;
+    }
+
+    /**
+     * Validates class bytecode data.
+     * Checks magic number and minimum size to prevent invalid class data from being loaded.
+     */
+    private void validateClassData(String name, byte[] classData) throws ClassNotFoundException {
+        if (classData.length < 4) {
+            throw new ClassNotFoundException(
+                name + ": Invalid class data (too small: " + classData.length + " bytes)");
+        }
+
+        // Check magic number (0xCAFEBABE)
+        if (classData[0] != (byte)0xCA || classData[1] != (byte)0xFE ||
+            classData[2] != (byte)0xBA || classData[3] != (byte)0xBE) {
+            throw new ClassNotFoundException(
+                name + ": Invalid class file magic number");
+        }
+    }
+
+    /**
+     * Verifies bytecode if verifier is configured.
+     * Extracted to avoid code duplication.
+     */
+    private void verifyBytecode(String name, byte[] classData) throws ClassNotFoundException {
+        if (bytecodeVerifier != null) {
+            try {
+                bytecodeVerifier.verify(name, classData);
+            } catch (SecurityException e) {
+                ClassNotFoundException ex = new ClassNotFoundException(
+                    "Bytecode verification failed: " + name, e);
+                fireClassLoadFailed(name, ex);
+                throw ex;
+            }
+        }
+    }
+
+    /**
+     * Attempts to cache class data, logging failures but not throwing exceptions.
+     * Cache failures should not prevent class loading from succeeding.
+     */
+    private void tryCacheClassData(String name, byte[] classData) {
+        try {
+            cache.put(name, classData);
+            fireClassCached(name, classData);
+        } catch (IOException e) {
+            logError("Failed to cache class " + name + ": " + e.getMessage());
+            fireClassCacheFailed(name, e);
+        } catch (Throwable e) {
+            // Catch all errors (including OutOfMemoryError) to prevent cache failures
+            // from breaking class loading
+            logError("Unexpected error caching class " + name + ": " + e.getMessage());
+            fireClassCacheFailed(name, e);
+        }
     }
 
     private void fireClassLoaded(ClassLoadEvent event) {
@@ -253,6 +302,18 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoadFailed: " + e.getMessage());
+            }
+        }
+    }
+
+    private void fireClassCacheFailed(String className, Throwable error) {
+        for (ClassLoaderLifecycleListener listener : listeners) {
+            try {
+                listener.onClassCacheFailed(className, error);
+            } catch (Exception e) {
+                // Don't let listener exceptions break class loading, but log them
+                logError("Listener error in " + listener.getClass().getSimpleName() +
+                        ".onClassCacheFailed: " + e.getMessage());
             }
         }
     }
@@ -370,6 +431,8 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
     }
 
     public static class Builder {
+        private static final int MAX_CLASS_SOURCES = 100;
+
         private ClassLoader parent;
         private final List<ClassSource> classSources = new ArrayList<>();
         private ClassCache cache;
@@ -385,6 +448,10 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
 
         public Builder addClassSource(ClassSource source) {
             Objects.requireNonNull(source, "source cannot be null");
+            if (classSources.size() >= MAX_CLASS_SOURCES) {
+                throw new IllegalStateException(
+                    "Too many class sources (max " + MAX_CLASS_SOURCES + ")");
+            }
             this.classSources.add(source);
             return this;
         }
