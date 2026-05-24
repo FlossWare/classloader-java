@@ -6,11 +6,11 @@
 <dependency>
     <groupId>org.flossware</groupId>
     <artifactId>jclassloader</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
 </dependency>
 ```
 
-**Note**: All protocol dependencies are `optional`. Only include the ones you need:
+**Note**: Protocol support requires FlossWare libraries (all optional):
 
 ```xml
 <!-- For Cloud Storage (S3, Azure, GCS, Google Drive, Dropbox, OneDrive) -->
@@ -19,15 +19,34 @@
     <artifactId>jcloudstorage</artifactId>
     <version>1.0</version>
 </dependency>
-<!-- Plus provider SDK (e.g., AWS SDK, Azure SDK) -->
 
-<!-- For SFTP -->
+<!-- For File Transfer (SFTP, WebDAV, SMB/CIFS, FTP/FTPS) -->
 <dependency>
-    <groupId>com.github.mwiede</groupId>
-    <artifactId>jsch</artifactId>
-    <version>0.2.21</version>
+    <groupId>org.flossware</groupId>
+    <artifactId>jfiletransfer</artifactId>
+    <version>1.0</version>
 </dependency>
-<!-- etc. -->
+
+<!-- For Messaging (Kafka, RabbitMQ, Redis) -->
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jmessaging</artifactId>
+    <version>1.0</version>
+</dependency>
+
+<!-- For Containers (Kubernetes, Docker, Hazelcast) -->
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jcontainer</artifactId>
+    <version>1.0</version>
+</dependency>
+
+<!-- For Version Control (Git) -->
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jvcs</artifactId>
+    <version>1.0</version>
+</dependency>
 ```
 
 ## 30-Second Examples
@@ -71,8 +90,18 @@ JClassLoader loader = JClassLoader.builder()
 
 ### Load from SFTP
 ```java
+import org.flossware.filetransfer.SftpFileTransferClient;
+import org.flossware.jclassloader.FileTransferClassSource;
+
+FileTransferClient sftp = SftpFileTransferClient.builder()
+    .host("sftp.example.com")
+    .username("username")
+    .password("password")
+    .basePath("/classes")
+    .build();
+
 JClassLoader loader = JClassLoader.builder()
-    .addSftpSource("sftp.example.com", "username", "password", "/classes")
+    .addClassSource(new FileTransferClassSource(sftp))
     .build();
 ```
 
@@ -158,8 +187,17 @@ JClassLoader loader = JClassLoader.builder()
 
 ### 4. Secure Enterprise
 ```java
+import org.flossware.filetransfer.SftpFileTransferClient;
+
+FileTransferClient sftp = SftpFileTransferClient.builder()
+    .host("secure-server.com")
+    .username("deploy")
+    .privateKey(privateKey)
+    .basePath("/classes")
+    .build();
+
 JClassLoader loader = JClassLoader.builder()
-    .addSftpSource("secure-server.com", "deploy", privateKey, "/classes")
+    .addClassSource(new FileTransferClassSource(sftp))
     .addNexusMavenSource(nexusWithAuth)
     .addDatabaseSource(encryptedDB, "classes", "name", "bytes")
     .build();
@@ -197,10 +235,10 @@ JClassLoader loader = JClassLoader.builder()
 ### 2. Order Sources by Speed
 ```java
 JClassLoader loader = JClassLoader.builder()
-    .addLocalSource(...)       // Fastest
-    .addCloudStorage(...)      // Fast
-    .addSftpSource(...)        // Slower
-    .addRestApiSource(...)     // Slowest
+    .addLocalSource(...)                             // Fastest
+    .addCloudStorage(...)                            // Fast
+    .addClassSource(new FileTransferClassSource(...))  // Slower
+    .addRestApiSource(...)                           // Slowest
     .build();
 ```
 
