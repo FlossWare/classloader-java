@@ -3,20 +3,25 @@ package org.flossware.jclassloader;
 import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
 /**
  * ClassSource implementation for loading classes from Sonatype Nexus repositories.
  * Supports both RAW repositories (direct .class files) and MAVEN repositories (classes from JARs).
+ *
+ * <p><b>Thread Safety:</b> This class is thread-safe. The internal JAR cache uses
+ * ConcurrentHashMap to support concurrent class loading operations.</p>
  */
 public class NexusClassSource implements ClassSource {
     private final String nexusUrl;
@@ -50,7 +55,7 @@ public class NexusClassSource implements ClassSource {
         this.repository = Objects.requireNonNull(repository, "repository cannot be null");
         this.mode = mode != null ? mode : NexusMode.MAVEN;
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
-        this.jarCache = new HashMap<>();
+        this.jarCache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -159,7 +164,7 @@ public class NexusClassSource implements ClassSource {
         try (InputStream in = connection.getInputStream();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
@@ -186,7 +191,7 @@ public class NexusClassSource implements ClassSource {
             while ((entry = jarIn.getNextJarEntry()) != null) {
                 if (entry.getName().equals(classFileName)) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[8192];
+                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                     int bytesRead;
                     while ((bytesRead = jarIn.read(buffer)) != -1) {
                         out.write(buffer, 0, bytesRead);

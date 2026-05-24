@@ -1,6 +1,8 @@
 package org.flossware.jclassloader.objectstore;
 
 import io.minio.GetObjectArgs;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
 import org.flossware.jclassloader.ClassSource;
@@ -44,7 +46,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build());
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             int bytesRead;
             while ((bytesRead = stream.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);

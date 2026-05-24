@@ -3,15 +3,17 @@ package org.flossware.jclassloader;
 import org.flossware.jclassloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
+
+import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
@@ -19,10 +21,11 @@ import java.util.jar.JarInputStream;
  * ClassSource implementation for loading classes from Maven repositories (Maven Central, custom repos).
  * Downloads JARs from the repository and extracts class files from them.
  * Includes in-memory caching of loaded classes for performance.
+ *
+ * <p><b>Thread Safety:</b> This class is thread-safe. The internal class cache uses
+ * ConcurrentHashMap to support concurrent class loading operations.</p>
  */
 public class MavenRepositoryClassSource implements ClassSource {
-    private static final int DEFAULT_BUFFER_SIZE = 8192;
-
     private final String repositoryUrl;
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
@@ -48,7 +51,7 @@ public class MavenRepositoryClassSource implements ClassSource {
         this.repositoryUrl = repositoryUrl.endsWith("/") ? repositoryUrl : repositoryUrl + "/";
         this.artifacts = new ArrayList<>(artifacts);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
-        this.classCache = new HashMap<>();
+        this.classCache = new ConcurrentHashMap<>();
     }
 
     /**
