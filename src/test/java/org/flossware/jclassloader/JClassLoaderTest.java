@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -445,5 +446,170 @@ class JClassLoaderTest {
         Object instance = clazz.getDeclaredConstructor().newInstance();
         int value = (int) clazz.getMethod("getValue").invoke(instance);
         assertEquals(1, value);
+    }
+
+    @Test
+    void testBuilderParentFirstDelegation(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .parentFirst()
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderParentLastDelegation(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .parentLast("java.", "javax.")
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderCustomDelegation(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .customDelegation(name -> name.startsWith("java."))
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderAddLoggingListener(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .addLoggingListener()
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderAddLoggingListenerVerbose(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .addLoggingListener(true)
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderTrackResources(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .trackResources()
+            .build();
+
+        assertNotNull(loader);
+    }
+
+    @Test
+    void testBuilderNullDelegationStrategyThrows(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        assertThrows(NullPointerException.class, () -> {
+            JClassLoader.builder()
+                .addLocalSource(classDir.toString())
+                .delegationStrategy(null)
+                .build();
+        });
+    }
+
+    @Test
+    void testBuilderNullListenerThrows(@TempDir Path tempDir) throws Exception {
+        assertThrows(NullPointerException.class, () -> {
+            JClassLoader.builder()
+                .addLocalSource("/tmp")
+                .addListener(null);
+        });
+    }
+
+    @Test
+    void testBuilderMaxClassSourcesLimit(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        JClassLoader.Builder builder = JClassLoader.builder();
+
+        // Add 100 sources (the MAX_CLASS_SOURCES limit)
+        for (int i = 0; i < 100; i++) {
+            builder.addLocalSource(classDir.toString());
+        }
+
+        // The 101st should throw IllegalStateException
+        assertThrows(IllegalStateException.class, () -> {
+            builder.addLocalSource(classDir.toString());
+        });
+    }
+
+    @Test
+    void testBuilderNullClassSourceThrows() {
+        assertThrows(NullPointerException.class, () -> {
+            JClassLoader.builder()
+                .addClassSource(null);
+        });
+    }
+
+    @Test
+    void testBuilderNoClassSourcesThrows() {
+        assertThrows(IllegalStateException.class, () -> {
+            JClassLoader.builder().build();
+        });
+    }
+
+    @Test
+    void testBuilderParentClassLoader(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        ClassLoader customParent = ClassLoader.getSystemClassLoader();
+
+        JClassLoader loader = JClassLoader.builder()
+            .parent(customParent)
+            .addLocalSource(classDir.toString())
+            .build();
+
+        assertSame(customParent, loader.getParent());
+    }
+
+    @Test
+    void testBuilderUseCacheTrue(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Path cacheDir = tempDir.resolve("cache");
+        Files.createDirectories(classDir);
+
+        FileSystemCache cache = new FileSystemCache(cacheDir);
+
+        JClassLoader loader = JClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .cache(cache)
+            .useCache(true)
+            .build();
+
+        assertTrue(loader.isCacheEnabled());
     }
 }
