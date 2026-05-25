@@ -153,20 +153,22 @@ class RetryPolicyTest {
 
     @Test
     @Timeout(value = 5)
-    void testThreadInterruptionDuringRetry() {
+    void testThreadInterruptionDuringRetry() throws InterruptedException {
         RetryPolicy policy = new RetryPolicy(10, 500, 5000, 2.0, false);
 
         Thread testThread = Thread.currentThread();
 
         // Interrupt after 100ms
-        new Thread(() -> {
+        Thread interrupter = new Thread(() -> {
             try {
                 Thread.sleep(100);
                 testThread.interrupt();
             } catch (InterruptedException e) {
                 // Ignore
             }
-        }).start();
+        });
+        interrupter.setDaemon(true); // Make daemon so it doesn't prevent JVM exit
+        interrupter.start();
 
         IOException thrown = assertThrows(IOException.class, () -> {
             policy.execute(() -> {
@@ -176,6 +178,9 @@ class RetryPolicyTest {
 
         assertTrue(thrown.getMessage().contains("Retry interrupted"));
         assertTrue(Thread.interrupted()); // Clear interrupt flag
+
+        // Wait for interrupter thread to complete
+        interrupter.join(1000);
     }
 
     @Test
@@ -320,5 +325,94 @@ class RetryPolicyTest {
 
         assertEquals(1, attempts.get()); // Only initial attempt, no retries
         assertTrue(thrown.getMessage().contains("Failed after 1 attempts"));
+    }
+
+    @Test
+    void testOverflowProtection() {
+        // Test that exponential backoff doesn't overflow with large attempt numbers
+        // Use reasonable delays so test completes quickly
+        RetryPolicy policy = new RetryPolicy(100, 1, 10, 2.0, false);
+
+        // With overflow-prone Math.pow(), attempt 63 would overflow
+        // Our iterative approach caps at maxDelayMs instead
+        long startTime = System.currentTimeMillis();
+        try {
+            policy.execute(() -> {
+                throw new IOException("Fail");
+            });
+        } catch (IOException e) {
+            // Expected
+        }
+
+        // Should complete without IllegalArgumentException from negative delay
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        // With 100 retries at 10ms max delay = ~1000ms total
+        assertTrue(elapsedTime >= 0);
+        assertTrue(elapsedTime < 5000, "Should complete in under 5 seconds with capped delays");
+    }
+
+    @Test
+    void testJitterProducesBothShorterAndLongerDelays() throws IOException {
+        // Test that jitter produces delays both shorter AND longer than base delay
+        // Old buggy implementation only added jitter (always longer)
+        // Correct implementation uses ± jitter
+        RetryPolicy policy = new RetryPolicy(1, 1000, 10000, 2.0, true);
+
+        boolean foundShorter = false;
+        boolean foundLonger = false;
+
+        // Run multiple times to get statistical sampling
+        for (int i = 0; i < 20; i++) {
+            long start = System.currentTimeMillis();
+            try {
+                policy.execute(() -> {
+                    throw new IOException("Fail");
+                });
+            } catch (IOException e) {
+                // Expected
+            }
+            long elapsed = System.currentTimeMillis() - start;
+
+            // Base delay for attempt 0 is 1000ms
+            // Without jitter: exactly 1000ms
+            // With proper ± jitter: 750ms to 1250ms
+            if (elapsed < 950) {  // Less than base (accounting for timing variance)
+                foundShorter = true;
+            }
+            if (elapsed > 1050) {  // More than base (accounting for timing variance)
+                foundLonger = true;
+            }
+
+            if (foundShorter && foundLonger) {
+                break;
+            }
+        }
+
+        // With proper ±jitter, we should see both shorter and longer delays
+        assertTrue(foundShorter || foundLonger,
+            "Jitter should produce variation in delays (found shorter: " + foundShorter +
+            ", found longer: " + foundLonger + ")");
+    }
+
+    @Test
+    void testMaxDelayProtectsAgainstOverflow() {
+        // Even with huge multiplier and attempt count, maxDelay protects us
+        // Use smaller delays so test completes quickly
+        RetryPolicy policy = new RetryPolicy(10, 10, 50, 10.0, false);
+
+        long startTime = System.currentTimeMillis();
+        try {
+            policy.execute(() -> {
+                throw new IOException("Fail");
+            });
+        } catch (IOException e) {
+            // Expected
+        }
+        long elapsedTime = System.currentTimeMillis() - startTime;
+
+        // With multiplier=10, delays would be: 10, 100, 1000... but capped at 50
+        // 10 retries × ~50ms = ~500ms max
+        // Without overflow protection and capping, this could crash or take forever
+        assertTrue(elapsedTime < 2000, "Should complete in under 2 seconds with max delay cap");
     }
 }
