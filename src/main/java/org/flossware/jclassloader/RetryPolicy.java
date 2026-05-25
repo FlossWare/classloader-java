@@ -2,6 +2,7 @@ package org.flossware.jclassloader;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Defines retry behavior for transient failures when loading classes.
@@ -121,21 +122,35 @@ public final class RetryPolicy {
 
     /**
      * Calculates the delay before the next retry attempt.
+     * Uses iterative multiplication to prevent overflow and ThreadLocalRandom for thread-safe jitter.
      *
      * @param attemptNumber The attempt number (0-based)
      * @return Delay in milliseconds
      */
     private long calculateDelay(int attemptNumber) {
-        // Exponential backoff: initialDelay * (multiplier ^ attempt)
-        long delay = (long) (initialDelayMs * Math.pow(backoffMultiplier, attemptNumber));
+        // Exponential backoff with overflow protection
+        long delay = initialDelayMs;
+
+        // Multiply iteratively to detect overflow early
+        for (int i = 0; i < attemptNumber; i++) {
+            // Check if next multiplication would overflow or exceed max
+            if (delay > maxDelayMs / backoffMultiplier) {
+                delay = maxDelayMs;
+                break;
+            }
+            delay = (long) (delay * backoffMultiplier);
+        }
 
         // Cap at max delay
         delay = Math.min(delay, maxDelayMs);
 
-        // Add jitter (random 0-25% variation)
+        // Add proper jitter (±25% random variation) to prevent thundering herd
         if (jitter && delay > 0) {
-            long jitterAmount = (long) (delay * 0.25 * Math.random());
-            delay += jitterAmount;
+            long maxJitter = delay / 4;  // 25% of delay
+            // ThreadLocalRandom is thread-safe with zero contention (vs synchronized Math.random())
+            // Range: [-maxJitter, +maxJitter] for proper jitter distribution
+            long jitterAmount = ThreadLocalRandom.current().nextLong(-maxJitter, maxJitter + 1);
+            delay = Math.max(0, delay + jitterAmount);  // Ensure non-negative
         }
 
         return delay;
