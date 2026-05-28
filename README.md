@@ -41,7 +41,7 @@ A flexible Java ClassLoader that can load classes from 34+ transport protocols w
 ```xml
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jclassloader</artifactId>
+    <artifactId>classloader-java</artifactId>
     <version>1.1</version>
 </dependency>
 ```
@@ -49,8 +49,8 @@ A flexible Java ClassLoader that can load classes from 34+ transport protocols w
 ### Building from Source
 
 ```bash
-git clone https://github.com/FlossWare/jclassloader.git
-cd jclassloader
+git clone https://github.com/FlossWare/classloader-java.git
+cd classloader-java
 mvn clean install
 ```
 
@@ -59,7 +59,7 @@ mvn clean install
 ### Basic Local Class Loading
 
 ```java
-import org.flossware.jclassloader.JClassLoader;
+import org.flossware.classloader-java.JClassLoader;
 
 JClassLoader loader = JClassLoader.builder()
     .addLocalSource("/path/to/classes")
@@ -83,7 +83,7 @@ Class<?> myClass = loader.loadClass("com.example.MyClass");
 ### Remote Class Loading with Authentication
 
 ```java
-import org.flossware.jclassloader.AuthConfig;
+import org.flossware.classloader-java.AuthConfig;
 
 // Basic Authentication
 AuthConfig basicAuth = AuthConfig.basic("username", "password");
@@ -122,7 +122,7 @@ JClassLoader ftpsLoader = JClassLoader.builder()
 #### Loading from Nexus Raw Repository
 
 ```java
-import org.flossware.jclassloader.AuthConfig;
+import org.flossware.classloader-java.AuthConfig;
 
 // Public Nexus raw repository
 JClassLoader loader = JClassLoader.builder()
@@ -141,8 +141,8 @@ JClassLoader authLoader = JClassLoader.builder()
 Load classes from JAR files stored as Maven artifacts:
 
 ```java
-import org.flossware.jclassloader.MavenNexusClassSource;
-import org.flossware.jclassloader.MavenArtifact;
+import org.flossware.classloader-java.MavenNexusClassSource;
+import org.flossware.classloader-java.MavenArtifact;
 
 // Create a Maven Nexus source with specific artifacts
 MavenNexusClassSource nexusSource = MavenNexusClassSource.builder()
@@ -187,7 +187,7 @@ MavenNexusClassSource tokenSource = MavenNexusClassSource.builder()
 #### Working with Maven Artifacts
 
 ```java
-import org.flossware.jclassloader.MavenArtifact;
+import org.flossware.classloader-java.MavenArtifact;
 
 // Parse Maven coordinates
 MavenArtifact artifact = MavenArtifact.parse("org.example:my-lib:1.0.0");
@@ -205,9 +205,9 @@ String path = artifact.toPath(); // org/example/my-lib/1.0.0/my-lib-1.0.0.jar
 ### Using Cache
 
 ```java
-import org.flossware.jclassloader.cache.FileSystemCache;
+import org.flossware.classloader-java.cache.FileSystemCache;
 
-FileSystemCache cache = new FileSystemCache("/tmp/jclassloader-cache");
+FileSystemCache cache = new FileSystemCache("/tmp/classloader-java-cache");
 
 JClassLoader loader = JClassLoader.builder()
     .addRemoteSource("https://example.com/classes/")
@@ -258,7 +258,7 @@ Load classes from cloud storage providers using the [jcloudstorage](https://gith
 ```java
 import org.flossware.cloud.storage.CloudStorageClient;
 import org.flossware.cloud.storage.S3CloudStorageClient;
-import org.flossware.jclassloader.CloudStorageClassSource;
+import org.flossware.classloader-java.CloudStorageClassSource;
 
 // Create cloud storage client
 CloudStorageClient s3 = S3CloudStorageClient.builder()
@@ -303,7 +303,7 @@ Load classes via file transfer protocols using [jfiletransfer](https://github.co
 ```java
 import org.flossware.filetransfer.FileTransferClient;
 import org.flossware.filetransfer.SftpFileTransferClient;
-import org.flossware.jclassloader.FileTransferClassSource;
+import org.flossware.classloader-java.FileTransferClassSource;
 
 // SFTP example
 FileTransferClient sftp = SftpFileTransferClient.builder()
@@ -335,7 +335,7 @@ Load classes from messaging systems using [jmessaging](https://github.com/FlossW
 ```java
 import org.flossware.messaging.MessageClient;
 import org.flossware.messaging.KafkaMessageClient;
-import org.flossware.jclassloader.MessageClientClassSource;
+import org.flossware.classloader-java.MessageClientClassSource;
 
 // Kafka example
 MessageClient kafka = KafkaMessageClient.builder()
@@ -365,7 +365,7 @@ Load classes from containers using [jcontainer](https://github.com/FlossWare/jco
 ```java
 import org.flossware.container.ContainerClient;
 import org.flossware.container.KubernetesContainerClient;
-import org.flossware.jclassloader.ContainerClientClassSource;
+import org.flossware.classloader-java.ContainerClientClassSource;
 
 // Kubernetes ConfigMap example
 ContainerClient k8s = KubernetesContainerClient.builder()
@@ -394,7 +394,7 @@ Load classes from version control using [jvcs](https://github.com/FlossWare/jvcs
 ```java
 import org.flossware.vcs.VcsClient;
 import org.flossware.vcs.GitVcsClient;
-import org.flossware.jclassloader.VcsClientClassSource;
+import org.flossware.classloader-java.VcsClientClassSource;
 
 // Git repository example
 VcsClient git = GitVcsClient.builder()
@@ -488,7 +488,7 @@ JClassLoader verboseLoader = JClassLoader.builder()
 Track loaded classes and resources for cleanup (useful for hot-reload, plugin unloading, etc.):
 
 ```java
-import org.flossware.jclassloader.lifecycle.ResourceTrackingListener;
+import org.flossware.classloader-java.lifecycle.ResourceTrackingListener;
 
 ResourceTrackingListener tracker = new ResourceTrackingListener();
 
@@ -514,8 +514,8 @@ tracker.closeAllResources();
 Implement your own listener for custom monitoring:
 
 ```java
-import org.flossware.jclassloader.lifecycle.ClassLoaderLifecycleListener;
-import org.flossware.jclassloader.lifecycle.ClassLoadEvent;
+import org.flossware.classloader-java.lifecycle.ClassLoaderLifecycleListener;
+import org.flossware.classloader-java.lifecycle.ClassLoadEvent;
 
 ClassLoaderLifecycleListener myListener = new ClassLoaderLifecycleListener() {
     @Override
@@ -613,7 +613,7 @@ JClassLoader has **463 comprehensive unit tests** achieving **46% instruction co
 - ✅ **Critical paths**: All main use cases and builder patterns extensively tested
 
 **What is NOT fully tested (and why):**
-- ❌ **Example code** (0% coverage in `org.flossware.jclassloader.example`): These are demo applications, not production code. Testing them would verify example syntax, not library functionality.
+- ❌ **Example code** (0% coverage in `org.flossware.classloader-java.example`): These are demo applications, not production code. Testing them would verify example syntax, not library functionality.
 - ❌ **Deep integration scenarios** (66% coverage in messaging): Full integration tests with real Kafka, RabbitMQ, Redis, etc. would require running external infrastructure. We use mocks for unit tests and rely on real-world usage for integration validation.
 - ❌ **Error recovery edge cases**: Some network timeout paths, exotic authentication failures, and rare filesystem conditions are difficult to trigger reliably in unit tests.
 - ❌ **External system quirks**: Vendor-specific behaviors (Nexus API variations, messaging broker retry logic) are validated through manual testing and production usage.
@@ -626,13 +626,13 @@ JClassLoader has **463 comprehensive unit tests** achieving **46% instruction co
 
 **Coverage by package:**
 ```
-org.flossware.jclassloader (core)        53%  ✅ Primary use cases
-org.flossware.jclassloader.cache         83%  ✅ High reliability needed
-org.flossware.jclassloader.lifecycle     82%  ✅ Critical for monitoring
-org.flossware.jclassloader.delegation    85%  ✅ Core isolation feature
-org.flossware.jclassloader.protocol     100%  ✅ Complete coverage
-org.flossware.jclassloader.messaging     66%  ⚠️  Kafka/RabbitMQ mocked
-org.flossware.jclassloader.example        0%  ❌ Demo code, not tested
+org.flossware.classloader-java (core)        53%  ✅ Primary use cases
+org.flossware.classloader-java.cache         83%  ✅ High reliability needed
+org.flossware.classloader-java.lifecycle     82%  ✅ Critical for monitoring
+org.flossware.classloader-java.delegation    85%  ✅ Core isolation feature
+org.flossware.classloader-java.protocol     100%  ✅ Complete coverage
+org.flossware.classloader-java.messaging     66%  ⚠️  Kafka/RabbitMQ mocked
+org.flossware.classloader-java.example        0%  ❌ Demo code, not tested
 ```
 
 **Running coverage reports:**
