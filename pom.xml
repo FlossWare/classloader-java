@@ -21,9 +21,9 @@
     </properties>
 
     <scm>
-        <connection>scm:git:https://github.com/FlossWare/jclassloader.git</connection>
-        <developerConnection>scm:git:https://github.com/FlossWare/jclassloader.git</developerConnection>
-        <url>https://github.com/FlossWare/jclassloader</url>
+        <connection>scm:git:https://github.com/FlossWare/classloader-java.git</connection>
+        <developerConnection>scm:git:https://github.com/FlossWare/classloader-java.git</developerConnection>
+        <url>https://github.com/FlossWare/classloader-java</url>
     </scm>
 
     <organization>
@@ -43,7 +43,7 @@
 
     <issueManagement>
         <system>GitHub</system>
-        <url>https://github.com/FlossWare/jclassloader/issues</url>
+        <url>https://github.com/FlossWare/classloader-java/issues</url>
     </issueManagement>
 
     <distributionManagement>
