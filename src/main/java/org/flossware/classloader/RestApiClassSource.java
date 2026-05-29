@@ -20,12 +20,19 @@ import java.util.Objects;
  * Useful for integrating with custom class distribution services.
  */
 public class RestApiClassSource implements ClassSource {
+    private static final long MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10MB default
+    private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
+    private static final int DEFAULT_READ_TIMEOUT = 30000; // 30 seconds
+
     private final String baseUrl;
     private final String classPathTemplate;
     private final Map<String, String> headers;
     private final Map<String, String> queryParams;
     private final AuthConfig authConfig;
     private final ResponseFormat responseFormat;
+    private final int connectTimeout;
+    private final int readTimeout;
+    private final boolean enableCanLoadCheck;
 
     /**
      * Response format for the REST API.
@@ -41,7 +48,8 @@ public class RestApiClassSource implements ClassSource {
 
     private RestApiClassSource(String baseUrl, String classPathTemplate,
                                Map<String, String> headers, Map<String, String> queryParams,
-                               AuthConfig authConfig, ResponseFormat responseFormat) {
+                               AuthConfig authConfig, ResponseFormat responseFormat,
+                               int connectTimeout, int readTimeout, boolean enableCanLoadCheck) {
         Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         this.classPathTemplate = classPathTemplate != null ? classPathTemplate : "{package}/{class}.class";
@@ -49,6 +57,9 @@ public class RestApiClassSource implements ClassSource {
         this.queryParams = new HashMap<>(queryParams);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
         this.responseFormat = responseFormat != null ? responseFormat : ResponseFormat.BINARY;
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
+        this.enableCanLoadCheck = enableCanLoadCheck;
     }
 
     @Override
@@ -57,20 +68,39 @@ public class RestApiClassSource implements ClassSource {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 
         try {
+            connection.setConnectTimeout(connectTimeout);
+            connection.setReadTimeout(readTimeout);
             connection.setRequestMethod("GET");
             configureConnection(connection);
 
             int responseCode = connection.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+                throw new IOException("HTTP " + responseCode + " for URL: " + url);
+            }
+
+            // Check response size before downloading
+            long contentLength = connection.getContentLengthLong();
+            if (contentLength > MAX_RESPONSE_SIZE) {
+                throw new IOException(
+                    "Response too large: " + contentLength + " bytes (max " + MAX_RESPONSE_SIZE + ")"
+                );
             }
 
             try (InputStream in = connection.getInputStream();
                  ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
+                // Download with size limit enforcement
+                long totalRead = 0;
                 byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                 int bytesRead;
+
                 while ((bytesRead = in.read(buffer)) != -1) {
+                    totalRead += bytesRead;
+                    if (totalRead > MAX_RESPONSE_SIZE) {
+                        throw new IOException(
+                            "Response exceeded maximum size: " + totalRead + " bytes"
+                        );
+                    }
                     out.write(buffer, 0, bytesRead);
                 }
 
@@ -82,13 +112,29 @@ public class RestApiClassSource implements ClassSource {
         }
     }
 
+    /**
+     * Checks if this source can load the specified class.
+     *
+     * <p><b>Performance Note:</b> This method makes a HEAD request to the API by default,
+     * which doubles network traffic. Set enableCanLoadCheck=false in builder to skip this
+     * expensive check and let loadClassData() fail if the class doesn't exist.</p>
+     *
+     * @param className The fully qualified class name to check
+     * @return true if enableCanLoadCheck is false OR the class exists, false otherwise
+     */
     @Override
     public boolean canLoad(String className) {
+        if (!enableCanLoadCheck) {
+            return true;  // Skip expensive check, let loadClassData() fail if needed
+        }
+
         try {
             String url = buildUrl(className);
             HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 
             try {
+                connection.setConnectTimeout(connectTimeout);
+                connection.setReadTimeout(readTimeout);
                 connection.setRequestMethod("HEAD");
                 configureConnection(connection);
 
@@ -128,13 +174,11 @@ public class RestApiClassSource implements ClassSource {
         if (!queryParams.isEmpty()) {
             urlBuilder.append("?");
             queryParams.forEach((key, value) -> {
-                try {
-                    urlBuilder.append(URLEncoder.encode(key, StandardCharsets.UTF_8.name()))
-                             .append("=")
-                             .append(URLEncoder.encode(value, StandardCharsets.UTF_8.name()))
-                             .append("&");
-                } catch (Exception e) {
-                }
+                // Use StandardCharsets.UTF_8 directly (no exception thrown)
+                urlBuilder.append(URLEncoder.encode(key, StandardCharsets.UTF_8))
+                         .append("=")
+                         .append(URLEncoder.encode(value, StandardCharsets.UTF_8))
+                         .append("&");
             });
             urlBuilder.setLength(urlBuilder.length() - 1);
         }
@@ -190,6 +234,9 @@ public class RestApiClassSource implements ClassSource {
         private final Map<String, String> queryParams = new HashMap<>();
         private AuthConfig authConfig = AuthConfig.none();
         private ResponseFormat responseFormat = ResponseFormat.BINARY;
+        private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+        private int readTimeout = DEFAULT_READ_TIMEOUT;
+        private boolean enableCanLoadCheck = false;  // Default: skip expensive checks
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
@@ -225,9 +272,31 @@ public class RestApiClassSource implements ClassSource {
             return this;
         }
 
+        public Builder connectTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("connectTimeout must be >= 0");
+            }
+            this.connectTimeout = timeoutMs;
+            return this;
+        }
+
+        public Builder readTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("readTimeout must be >= 0");
+            }
+            this.readTimeout = timeoutMs;
+            return this;
+        }
+
+        public Builder enableCanLoadCheck(boolean enable) {
+            this.enableCanLoadCheck = enable;
+            return this;
+        }
+
         public RestApiClassSource build() {
             return new RestApiClassSource(baseUrl, classPathTemplate, headers,
-                                         queryParams, authConfig, responseFormat);
+                                         queryParams, authConfig, responseFormat,
+                                         connectTimeout, readTimeout, enableCanLoadCheck);
         }
     }
 }
