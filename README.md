@@ -27,7 +27,7 @@ A flexible Java ClassLoader that can load classes from 34+ transport protocols w
 ### Developer Experience
 - **Builder Pattern**: Fluent API for easy configuration
 - **Extensible**: Add custom class sources by implementing the `ClassSource` interface
-- **Well Tested**: Comprehensive test suite with 392 unit tests (46% code coverage)
+- **Well Tested**: Comprehensive test suite with 493 unit tests (46% code coverage)
 
 ## Requirements
 
@@ -619,7 +619,7 @@ mvn test
 
 ### Test Coverage
 
-ApplicationClassLoader has **463 comprehensive unit tests** achieving **46% instruction coverage** across the codebase. While we strive for high test coverage, 100% coverage is not the goal for this project. Here's why:
+ApplicationClassLoader has **493 comprehensive unit tests** achieving **46% instruction coverage** across the codebase. While we strive for high test coverage, 100% coverage is not the goal for this project. Here's why:
 
 **What IS tested (well-covered):**
 - ✅ **Core functionality** (53% coverage): Class loading, delegation strategies, authentication
@@ -718,7 +718,7 @@ ApplicationClassLoader tenantLoader = ApplicationClassLoader.builder()
 
 ## Version History
 
-### 1.0 (Current)
+### 1.1 (Current)
 - ✅ 30+ ClassSource implementations (HTTP, FTP, SFTP, WebDAV, Maven, databases, Kafka, RabbitMQ, Redis, HDFS, Kubernetes, Docker, Git, MinIO, Hazelcast, etc.)
 - ✅ Cloud storage support via [jcloudstorage](https://github.com/FlossWare/cloudstorage-java) library (S3, Azure Blob, GCS, Google Drive, Dropbox, OneDrive)
 - ✅ JAR file loading from remote sources (HTTP/HTTPS)
@@ -728,7 +728,7 @@ ApplicationClassLoader tenantLoader = ApplicationClassLoader.builder()
 - ✅ Lifecycle hooks for monitoring and resource tracking
 - ✅ File system caching
 - ✅ Authentication support (Basic, Bearer)
-- ✅ Comprehensive test suite (392 tests, 46% coverage)
+- ✅ Comprehensive test suite (493 tests, 46% coverage)
 
 ## Roadmap
 
