@@ -6,10 +6,10 @@
  *
  * <h2>Key Classes</h2>
  * <ul>
- *   <li>{@link org.flossware.jclassloader.lifecycle.ClassLoaderLifecycleListener} - Listener interface</li>
- *   <li>{@link org.flossware.jclassloader.lifecycle.ClassLoadEvent} - Event data for successful loads</li>
- *   <li>{@link org.flossware.jclassloader.lifecycle.LoggingListener} - Logs class loading activity</li>
- *   <li>{@link org.flossware.jclassloader.lifecycle.ResourceTrackingListener} - Tracks resource usage</li>
+ *   <li>{@link org.flossware.classloader.lifecycle.ClassLoaderLifecycleListener} - Listener interface</li>
+ *   <li>{@link org.flossware.classloader.lifecycle.ClassLoadEvent} - Event data for successful loads</li>
+ *   <li>{@link org.flossware.classloader.lifecycle.LoggingListener} - Logs class loading activity</li>
+ *   <li>{@link org.flossware.classloader.lifecycle.ResourceTrackingListener} - Tracks resource usage</li>
  * </ul>
  *
  * <h2>Example Usage</h2>

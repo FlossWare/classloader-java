@@ -3,7 +3,7 @@ package org.flossware.classloader;
 import org.flossware.classloader.util.ClassNameUtil;
 import org.slf4j.Logger;
 
-import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
+import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;

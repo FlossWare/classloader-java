@@ -540,11 +540,11 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         }
 
         public Builder parentLast(String... alwaysParentPrefixes) {
-            return delegationStrategy(new org.flossware.jclassloader.delegation.ParentLastDelegation(alwaysParentPrefixes));
+            return delegationStrategy(new org.flossware.classloader.delegation.ParentLastDelegation(alwaysParentPrefixes));
         }
 
         public Builder customDelegation(java.util.function.Predicate<String> parentFirstPredicate) {
-            return delegationStrategy(new org.flossware.jclassloader.delegation.CustomDelegation(parentFirstPredicate));
+            return delegationStrategy(new org.flossware.classloader.delegation.CustomDelegation(parentFirstPredicate));
         }
 
         public Builder addListener(ClassLoaderLifecycleListener listener) {
@@ -553,15 +553,15 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         }
 
         public Builder addLoggingListener() {
-            return addListener(new org.flossware.jclassloader.lifecycle.LoggingListener());
+            return addListener(new org.flossware.classloader.lifecycle.LoggingListener());
         }
 
         public Builder addLoggingListener(boolean verbose) {
-            return addListener(new org.flossware.jclassloader.lifecycle.LoggingListener(verbose));
+            return addListener(new org.flossware.classloader.lifecycle.LoggingListener(verbose));
         }
 
         public Builder trackResources() {
-            return addListener(new org.flossware.jclassloader.lifecycle.ResourceTrackingListener());
+            return addListener(new org.flossware.classloader.lifecycle.ResourceTrackingListener());
         }
 
         public Builder bytecodeVerifier(BytecodeVerifier verifier) {

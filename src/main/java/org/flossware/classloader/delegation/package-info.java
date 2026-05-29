@@ -6,10 +6,10 @@
  *
  * <h2>Key Classes</h2>
  * <ul>
- *   <li>{@link org.flossware.jclassloader.delegation.DelegationStrategy} - Interface for delegation strategies</li>
- *   <li>{@link org.flossware.jclassloader.delegation.ParentFirstDelegation} - Standard Java delegation (parent first)</li>
- *   <li>{@link org.flossware.jclassloader.delegation.ParentLastDelegation} - Child-first delegation for isolation</li>
- *   <li>{@link org.flossware.jclassloader.delegation.CustomDelegation} - Custom predicate-based delegation</li>
+ *   <li>{@link org.flossware.classloader.delegation.DelegationStrategy} - Interface for delegation strategies</li>
+ *   <li>{@link org.flossware.classloader.delegation.ParentFirstDelegation} - Standard Java delegation (parent first)</li>
+ *   <li>{@link org.flossware.classloader.delegation.ParentLastDelegation} - Child-first delegation for isolation</li>
+ *   <li>{@link org.flossware.classloader.delegation.CustomDelegation} - Custom predicate-based delegation</li>
  * </ul>
  *
  * <h2>Example Usage</h2>
