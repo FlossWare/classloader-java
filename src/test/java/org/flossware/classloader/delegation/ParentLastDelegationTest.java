@@ -5,30 +5,36 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-
-import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 
 class ParentLastDelegationTest {
 
     @Test
     void testDefaultPrefixes() {
         ParentLastDelegation delegation = ParentLastDelegation.withDefaults();
-        Set<String> prefixes = delegation.getAlwaysParentPrefixes();
+        List<String> prefixes = Arrays.asList(delegation.getAlwaysParentPrefixes());
 
         assertTrue(prefixes.contains("java."));
         assertTrue(prefixes.contains("javax."));
         assertTrue(prefixes.contains("sun."));
         assertTrue(prefixes.contains("jdk."));
+        assertTrue(prefixes.contains("com.sun."));
+        assertTrue(prefixes.contains("org.xml."));
+        assertTrue(prefixes.contains("org.w3c."));
+        assertTrue(prefixes.contains("org.ietf."));
+        assertTrue(prefixes.contains("org.omg."));
     }
 
     @Test
     void testCustomPrefixes() {
         ParentLastDelegation delegation = new ParentLastDelegation("com.example.api.", "org.platform.");
-        Set<String> prefixes = delegation.getAlwaysParentPrefixes();
+        String[] prefixes = delegation.getAlwaysParentPrefixes();
 
-        assertEquals(2, prefixes.size());
-        assertTrue(prefixes.contains("com.example.api."));
-        assertTrue(prefixes.contains("org.platform."));
+        assertEquals(2, prefixes.length);
+        List<String> prefixList = Arrays.asList(prefixes);
+        assertTrue(prefixList.contains("com.example.api."));
+        assertTrue(prefixList.contains("org.platform."));
     }
 
     @Test
