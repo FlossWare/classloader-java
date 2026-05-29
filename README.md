@@ -1,4 +1,4 @@
-# JClassLoader
+# ApplicationClassLoader
 
 A flexible Java ClassLoader that can load classes from 34+ transport protocols with built-in caching support and authentication.
 
@@ -59,9 +59,9 @@ mvn clean install
 ### Basic Local Class Loading
 
 ```java
-import org.flossware.classloader-java.JClassLoader;
+import org.flossware.classloader-java.ApplicationClassLoader;
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .useCache(false)
     .build();
@@ -73,7 +73,7 @@ Object instance = myClass.getDeclaredConstructor().newInstance();
 ### Remote Class Loading (HTTP/HTTPS)
 
 ```java
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addRemoteSource("https://example.com/classes/")
     .build();
 
@@ -87,13 +87,13 @@ import org.flossware.classloader-java.AuthConfig;
 
 // Basic Authentication
 AuthConfig basicAuth = AuthConfig.basic("username", "password");
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addRemoteSource("https://secure.example.com/classes/", basicAuth)
     .build();
 
 // Bearer Token Authentication
 AuthConfig bearerAuth = AuthConfig.bearer("your-token-here");
-JClassLoader loader2 = JClassLoader.builder()
+ApplicationClassLoader loader2 = ApplicationClassLoader.builder()
     .addRemoteSource("https://api.example.com/classes/", bearerAuth)
     .build();
 ```
@@ -102,17 +102,17 @@ JClassLoader loader2 = JClassLoader.builder()
 
 ```java
 // Anonymous FTP
-JClassLoader ftpLoader = JClassLoader.builder()
+ApplicationClassLoader ftpLoader = ApplicationClassLoader.builder()
     .addClassSource(new FtpClassSource("ftp://ftp.example.com/classes/"))
     .build();
 
 // Authenticated FTP
-JClassLoader ftpAuthLoader = JClassLoader.builder()
+ApplicationClassLoader ftpAuthLoader = ApplicationClassLoader.builder()
     .addClassSource(new FtpClassSource("ftp://ftp.example.com/classes/", "username", "password"))
     .build();
 
 // FTPS (FTP over SSL/TLS)
-JClassLoader ftpsLoader = JClassLoader.builder()
+ApplicationClassLoader ftpsLoader = ApplicationClassLoader.builder()
     .addClassSource(new FtpClassSource("ftps://secure-ftp.example.com/classes/", "username", "password"))
     .build();
 ```
@@ -125,13 +125,13 @@ JClassLoader ftpsLoader = JClassLoader.builder()
 import org.flossware.classloader-java.AuthConfig;
 
 // Public Nexus raw repository
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addNexusRawSource("https://nexus.example.com", "raw-classes")
     .build();
 
 // Authenticated Nexus raw repository
 AuthConfig auth = AuthConfig.basic("username", "password");
-JClassLoader authLoader = JClassLoader.builder()
+ApplicationClassLoader authLoader = ApplicationClassLoader.builder()
     .addNexusRawSource("https://nexus.example.com", "private-raw", auth)
     .build();
 ```
@@ -154,7 +154,7 @@ MavenNexusClassSource nexusSource = MavenNexusClassSource.builder()
     .addArtifact("com.google.guava:guava:32.1.0-jre")
     .build();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addNexusMavenSource(nexusSource)
     .build();
 
@@ -211,7 +211,7 @@ import org.flossware.classloader-java.cache.FileSystemCache;
 
 FileSystemCache cache = new FileSystemCache("/tmp/classloader-java-cache");
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addRemoteSource("https://example.com/classes/")
     .cache(cache)
     .useCache(true)
@@ -229,7 +229,7 @@ Class<?> myCachedClass = loader.loadClass("com.example.MyClass");
 Classes are searched in the order sources are added:
 
 ```java
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/opt/app/classes")           // Searched first
     .addRemoteSource("https://cdn.example.com/")  // Searched second
     .addClassSource(new FtpClassSource("ftp://backup.example.com/classes/"))  // Searched third
@@ -269,13 +269,13 @@ CloudStorageClient s3 = S3CloudStorageClient.builder()
     .prefix("production/classes/")
     .build();
 
-// Use with JClassLoader
-JClassLoader loader = JClassLoader.builder()
+// Use with ApplicationClassLoader
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addCloudStorage(s3)
     .build();
 
 // Or wrap manually
-JClassLoader loader2 = JClassLoader.builder()
+ApplicationClassLoader loader2 = ApplicationClassLoader.builder()
     .addClassSource(new CloudStorageClassSource(s3))
     .build();
 ```
@@ -315,7 +315,7 @@ FileTransferClient sftp = SftpFileTransferClient.builder()
     .basePath("/opt/classes")
     .build();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addClassSource(new FileTransferClassSource(sftp))
     .build();
 ```
@@ -345,7 +345,7 @@ MessageClient kafka = KafkaMessageClient.builder()
     .topic("class-definitions")
     .build();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addClassSource(new MessageClientClassSource(kafka))
     .build();
 ```
@@ -374,7 +374,7 @@ ContainerClient k8s = KubernetesContainerClient.builder()
     .namespace("production")
     .build();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addClassSource(new ContainerClientClassSource(k8s, "app-classes"))
     .build();
 ```
@@ -405,7 +405,7 @@ VcsClient git = GitVcsClient.builder()
     .basePath("build/classes")
     .build();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addClassSource(new VcsClientClassSource(git))
     .build();
 ```
@@ -417,7 +417,7 @@ Supported systems: Git (local and remote). See [jvcs docs](https://github.com/Fl
 ```java
 ClassLoader parentLoader = Thread.currentThread().getContextClassLoader();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .parent(parentLoader)
     .addLocalSource("/path/to/classes")
     .build();
@@ -425,13 +425,13 @@ JClassLoader loader = JClassLoader.builder()
 
 ### Delegation Strategies (NEW in 1.0)
 
-JClassLoader now supports configurable delegation strategies to control when classes are loaded from parent vs. configured sources.
+ApplicationClassLoader now supports configurable delegation strategies to control when classes are loaded from parent vs. configured sources.
 
 #### Parent-First (Default - Standard Java Behavior)
 
 ```java
 // Delegates to parent first, then checks sources
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .parentFirst()  // This is the default
     .build();
@@ -444,7 +444,7 @@ Useful for plugin systems, application containers, and isolation scenarios where
 ```java
 // Checks sources first, then falls back to parent
 // System classes (java.*, javax.*) always from parent
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/plugins/my-plugin")
     .parentLast("com.myapp.api.", "java.", "javax.")  // API classes from parent
     .build();
@@ -456,7 +456,7 @@ Fine-grained control using a predicate:
 
 ```java
 // Custom logic to decide parent-first vs parent-last per class
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .customDelegation(className -> 
         className.startsWith("java.") ||           // System classes: parent-first
@@ -473,13 +473,13 @@ Monitor class loading events for tracking, debugging, and resource management.
 
 ```java
 // Log all class loading events
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .addLoggingListener()  // Logs to System.out
     .build();
 
 // Verbose logging (includes cache hits)
-JClassLoader verboseLoader = JClassLoader.builder()
+ApplicationClassLoader verboseLoader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .addLoggingListener(true)  // verbose = true
     .build();
@@ -494,7 +494,7 @@ import org.flossware.classloader-java.lifecycle.ResourceTrackingListener;
 
 ResourceTrackingListener tracker = new ResourceTrackingListener();
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/plugins/my-plugin")
     .addListener(tracker)
     .build();
@@ -535,7 +535,7 @@ ClassLoaderLifecycleListener myListener = new ClassLoaderLifecycleListener() {
     }
 };
 
-JClassLoader loader = JClassLoader.builder()
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
     .addLocalSource("/path/to/classes")
     .addListener(myListener)
     .build();
@@ -546,7 +546,7 @@ JClassLoader loader = JClassLoader.builder()
 ### Core Components
 
 **Class Loading:**
-- **`JClassLoader`**: Main classloader implementation extending `java.lang.ClassLoader`
+- **`ApplicationClassLoader`**: Main classloader implementation extending `java.lang.ClassLoader`
 - **`ClassSource`**: Interface for class loading sources (20+ implementations)
 - **`LocalClassSource`**: Loads classes from local file system
 - **`RemoteClassSource`**: Loads classes from HTTP/HTTPS URLs
@@ -604,7 +604,7 @@ mvn test
 
 ### Test Coverage
 
-JClassLoader has **463 comprehensive unit tests** achieving **46% instruction coverage** across the codebase. While we strive for high test coverage, 100% coverage is not the goal for this project. Here's why:
+ApplicationClassLoader has **463 comprehensive unit tests** achieving **46% instruction coverage** across the codebase. While we strive for high test coverage, 100% coverage is not the goal for this project. Here's why:
 
 **What IS tested (well-covered):**
 - ✅ **Core functionality** (53% coverage): Class loading, delegation strategies, authentication
@@ -662,7 +662,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ### Plugin Systems
 Use parent-last delegation to isolate plugins from the host application:
 ```java
-JClassLoader pluginLoader = JClassLoader.builder()
+ApplicationClassLoader pluginLoader = ApplicationClassLoader.builder()
     .addLocalSource("/plugins/my-plugin")
     .parentLast("com.myapp.api.")  // Only API from host
     .trackResources()  // For cleanup when unloading
@@ -672,7 +672,7 @@ JClassLoader pluginLoader = JClassLoader.builder()
 ### Application Containers (like JPlatform)
 Run multiple applications in one JVM with isolation:
 ```java
-JClassLoader app1Loader = JClassLoader.builder()
+ApplicationClassLoader app1Loader = ApplicationClassLoader.builder()
     .addLocalSource("/apps/app1.jar")
     .addMavenCentral("commons-lang3:3.12.0")
     .parentLast("org.platform.api.")
@@ -684,7 +684,7 @@ JClassLoader app1Loader = JClassLoader.builder()
 Isolate tests and cleanup between runs:
 ```java
 ResourceTrackingListener tracker = new ResourceTrackingListener();
-JClassLoader testLoader = JClassLoader.builder()
+ApplicationClassLoader testLoader = ApplicationClassLoader.builder()
     .addLocalSource("/test-classes")
     .addListener(tracker)
     .build();
@@ -695,7 +695,7 @@ tracker.closeAllResources();  // Cleanup
 ### Multi-Tenant Applications
 Load tenant-specific code with isolation:
 ```java
-JClassLoader tenantLoader = JClassLoader.builder()
+ApplicationClassLoader tenantLoader = ApplicationClassLoader.builder()
     .addRemoteSource("https://tenant1.example.com/code/")
     .parentLast()
     .build();
