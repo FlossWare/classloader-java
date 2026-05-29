@@ -141,10 +141,64 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         return prefix + (prefix.endsWith("/") ? "" : "/") + classPath;
     }
 
+    /**
+     * Creates a new Builder for constructing MinioClassSource instances.
+     *
+     * @return A new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing MinioClassSource instances with fluent API.
+     *
+     * <p>Configures MinIO object storage connection for class loading.</p>
+     *
+     * <p><b>Basic Example:</b></p>
+     * <pre>{@code
+     * MinioClassSource source = MinioClassSource.builder()
+     *     .endpoint("minio.example.com")
+     *     .accessKey("minioadmin")
+     *     .secretKey("minioadmin")
+     *     .bucket("classes")
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Advanced Example with Prefix and Custom Port:</b></p>
+     * <pre>{@code
+     * MinioClassSource source = MinioClassSource.builder()
+     *     .endpoint("localhost")
+     *     .port(9000)              // Custom port
+     *     .secure(false)            // HTTP instead of HTTPS
+     *     .accessKey("mykey")
+     *     .secretKey("mysecret")
+     *     .bucket("app-classes")
+     *     .prefix("production/v2")  // Object key prefix
+     *     .region("us-east-1")
+     *     .maxClassSize(20 * 1024 * 1024)  // 20MB limit
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>S3-Compatible Services:</b></p>
+     * <p>Works with any S3-compatible service:</p>
+     * <ul>
+     *   <li>MinIO</li>
+     *   <li>Amazon S3</li>
+     *   <li>Backblaze B2</li>
+     *   <li>Cloudflare R2</li>
+     *   <li>DigitalOcean Spaces</li>
+     * </ul>
+     *
+     * <p><b>Defaults:</b></p>
+     * <ul>
+     *   <li>secure: true (HTTPS)</li>
+     *   <li>port: 443 (HTTPS) or 9000 (HTTP if secure=false)</li>
+     *   <li>maxClassSize: 10MB</li>
+     *   <li>prefix: "" (bucket root)</li>
+     *   <li>region: null (auto-detect)</li>
+     * </ul>
+     */
     public static class Builder {
         private String endpoint;
         private String accessKey;
@@ -156,36 +210,97 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         private int port = 443;  // Default HTTPS port
         private long maxClassSize = MAX_CLASS_SIZE;
 
+        /**
+         * Sets the MinIO/S3 endpoint hostname.
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>MinIO: "minio.example.com" or "localhost"</li>
+         *   <li>Amazon S3: "s3.amazonaws.com"</li>
+         *   <li>Backblaze B2: "s3.us-west-002.backblazeb2.com"</li>
+         *   <li>Cloudflare R2: "ACCOUNT_ID.r2.cloudflarestorage.com"</li>
+         * </ul>
+         *
+         * @param endpoint Hostname (without http:// or https://)
+         * @return this builder
+         * @throws NullPointerException if endpoint is null
+         */
         public Builder endpoint(String endpoint) {
             this.endpoint = Objects.requireNonNull(endpoint, "endpoint cannot be null");
             return this;
         }
 
+        /**
+         * Sets the access key (username) for authentication.
+         *
+         * @param accessKey Access key ID
+         * @return this builder
+         * @throws NullPointerException if accessKey is null
+         */
         public Builder accessKey(String accessKey) {
             this.accessKey = Objects.requireNonNull(accessKey, "accessKey cannot be null");
             return this;
         }
 
+        /**
+         * Sets the secret key (password) for authentication.
+         *
+         * @param secretKey Secret access key
+         * @return this builder
+         * @throws NullPointerException if secretKey is null
+         */
         public Builder secretKey(String secretKey) {
             this.secretKey = Objects.requireNonNull(secretKey, "secretKey cannot be null");
             return this;
         }
 
+        /**
+         * Sets the bucket name containing class files.
+         *
+         * @param bucketName Bucket name (e.g., "classes", "app-binaries")
+         * @return this builder
+         * @throws NullPointerException if bucketName is null
+         */
         public Builder bucket(String bucketName) {
             this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
             return this;
         }
 
+        /**
+         * Sets an optional object key prefix.
+         *
+         * <p>Useful for organizing classes in subdirectories within a bucket.</p>
+         *
+         * <p>Example: If prefix is "production/v2" and loading class "com.example.MyClass",
+         * the object key will be "production/v2/com/example/MyClass.class"</p>
+         *
+         * @param prefix Object key prefix (null or "" for bucket root)
+         * @return this builder
+         */
         public Builder prefix(String prefix) {
             this.prefix = prefix;
             return this;
         }
 
+        /**
+         * Sets the region (optional, auto-detected if not specified).
+         *
+         * @param region AWS region code (e.g., "us-east-1", "eu-west-1")
+         * @return this builder
+         */
         public Builder region(String region) {
             this.region = region;
             return this;
         }
 
+        /**
+         * Sets whether to use HTTPS (true) or HTTP (false).
+         *
+         * <p>Automatically adjusts port: 443 for HTTPS, 9000 for HTTP (unless explicitly set).</p>
+         *
+         * @param secure true for HTTPS (default), false for HTTP
+         * @return this builder
+         */
         public Builder secure(boolean secure) {
             this.secure = secure;
             // Adjust default port based on secure setting
@@ -195,6 +310,20 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Sets a custom port number.
+         *
+         * <p>Common ports:</p>
+         * <ul>
+         *   <li>443: HTTPS (default)</li>
+         *   <li>9000: MinIO HTTP (default when secure=false)</li>
+         *   <li>9001: MinIO Console</li>
+         * </ul>
+         *
+         * @param port Port number (1-65535)
+         * @return this builder
+         * @throws IllegalArgumentException if port is outside valid range
+         */
         public Builder port(int port) {
             if (port < 1 || port > 65535) {
                 throw new IllegalArgumentException("Port must be 1-65535");
@@ -203,6 +332,15 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Sets the maximum allowed class file size.
+         *
+         * <p>Prevents OOM attacks by rejecting files larger than this limit.</p>
+         *
+         * @param maxBytes Maximum size in bytes (default: 10MB)
+         * @return this builder
+         * @throws IllegalArgumentException if maxBytes <= 0
+         */
         public Builder maxClassSize(long maxBytes) {
             if (maxBytes <= 0) {
                 throw new IllegalArgumentException("maxClassSize must be positive");
@@ -211,6 +349,12 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Builds the MinioClassSource with configured settings.
+         *
+         * @return A new MinioClassSource instance
+         * @throws NullPointerException if endpoint, accessKey, secretKey, or bucketName not set
+         */
         public MinioClassSource build() {
             Objects.requireNonNull(endpoint, "endpoint must be set");
             Objects.requireNonNull(accessKey, "accessKey must be set");
