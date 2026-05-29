@@ -4,7 +4,7 @@ import org.flossware.classloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
 
-import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
+import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;

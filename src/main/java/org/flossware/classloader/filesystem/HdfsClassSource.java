@@ -2,7 +2,7 @@ package org.flossware.classloader.filesystem;
 
 import org.apache.hadoop.conf.Configuration;
 
-import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
+import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.flossware.classloader.ClassSource;

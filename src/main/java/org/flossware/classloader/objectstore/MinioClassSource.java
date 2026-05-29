@@ -2,7 +2,7 @@ package org.flossware.classloader.objectstore;
 
 import io.minio.GetObjectArgs;
 
-import static org.flossware.jclassloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
+import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
 import org.flossware.classloader.ClassSource;

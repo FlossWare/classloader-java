@@ -6,9 +6,9 @@
  *
  * <h2>Key Classes</h2>
  * <ul>
- *   <li>{@link org.flossware.jclassloader.cache.ClassCache} - Interface for cache implementations</li>
- *   <li>{@link org.flossware.jclassloader.cache.MemoryCache} - In-memory LRU cache</li>
- *   <li>{@link org.flossware.jclassloader.cache.FileSystemCache} - Disk-based persistent cache</li>
+ *   <li>{@link org.flossware.classloader.cache.ClassCache} - Interface for cache implementations</li>
+ *   <li>{@link org.flossware.classloader.cache.MemoryCache} - In-memory LRU cache</li>
+ *   <li>{@link org.flossware.classloader.cache.FileSystemCache} - Disk-based persistent cache</li>
  * </ul>
  *
  * <h2>Example Usage</h2>
