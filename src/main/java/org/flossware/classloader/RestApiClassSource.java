@@ -223,10 +223,69 @@ public class RestApiClassSource implements ClassSource {
         return json.substring(start, end);
     }
 
+    /**
+     * Creates a new Builder for constructing RestApiClassSource instances.
+     *
+     * @return A new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing RestApiClassSource instances with fluent API.
+     *
+     * <p>Configures a custom REST API for class loading with flexible URL templates,
+     * headers, query parameters, authentication, and response formats.</p>
+     *
+     * <p><b>Basic Example (Binary Response):</b></p>
+     * <pre>{@code
+     * RestApiClassSource source = RestApiClassSource.builder()
+     *     .baseUrl("https://classes.example.com/api/v1")
+     *     .classPathTemplate("classes/{fullclass}")
+     *     .auth(AuthConfig.bearer("token123"))
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Advanced Example (JSON Response with Base64):</b></p>
+     * <pre>{@code
+     * RestApiClassSource source = RestApiClassSource.builder()
+     *     .baseUrl("https://api.example.com")
+     *     .classPathTemplate("classes/{package}/{class}")
+     *     .addHeader("X-API-Version", "2.0")
+     *     .addQueryParam("env", "production")
+     *     .auth(AuthConfig.apiKey("X-API-Key", "secret123"))
+     *     .responseFormat(ResponseFormat.BASE64_JSON_FIELD)
+     *     .connectTimeout(15000)
+     *     .readTimeout(60000)
+     *     .enableCanLoadCheck(true)  // Enable HEAD requests
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>URL Template Variables:</b></p>
+     * <ul>
+     *   <li>{@code {package}} - Package path (e.g., "com/example")</li>
+     *   <li>{@code {class}} - Simple class name (e.g., "MyClass")</li>
+     *   <li>{@code {fullclass}} - Full class path (e.g., "com/example/MyClass")</li>
+     * </ul>
+     *
+     * <p><b>Response Formats:</b></p>
+     * <ul>
+     *   <li><b>BINARY</b> - Raw class bytes in response body (default)</li>
+     *   <li><b>BASE64_JSON_FIELD</b> - JSON with base64-encoded class in "data" or "content" field</li>
+     *   <li><b>DIRECT</b> - Same as BINARY</li>
+     * </ul>
+     *
+     * <p><b>Defaults:</b></p>
+     * <ul>
+     *   <li>classPathTemplate: "{package}/{class}.class"</li>
+     *   <li>responseFormat: BINARY</li>
+     *   <li>connectTimeout: 10000ms (10 seconds)</li>
+     *   <li>readTimeout: 30000ms (30 seconds)</li>
+     *   <li>enableCanLoadCheck: false (skip HEAD requests for performance)</li>
+     *   <li>auth: none</li>
+     * </ul>
+     */
     public static class Builder {
         private String baseUrl;
         private String classPathTemplate;
@@ -238,16 +297,63 @@ public class RestApiClassSource implements ClassSource {
         private int readTimeout = DEFAULT_READ_TIMEOUT;
         private boolean enableCanLoadCheck = false;  // Default: skip expensive checks
 
+        /**
+         * Sets the base URL of the REST API.
+         *
+         * <p>This is prepended to the classPathTemplate.</p>
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>"https://classes.example.com/api/v1"</li>
+         *   <li>"http://localhost:8080/classes"</li>
+         *   <li>"https://cdn.example.com"</li>
+         * </ul>
+         *
+         * @param baseUrl Base URL (automatically adds trailing slash if missing)
+         * @return this builder
+         * @throws NullPointerException if baseUrl is null
+         */
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
             return this;
         }
 
+        /**
+         * Sets the URL template for class paths.
+         *
+         * <p>Uses placeholders: {package}, {class}, {fullclass}</p>
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>"{package}/{class}.class" (default)</li>
+         *   <li>"classes/{fullclass}" → "classes/com/example/MyClass"</li>
+         *   <li>"v2/{package}/{class}.bin"</li>
+         * </ul>
+         *
+         * @param template URL template (null to use default)
+         * @return this builder
+         */
         public Builder classPathTemplate(String template) {
             this.classPathTemplate = template;
             return this;
         }
 
+        /**
+         * Adds a custom HTTP header to all requests.
+         *
+         * <p>Useful for API versioning, custom authentication, or metadata.</p>
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * builder.addHeader("X-API-Version", "2.0")
+         *        .addHeader("Accept", "application/octet-stream")
+         * }</pre>
+         *
+         * @param name Header name
+         * @param value Header value
+         * @return this builder
+         * @throws NullPointerException if name or value is null
+         */
         public Builder addHeader(String name, String value) {
             Objects.requireNonNull(name, "header name cannot be null");
             Objects.requireNonNull(value, "header value cannot be null");
@@ -255,6 +361,21 @@ public class RestApiClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Adds a query parameter to all requests.
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * builder.addQueryParam("env", "production")
+         *        .addQueryParam("version", "1.0")
+         * // URLs become: baseUrl/path?env=production&version=1.0
+         * }</pre>
+         *
+         * @param name Parameter name
+         * @param value Parameter value
+         * @return this builder
+         * @throws NullPointerException if name or value is null
+         */
         public Builder addQueryParam(String name, String value) {
             Objects.requireNonNull(name, "query param name cannot be null");
             Objects.requireNonNull(value, "query param value cannot be null");
@@ -262,16 +383,52 @@ public class RestApiClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Sets authentication configuration.
+         *
+         * <p>Supported types:</p>
+         * <ul>
+         *   <li>AuthConfig.none() - No authentication (default)</li>
+         *   <li>AuthConfig.basic(username, password) - HTTP Basic</li>
+         *   <li>AuthConfig.bearer(token) - Bearer token</li>
+         *   <li>AuthConfig.apiKey(headerName, key) - API key header</li>
+         * </ul>
+         *
+         * @param authConfig Authentication configuration (null = no auth)
+         * @return this builder
+         */
         public Builder auth(AuthConfig authConfig) {
             this.authConfig = authConfig;
             return this;
         }
 
+        /**
+         * Sets the response format.
+         *
+         * <p>Determines how to parse the API response:</p>
+         * <ul>
+         *   <li><b>BINARY</b> - Raw bytes (default, most efficient)</li>
+         *   <li><b>BASE64_JSON_FIELD</b> - JSON with base64 in "data" or "content" field</li>
+         *   <li><b>DIRECT</b> - Same as BINARY</li>
+         * </ul>
+         *
+         * @param format Response format (null = BINARY)
+         * @return this builder
+         */
         public Builder responseFormat(ResponseFormat format) {
             this.responseFormat = format;
             return this;
         }
 
+        /**
+         * Sets the connection timeout.
+         *
+         * <p>Prevents hanging indefinitely when connecting to the API.</p>
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 10000ms = 10 seconds, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -280,6 +437,15 @@ public class RestApiClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Sets the read timeout.
+         *
+         * <p>Prevents hanging indefinitely when reading response data.</p>
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 30000ms = 30 seconds, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder readTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("readTimeout must be >= 0");
@@ -288,11 +454,30 @@ public class RestApiClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Enables or disables canLoad() HEAD requests.
+         *
+         * <p><b>Performance Impact:</b> When enabled, canLoad() makes a HEAD request
+         * to check if a class exists, which <b>doubles network traffic</b>. When disabled
+         * (default), canLoad() always returns true and loadClassData() fails if the
+         * class doesn't exist.</p>
+         *
+         * <p><b>Recommendation:</b> Leave disabled (false) unless your application
+         * specifically needs to check class existence before loading.</p>
+         *
+         * @param enable true to enable HEAD requests, false to skip (default: false)
+         * @return this builder
+         */
         public Builder enableCanLoadCheck(boolean enable) {
             this.enableCanLoadCheck = enable;
             return this;
         }
 
+        /**
+         * Builds the RestApiClassSource with configured settings.
+         *
+         * @return A new RestApiClassSource instance
+         */
         public RestApiClassSource build() {
             return new RestApiClassSource(baseUrl, classPathTemplate, headers,
                                          queryParams, authConfig, responseFormat,
