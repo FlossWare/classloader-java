@@ -167,11 +167,40 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
         private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
 
+        /**
+         * Sets the HDFS NameNode URI.
+         *
+         * <p>Format: {@code hdfs://hostname:port}</p>
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>Single NameNode: "hdfs://namenode.example.com:9000"</li>
+         *   <li>HA NameNode: "hdfs://mycluster" (requires core-site.xml configuration)</li>
+         *   <li>Local testing: "hdfs://localhost:9000"</li>
+         * </ul>
+         *
+         * <p>If not set, uses fs.defaultFS from Hadoop configuration files.</p>
+         *
+         * @param nameNodeUri NameNode URI (null to use configuration files)
+         * @return this builder
+         */
         public Builder nameNodeUri(String nameNodeUri) {
             this.nameNodeUri = nameNodeUri;
             return this;
         }
 
+        /**
+         * Sets the base directory path in HDFS.
+         *
+         * <p>Classes are loaded from: {@code basePath + "/" + className.replace('.', '/') + ".class"}</p>
+         *
+         * <p>Example: If basePath is "/app/classes" and loading "com.example.MyClass",
+         * the HDFS path will be "/app/classes/com/example/MyClass.class"</p>
+         *
+         * @param basePath Base directory path (default: "/")
+         * @return this builder
+         * @throws NullPointerException if basePath is null
+         */
         public Builder basePath(String basePath) {
             this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null");
             return this;
