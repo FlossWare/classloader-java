@@ -1,8 +1,6 @@
 package org.flossware.classloader.delegation;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Arrays;
 
 /**
  * Parent-last delegation for application isolation.
@@ -11,7 +9,7 @@ import java.util.Set;
  */
 public class ParentLastDelegation implements DelegationStrategy {
 
-    private final Set<String> alwaysParentPrefixes;
+    private final String[] alwaysParentPrefixes;
 
     /**
      * Creates a parent-last delegation strategy with custom parent-first prefixes.
@@ -19,25 +17,36 @@ public class ParentLastDelegation implements DelegationStrategy {
      * @param alwaysParentPrefixes Class name prefixes that should always be loaded from parent
      */
     public ParentLastDelegation(String... alwaysParentPrefixes) {
-        Set<String> prefixes = new HashSet<>();
-        Collections.addAll(prefixes, alwaysParentPrefixes);
-        this.alwaysParentPrefixes = Collections.unmodifiableSet(prefixes);
+        this.alwaysParentPrefixes = alwaysParentPrefixes.clone();
     }
 
     /**
      * Creates a parent-last delegation strategy with default parent-first prefixes.
-     * Default prefixes: java., javax., sun., jdk.
+     * Default prefixes include all JDK system packages to prevent ClassCastException.
      */
     public static ParentLastDelegation withDefaults() {
-        return new ParentLastDelegation("java.", "javax.", "sun.", "jdk.");
+        return new ParentLastDelegation(
+            "java.",      // Core Java classes
+            "javax.",     // Java extension classes
+            "sun.",       // Sun internal classes
+            "jdk.",       // JDK internal classes
+            "com.sun.",   // Sun implementation classes
+            "org.xml.",   // XML APIs (SAX, DOM)
+            "org.w3c.",   // W3C APIs (DOM)
+            "org.ietf.",  // IETF APIs (GSS)
+            "org.omg."    // CORBA (legacy but still in some JDKs)
+        );
     }
 
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
         // System classes and specified prefixes always from parent
-        if (alwaysParentPrefixes.stream().anyMatch(name::startsWith)) {
-            return parent.loadClass(name);
+        // Use simple for-each loop instead of Stream.anyMatch() for better performance on hot path
+        for (String prefix : alwaysParentPrefixes) {
+            if (name.startsWith(prefix)) {
+                return parent.loadClass(name);
+            }
         }
 
         // Try sources first (parent-last)
@@ -49,12 +58,12 @@ public class ParentLastDelegation implements DelegationStrategy {
         }
     }
 
-    public Set<String> getAlwaysParentPrefixes() {
-        return alwaysParentPrefixes;
+    public String[] getAlwaysParentPrefixes() {
+        return alwaysParentPrefixes.clone();
     }
 
     @Override
     public String toString() {
-        return "ParentLastDelegation{alwaysParent=" + alwaysParentPrefixes + "}";
+        return "ParentLastDelegation{alwaysParent=" + Arrays.toString(alwaysParentPrefixes) + "}";
     }
 }
