@@ -221,10 +221,72 @@ public class MavenRepositoryClassSource implements ClassSource {
         return repositoryUrl;
     }
 
+    /**
+     * Creates a new Builder for constructing MavenRepositoryClassSource instances.
+     *
+     * @return A new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing MavenRepositoryClassSource instances with fluent API.
+     *
+     * <p>Loads classes from Maven artifacts in any Maven-compatible repository
+     * (Maven Central, JCenter, Google, corporate Nexus/Artifactory, etc.).</p>
+     *
+     * <p><b>Basic Example (Maven Central):</b></p>
+     * <pre>{@code
+     * MavenRepositoryClassSource source = MavenRepositoryClassSource.builder()
+     *     .mavenCentral()
+     *     .addArtifact("com.google.guava:guava:32.1.0-jre")
+     *     .addArtifact("org.apache.commons:commons-lang3:3.12.0")
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Advanced Example (Corporate Repository with Auth):</b></p>
+     * <pre>{@code
+     * MavenRepositoryClassSource source = MavenRepositoryClassSource.builder()
+     *     .repositoryUrl("https://nexus.example.com/repository/maven-releases/")
+     *     .auth(AuthConfig.basic("user", "password"))
+     *     .addArtifact("com.example", "my-lib", "1.0.0")
+     *     .addArtifact("com.example:another-lib:2.0.0")
+     *     .connectTimeout(15000)
+     *     .readTimeout(60000)
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Multiple Repositories:</b></p>
+     * <p>To load from multiple repositories, create multiple MavenRepositoryClassSource
+     * instances and add them to ApplicationClassLoader:</p>
+     * <pre>{@code
+     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
+     *     .addClassSource(MavenRepositoryClassSource.builder()
+     *         .mavenCentral()
+     *         .addArtifact("com.google.guava:guava:32.1.0-jre")
+     *         .build())
+     *     .addClassSource(MavenRepositoryClassSource.builder()
+     *         .repositoryUrl("https://nexus.example.com/maven-releases/")
+     *         .addArtifact("com.example:my-lib:1.0.0")
+     *         .build())
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Common Repositories:</b></p>
+     * <ul>
+     *   <li>Maven Central: https://repo1.maven.org/maven2/</li>
+     *   <li>JCenter: https://jcenter.bintray.com/ (deprecated)</li>
+     *   <li>Google: https://maven.google.com/</li>
+     * </ul>
+     *
+     * <p><b>Defaults:</b></p>
+     * <ul>
+     *   <li>connectTimeout: 10000ms (10 seconds)</li>
+     *   <li>readTimeout: 30000ms (30 seconds)</li>
+     *   <li>auth: none</li>
+     * </ul>
+     */
     public static class Builder {
         private String repositoryUrl;
         private final List<MavenArtifact> artifacts = new ArrayList<>();
@@ -232,34 +294,101 @@ public class MavenRepositoryClassSource implements ClassSource {
         private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
         private int readTimeout = DEFAULT_READ_TIMEOUT;
 
+        /**
+         * Sets a custom Maven repository URL.
+         *
+         * <p>URL should end with trailing slash and point to the repository root.</p>
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>Nexus: "https://nexus.example.com/repository/maven-releases/"</li>
+         *   <li>Artifactory: "https://artifactory.example.com/artifactory/libs-release/"</li>
+         *   <li>Local: "file:///home/user/.m2/repository/"</li>
+         * </ul>
+         *
+         * @param repositoryUrl Maven repository URL
+         * @return this builder
+         * @throws NullPointerException if repositoryUrl is null
+         */
         public Builder repositoryUrl(String repositoryUrl) {
             this.repositoryUrl = Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
             return this;
         }
 
+        /**
+         * Uses Maven Central as the repository.
+         *
+         * <p>Shortcut for {@code repositoryUrl("https://repo1.maven.org/maven2/")}</p>
+         *
+         * @return this builder
+         */
         public Builder mavenCentral() {
             this.repositoryUrl = "https://repo1.maven.org/maven2/";
             return this;
         }
 
+        /**
+         * Adds a Maven artifact to load classes from.
+         *
+         * @param artifact Maven artifact descriptor
+         * @return this builder
+         * @throws NullPointerException if artifact is null
+         */
         public Builder addArtifact(MavenArtifact artifact) {
             this.artifacts.add(Objects.requireNonNull(artifact, "artifact cannot be null"));
             return this;
         }
 
+        /**
+         * Adds a Maven artifact using individual coordinates.
+         *
+         * @param groupId Group ID (e.g., "com.google.guava")
+         * @param artifactId Artifact ID (e.g., "guava")
+         * @param version Version (e.g., "32.1.0-jre")
+         * @return this builder
+         */
         public Builder addArtifact(String groupId, String artifactId, String version) {
             return addArtifact(new MavenArtifact(groupId, artifactId, version));
         }
 
+        /**
+         * Adds a Maven artifact using coordinate string.
+         *
+         * <p>Format: {@code "groupId:artifactId:version"}</p>
+         *
+         * <p>Examples:</p>
+         * <ul>
+         *   <li>"com.google.guava:guava:32.1.0-jre"</li>
+         *   <li>"org.apache.commons:commons-lang3:3.12.0"</li>
+         * </ul>
+         *
+         * @param coordinates Maven coordinates string
+         * @return this builder
+         */
         public Builder addArtifact(String coordinates) {
             return addArtifact(MavenArtifact.parse(coordinates));
         }
 
+        /**
+         * Sets authentication for the repository.
+         *
+         * <p>Required for private corporate repositories.</p>
+         *
+         * @param authConfig Authentication configuration (null = no auth)
+         * @return this builder
+         */
         public Builder auth(AuthConfig authConfig) {
             this.authConfig = authConfig;
             return this;
         }
 
+        /**
+         * Sets the connection timeout for repository requests.
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 10000ms, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -268,6 +397,13 @@ public class MavenRepositoryClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Sets the read timeout for downloading JARs.
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 30000ms, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder readTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("readTimeout must be >= 0");
@@ -276,6 +412,12 @@ public class MavenRepositoryClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Builds the MavenRepositoryClassSource with configured settings.
+         *
+         * @return A new MavenRepositoryClassSource instance
+         * @throws NullPointerException if repositoryUrl not set
+         */
         public MavenRepositoryClassSource build() {
             Objects.requireNonNull(repositoryUrl, "repositoryUrl must be set");
             return new MavenRepositoryClassSource(repositoryUrl, artifacts, authConfig,
