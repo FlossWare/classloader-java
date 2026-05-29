@@ -426,10 +426,56 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         return bytecodeVerifier;
     }
 
+    /**
+     * Creates a new Builder for constructing ApplicationClassLoader instances.
+     *
+     * @return A new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing ApplicationClassLoader instances with fluent API.
+     *
+     * <p>Supports configuration of:</p>
+     * <ul>
+     *   <li>Multiple class sources (local, HTTP, cloud storage, databases, Maven, etc.)</li>
+     *   <li>Class caching (in-memory or filesystem-based)</li>
+     *   <li>Delegation strategy (parent-first, parent-last, custom)</li>
+     *   <li>Lifecycle listeners (logging, resource tracking, metrics)</li>
+     *   <li>Bytecode verification (checksum validation)</li>
+     * </ul>
+     *
+     * <p><b>Basic Example:</b></p>
+     * <pre>{@code
+     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
+     *     .addLocalSource("/path/to/classes")
+     *     .addRemoteSource("https://example.com/classes")
+     *     .addMavenCentral("com.example:my-lib:1.0")
+     *     .parentLast()  // Load from sources before parent
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Advanced Example with Caching and Listeners:</b></p>
+     * <pre>{@code
+     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
+     *     .addRemoteJar("https://cdn.example.com/lib.jar")
+     *     .cache(new FileSystemCache(Paths.get("/tmp/class-cache")))
+     *     .addLoggingListener(true)  // Verbose logging
+     *     .trackResources()          // Track loaded resources
+     *     .bytecodeVerifier(new ChecksumValidator(checksumMap))
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Defaults:</b></p>
+     * <ul>
+     *   <li>parent: Thread.currentThread().getContextClassLoader()</li>
+     *   <li>delegation: ParentFirstDelegation (standard Java behavior)</li>
+     *   <li>cache: In-memory cache (if useCache=true)</li>
+     *   <li>bytecodeVerifier: null (no verification)</li>
+     * </ul>
+     */
     public static class Builder {
         private static final int MAX_CLASS_SOURCES = 100;
 
@@ -441,11 +487,29 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         private final List<ClassLoaderLifecycleListener> listeners = new ArrayList<>();
         private BytecodeVerifier bytecodeVerifier;
 
+        /**
+         * Sets the parent ClassLoader for delegation.
+         *
+         * <p>If not set, defaults to {@code Thread.currentThread().getContextClassLoader()}.</p>
+         *
+         * @param parent The parent ClassLoader (null to use bootstrap classloader as parent)
+         * @return this builder
+         */
         public Builder parent(ClassLoader parent) {
             this.parent = parent;
             return this;
         }
 
+        /**
+         * Adds a custom ClassSource to the loading chain.
+         *
+         * <p>Sources are tried in the order they're added. Maximum 100 sources.</p>
+         *
+         * @param source The ClassSource to add
+         * @return this builder
+         * @throws NullPointerException if source is null
+         * @throws IllegalStateException if MAX_CLASS_SOURCES (100) is exceeded
+         */
         public Builder addClassSource(ClassSource source) {
             Objects.requireNonNull(source, "source cannot be null");
             if (classSources.size() >= MAX_CLASS_SOURCES) {
@@ -456,18 +520,49 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return this;
         }
 
+        /**
+         * Adds a local filesystem directory as a class source.
+         *
+         * <p>Classes are loaded from {@code path + "/" + className.replace('.', '/') + ".class"}</p>
+         *
+         * @param path Base directory path (e.g., "/opt/app/classes" or "target/classes")
+         * @return this builder
+         */
         public Builder addLocalSource(String path) {
             return addClassSource(new LocalClassSource(path));
         }
 
+        /**
+         * Adds an HTTP/HTTPS URL as a class source (no authentication).
+         *
+         * <p>Classes are loaded from {@code baseUrl + "/" + className.replace('.', '/') + ".class"}</p>
+         *
+         * @param baseUrl Base URL (e.g., "https://cdn.example.com/classes")
+         * @return this builder
+         */
         public Builder addRemoteSource(String baseUrl) {
             return addClassSource(new RemoteClassSource(baseUrl));
         }
 
+        /**
+         * Adds an HTTP/HTTPS URL as a class source with authentication.
+         *
+         * @param baseUrl Base URL
+         * @param authConfig Authentication configuration (basic auth, bearer token, API key, etc.)
+         * @return this builder
+         */
         public Builder addRemoteSource(String baseUrl, AuthConfig authConfig) {
             return addClassSource(new RemoteClassSource(baseUrl, authConfig));
         }
 
+        /**
+         * Adds a remote JAR file as a class source (no authentication).
+         *
+         * <p>Downloads and caches the entire JAR, then loads classes from it.</p>
+         *
+         * @param jarUrl URL to JAR file (e.g., "https://cdn.example.com/lib-1.0.jar")
+         * @return this builder
+         */
         public Builder addRemoteJar(String jarUrl) {
             return addClassSource(new JarRemoteClassSource(jarUrl));
         }
@@ -488,6 +583,22 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return addClassSource(source);
         }
 
+        /**
+         * Adds Maven Central as a class source for specified artifacts.
+         *
+         * <p>Coordinates format: {@code "groupId:artifactId:version"}</p>
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * builder.addMavenCentral(
+         *     "com.google.guava:guava:32.1.0-jre",
+         *     "org.apache.commons:commons-lang3:3.12.0"
+         * )
+         * }</pre>
+         *
+         * @param artifactCoordinates Maven coordinates (groupId:artifactId:version)
+         * @return this builder
+         */
         public Builder addMavenCentral(String... artifactCoordinates) {
             MavenRepositoryClassSource.Builder builder = MavenRepositoryClassSource.builder()
                 .mavenCentral();
@@ -530,15 +641,53 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return this;
         }
 
+        /**
+         * Sets a custom delegation strategy.
+         *
+         * <p>Determines whether to check parent ClassLoader before or after custom sources.</p>
+         *
+         * @param strategy The delegation strategy
+         * @return this builder
+         * @throws NullPointerException if strategy is null
+         */
         public Builder delegationStrategy(DelegationStrategy strategy) {
             this.delegationStrategy = Objects.requireNonNull(strategy, "delegationStrategy cannot be null");
             return this;
         }
 
+        /**
+         * Uses parent-first delegation (standard Java ClassLoader behavior).
+         *
+         * <p>Checks parent ClassLoader first, then custom sources. This is the default.</p>
+         *
+         * @return this builder
+         */
         public Builder parentFirst() {
             return delegationStrategy(new ParentFirstDelegation());
         }
 
+        /**
+         * Uses parent-last delegation (checks custom sources before parent).
+         *
+         * <p>Allows overriding classes from parent ClassLoader, except for specified prefixes
+         * which are always loaded from parent (e.g., JDK classes).</p>
+         *
+         * <p>Default always-parent prefixes include:</p>
+         * <ul>
+         *   <li>java. (Java platform classes)</li>
+         *   <li>javax. (Java extensions)</li>
+         *   <li>sun. (Sun/Oracle internal classes)</li>
+         *   <li>jdk. (JDK internal classes)</li>
+         * </ul>
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * builder.parentLast("com.example.core.")  // Always load com.example.core.* from parent
+         * }</pre>
+         *
+         * @param alwaysParentPrefixes Additional prefixes to always load from parent
+         * @return this builder
+         */
         public Builder parentLast(String... alwaysParentPrefixes) {
             return delegationStrategy(new org.flossware.classloader.delegation.ParentLastDelegation(alwaysParentPrefixes));
         }
@@ -564,11 +713,33 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return addListener(new org.flossware.classloader.lifecycle.ResourceTrackingListener());
         }
 
+        /**
+         * Sets a bytecode verifier for security validation.
+         *
+         * <p>Verifies loaded bytecode before defining classes (e.g., checksum validation).</p>
+         *
+         * <p>Example:</p>
+         * <pre>{@code
+         * Map<String, String> checksums = new HashMap<>();
+         * checksums.put("com.example.MyClass", "sha256:abc123...");
+         *
+         * builder.bytecodeVerifier(new ChecksumValidator(checksums));
+         * }</pre>
+         *
+         * @param verifier The bytecode verifier (null to disable verification)
+         * @return this builder
+         */
         public Builder bytecodeVerifier(BytecodeVerifier verifier) {
             this.bytecodeVerifier = verifier;
             return this;
         }
 
+        /**
+         * Builds the ApplicationClassLoader with configured settings.
+         *
+         * @return A new ApplicationClassLoader instance
+         * @throws IllegalStateException if no class sources are configured
+         */
         public ApplicationClassLoader build() {
             if (classSources.isEmpty()) {
                 throw new IllegalStateException("At least one class source must be configured");
