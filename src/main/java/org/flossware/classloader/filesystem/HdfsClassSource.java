@@ -105,10 +105,60 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /**
+     * Creates a new Builder for constructing HdfsClassSource instances.
+     *
+     * @return A new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing HdfsClassSource instances with fluent API.
+     *
+     * <p>Configures Hadoop HDFS connection for class loading from distributed storage.</p>
+     *
+     * <p><b>Basic Example:</b></p>
+     * <pre>{@code
+     * HdfsClassSource source = HdfsClassSource.builder()
+     *     .nameNodeUri("hdfs://namenode.example.com:9000")
+     *     .basePath("/app/classes")
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Advanced Example with Timeouts and Size Limits:</b></p>
+     * <pre>{@code
+     * HdfsClassSource source = HdfsClassSource.builder()
+     *     .nameNodeUri("hdfs://namenode:9000")
+     *     .basePath("/production/classes/v2")
+     *     .socketTimeout(60000)           // 60 seconds
+     *     .connectTimeout(15000)          // 15 seconds
+     *     .maxClassSize(20 * 1024 * 1024) // 20MB
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Using Custom Hadoop Configuration:</b></p>
+     * <pre>{@code
+     * Configuration conf = new Configuration();
+     * conf.set("dfs.replication", "2");
+     * conf.set("dfs.nameservices", "mycluster");
+     *
+     * HdfsClassSource source = HdfsClassSource.builder()
+     *     .configuration(conf)
+     *     .basePath("/classes")
+     *     .build();
+     * }</pre>
+     *
+     * <p><b>Defaults:</b></p>
+     * <ul>
+     *   <li>basePath: "/" (root)</li>
+     *   <li>socketTimeout: 30000ms (30 seconds)</li>
+     *   <li>connectTimeout: 10000ms (10 seconds)</li>
+     *   <li>maxClassSize: 10MB</li>
+     *   <li>configuration: new Configuration() (from classpath)</li>
+     * </ul>
+     */
     public static class Builder {
         private String nameNodeUri;
         private String basePath = "/";
