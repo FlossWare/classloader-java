@@ -9,7 +9,7 @@
     <version>2.0</version>
     <packaging>jar</packaging>
 
-    <name>JClassLoader</name>
+    <name>ApplicationClassLoader</name>
     <description>A Java ClassLoader capable of loading classes from local and remote (HTTP/HTTPS) locations with caching support</description>
     <url>https://github.com/FlossWare/classloader-java</url>
 
