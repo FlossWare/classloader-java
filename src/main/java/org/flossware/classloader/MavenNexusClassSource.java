@@ -101,6 +101,7 @@ public class MavenNexusClassSource implements ClassSource {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         String cacheKey = className;
         // Atomic get() - avoids TOCTOU race condition with contains() + get()
         byte[] cachedData = classCache.get(cacheKey);
@@ -135,6 +136,7 @@ public class MavenNexusClassSource implements ClassSource {
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             loadClassData(className);
             return true;

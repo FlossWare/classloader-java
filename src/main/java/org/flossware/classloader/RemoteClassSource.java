@@ -93,6 +93,7 @@ public class RemoteClassSource implements ClassSource {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         return retryPolicy.execute(() -> {
             String classPath = ClassNameUtil.toClassFilePath(className);
             // Use URL(URL, String) constructor for proper path joining
@@ -151,6 +152,7 @@ public class RemoteClassSource implements ClassSource {
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         HttpURLConnection httpConnection = null;
         try {
             String classPath = ClassNameUtil.toClassFilePath(className);

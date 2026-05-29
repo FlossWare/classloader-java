@@ -36,6 +36,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         Path classPath = getClassPath(className);
 
         // Check size BEFORE downloading to prevent OOM
@@ -77,6 +78,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             Path classPath = getClassPath(className);
             return hdfs.exists(classPath) && hdfs.isFile(classPath);

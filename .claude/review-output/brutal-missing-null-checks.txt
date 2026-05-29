@@ -2,40 +2,40 @@
 src/main/java/org/flossware/classloader/cache/FileSystemCache.java:38:    public FileSystemCache(Path cacheDirectory) throws IOException {
 src/main/java/org/flossware/classloader/cache/FileSystemCache.java:50:    public FileSystemCache(String cacheDirectory) throws IOException {
 src/main/java/org/flossware/classloader/cache/FileSystemCache.java:55:    public byte[] get(String className) {
-src/main/java/org/flossware/classloader/cache/FileSystemCache.java:77:    public void put(String className, byte[] classData) throws IOException {
-src/main/java/org/flossware/classloader/cache/FileSystemCache.java:105:    public boolean contains(String className) {
-src/main/java/org/flossware/classloader/cache/FileSystemCache.java:150:    public void remove(String className) throws IOException {
-src/main/java/org/flossware/classloader/cache/FileSystemCache.java:161:    private Path getClassFilePath(String className) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:78:    public void put(String className, byte[] classData) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:106:    public boolean contains(String className) {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:152:    public void remove(String className) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:164:    private Path getClassFilePath(String className) throws IOException {
 src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:36:    public void register(String protocol, Class<? extends ProtocolHandler> handlerClass) {
-src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:47:    public void unregister(String protocol) {
-src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:57:    public Class<? extends ProtocolHandler> getHandler(String protocol) {
-src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:67:    public boolean isRegistered(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:48:    public void unregister(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:59:    public Class<? extends ProtocolHandler> getHandler(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:70:    public boolean isRegistered(String protocol) {
 src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:31:    private HdfsClassSource(FileSystem hdfs, String basePath, long maxClassSize) {
 src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:38:    public byte[] loadClassData(String className) throws IOException {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:79:    public boolean canLoad(String className) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:93:    private Path getClassPath(String className) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:187:        public Builder nameNodeUri(String nameNodeUri) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:204:        public Builder basePath(String basePath) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:220:        public Builder configuration(Configuration configuration) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:234:        public Builder maxClassSize(long maxBytes) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:251:        public Builder socketTimeout(int timeoutMs) {
-src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:268:        public Builder connectTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:80:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:95:    private Path getClassPath(String className) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:189:        public Builder nameNodeUri(String nameNodeUri) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:206:        public Builder basePath(String basePath) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:222:        public Builder configuration(Configuration configuration) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:236:        public Builder maxClassSize(long maxBytes) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:253:        public Builder socketTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:270:        public Builder connectTimeout(int timeoutMs) {
 src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:38:    private MinioClassSource(MinioClient minioClient, String bucketName, String prefix, long maxClassSize) {
 src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:46:    public byte[] loadClassData(String className) throws IOException {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:97:    public boolean canLoad(String className) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:134:    private String buildObjectName(String className) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:228:        public Builder endpoint(String endpoint) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:240:        public Builder accessKey(String accessKey) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:252:        public Builder secretKey(String secretKey) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:264:        public Builder bucket(String bucketName) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:280:        public Builder prefix(String prefix) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:291:        public Builder region(String region) {
-src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:344:        public Builder maxClassSize(long maxBytes) {
-src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:19:    public CustomDelegation(Predicate<String> parentFirstPredicate) {
-src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:24:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
-src/main/java/org/flossware/classloader/delegation/ParentFirstDelegation.java:10:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
-src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:19:    public ParentLastDelegation(String... alwaysParentPrefixes) {
-src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:42:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:98:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:136:    private String buildObjectName(String className) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:230:        public Builder endpoint(String endpoint) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:242:        public Builder accessKey(String accessKey) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:254:        public Builder secretKey(String secretKey) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:266:        public Builder bucket(String bucketName) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:282:        public Builder prefix(String prefix) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:293:        public Builder region(String region) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:346:        public Builder maxClassSize(long maxBytes) {
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:21:    public CustomDelegation(Predicate<String> parentFirstPredicate) {
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:27:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/delegation/ParentFirstDelegation.java:12:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:21:    public ParentLastDelegation(String... alwaysParentPrefixes) {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:45:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
 src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:15:    public ClassLoadEvent(String className, ClassSource source, long loadTimeNanos, int classSizeBytes) {
 src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:28:    public void onClassLoaded(ClassLoadEvent event) {
 src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:37:    public void onClassCacheHit(String className) {

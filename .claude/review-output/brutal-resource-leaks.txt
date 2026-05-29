@@ -1,12 +1,12 @@
 === Potential Resource Leaks (no try-with-resources) ===
-src/main/java/org/flossware/classloader/RemoteClassSource.java:126:                     ByteArrayOutputStream out = new ByteArrayOutputStream(initialSize)) {
-src/main/java/org/flossware/classloader/MavenNexusClassSource.java:178:             JarInputStream jarIn = new JarInputStream(in)) {
-src/main/java/org/flossware/classloader/MavenNexusClassSource.java:192:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-src/main/java/org/flossware/classloader/NexusClassSource.java:168:             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-src/main/java/org/flossware/classloader/NexusClassSource.java:191:             JarInputStream jarIn = new JarInputStream(in)) {
-src/main/java/org/flossware/classloader/NexusClassSource.java:196:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-src/main/java/org/flossware/classloader/RestApiClassSource.java:68:        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-src/main/java/org/flossware/classloader/RestApiClassSource.java:90:                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-src/main/java/org/flossware/classloader/RestApiClassSource.java:133:            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:172:             JarInputStream jarIn = new JarInputStream(in)) {
-src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:186:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+src/main/java/org/flossware/classloader/RemoteClassSource.java:127:                     ByteArrayOutputStream out = new ByteArrayOutputStream(initialSize)) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:69:        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+src/main/java/org/flossware/classloader/RestApiClassSource.java:91:                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:135:            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:174:             JarInputStream jarIn = new JarInputStream(in)) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:188:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:180:             JarInputStream jarIn = new JarInputStream(in)) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:194:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+src/main/java/org/flossware/classloader/NexusClassSource.java:170:             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:193:             JarInputStream jarIn = new JarInputStream(in)) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:198:                    ByteArrayOutputStream out = new ByteArrayOutputStream();
