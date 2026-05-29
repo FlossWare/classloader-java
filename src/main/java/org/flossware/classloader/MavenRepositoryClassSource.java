@@ -26,32 +26,61 @@ import java.util.jar.JarInputStream;
  * ConcurrentHashMap to support concurrent class loading operations.</p>
  */
 public class MavenRepositoryClassSource implements ClassSource {
+    private static final long MAX_JAR_SIZE = 100 * 1024 * 1024; // 100MB default max JAR size
+    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default max class size
+    private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
+    private static final int DEFAULT_READ_TIMEOUT = 30000; // 30 seconds
+
     private final String repositoryUrl;
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
+    private final int connectTimeout;
+    private final int readTimeout;
 
     /**
-     * Creates a Maven repository class source with full configuration.
+     * Creates a Maven repository class source with full configuration including timeouts.
      *
      * @param repositoryUrl The Maven repository URL (e.g., "https://repo1.maven.org/maven2/")
      * @param artifacts The list of Maven artifacts to load classes from
      * @param authConfig The authentication configuration
+     * @param connectTimeout Connection timeout in milliseconds
+     * @param readTimeout Read timeout in milliseconds
      * @throws NullPointerException if repositoryUrl or artifacts is null
-     * @throws IllegalArgumentException if artifacts list is empty
+     * @throws IllegalArgumentException if artifacts list is empty or timeouts are negative
      */
-    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig) {
+    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig,
+                                     int connectTimeout, int readTimeout) {
         Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
         Objects.requireNonNull(artifacts, "artifacts cannot be null");
 
         if (artifacts.isEmpty()) {
             throw new IllegalArgumentException("At least one Maven artifact must be specified");
         }
+        if (connectTimeout < 0) {
+            throw new IllegalArgumentException("connectTimeout must be >= 0");
+        }
+        if (readTimeout < 0) {
+            throw new IllegalArgumentException("readTimeout must be >= 0");
+        }
 
         this.repositoryUrl = repositoryUrl.endsWith("/") ? repositoryUrl : repositoryUrl + "/";
         this.artifacts = new ArrayList<>(artifacts);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
         this.classCache = new ConcurrentHashMap<>();
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
+    }
+
+    /**
+     * Creates a Maven repository class source with default timeouts.
+     *
+     * @param repositoryUrl The Maven repository URL
+     * @param artifacts The list of Maven artifacts to load classes from
+     * @param authConfig The authentication configuration
+     */
+    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig) {
+        this(repositoryUrl, artifacts, authConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT);
     }
 
     /**
@@ -74,6 +103,7 @@ public class MavenRepositoryClassSource implements ClassSource {
         }
 
         String classFileName = ClassNameUtil.toClassFilePath(className);
+        List<String> errorMessages = new ArrayList<>();
 
         for (MavenArtifact artifact : artifacts) {
             try {
@@ -82,11 +112,19 @@ public class MavenRepositoryClassSource implements ClassSource {
                 classCache.put(cacheKey, classData);
                 return classData;
             } catch (IOException e) {
-                // Continue to next artifact if class not found in this one
+                // Accumulate errors instead of silently swallowing
+                String errorMsg = String.format("Artifact %s - %s",
+                    artifact.toString(), e.getMessage());
+                errorMessages.add(errorMsg);
             }
         }
 
-        throw new IOException("Class not found in any configured Maven artifacts: " + className);
+        // Throw with ALL error details
+        String allErrors = String.join("\n  - ", errorMessages);
+        throw new IOException(
+            "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
+            className + "\nAttempted artifacts:\n  - " + allErrors
+        );
     }
 
     @Override
@@ -112,12 +150,22 @@ public class MavenRepositoryClassSource implements ClassSource {
     private byte[] extractClassFromJar(String jarUrl, String classFileName) throws IOException {
         URL url = new URL(jarUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setConnectTimeout(connectTimeout);
+        connection.setReadTimeout(readTimeout);
         AuthHelper.configureAuth(connection, authConfig);
         connection.setRequestMethod("GET");
 
         int responseCode = connection.getResponseCode();
         if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP error code: " + responseCode + " for JAR URL: " + jarUrl);
+            throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
+        }
+
+        // Check JAR size before downloading
+        long contentLength = connection.getContentLengthLong();
+        if (contentLength > MAX_JAR_SIZE) {
+            throw new IOException(
+                "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
+            );
         }
 
         try (InputStream in = connection.getInputStream();
@@ -126,18 +174,34 @@ public class MavenRepositoryClassSource implements ClassSource {
             JarEntry entry;
             while ((entry = jarIn.getNextJarEntry()) != null) {
                 if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
+                    long size = entry.getSize();
+
+                    if (size > MAX_CLASS_SIZE) {
+                        throw new IOException(
+                            "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
+                        );
+                    }
+
+                    // Read with size enforcement
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
                     byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                    long totalRead = 0;
                     int bytesRead;
+
                     while ((bytesRead = jarIn.read(buffer)) != -1) {
+                        totalRead += bytesRead;
+                        if (totalRead > MAX_CLASS_SIZE) {
+                            throw new IOException("Class exceeded size limit: " + totalRead);
+                        }
                         out.write(buffer, 0, bytesRead);
                     }
+
                     return out.toByteArray();
                 }
             }
         }
 
-        throw new IOException("Class file not found in JAR: " + classFileName);
+        throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
     }
 
     public void addArtifact(MavenArtifact artifact) {
@@ -165,6 +229,8 @@ public class MavenRepositoryClassSource implements ClassSource {
         private String repositoryUrl;
         private final List<MavenArtifact> artifacts = new ArrayList<>();
         private AuthConfig authConfig = AuthConfig.none();
+        private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
+        private int readTimeout = DEFAULT_READ_TIMEOUT;
 
         public Builder repositoryUrl(String repositoryUrl) {
             this.repositoryUrl = Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
@@ -194,9 +260,26 @@ public class MavenRepositoryClassSource implements ClassSource {
             return this;
         }
 
+        public Builder connectTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("connectTimeout must be >= 0");
+            }
+            this.connectTimeout = timeoutMs;
+            return this;
+        }
+
+        public Builder readTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("readTimeout must be >= 0");
+            }
+            this.readTimeout = timeoutMs;
+            return this;
+        }
+
         public MavenRepositoryClassSource build() {
             Objects.requireNonNull(repositoryUrl, "repositoryUrl must be set");
-            return new MavenRepositoryClassSource(repositoryUrl, artifacts, authConfig);
+            return new MavenRepositoryClassSource(repositoryUrl, artifacts, authConfig,
+                                                 connectTimeout, readTimeout);
         }
     }
 
