@@ -1,6 +1,6 @@
-# Contributing to JClassLoader
+# Contributing to ApplicationClassLoader
 
-Thank you for your interest in contributing to JClassLoader!
+Thank you for your interest in contributing to ApplicationClassLoader!
 
 ## How to Contribute
 
@@ -9,7 +9,7 @@ Thank you for your interest in contributing to JClassLoader!
 1. **Check existing issues** - Your bug may already be reported
 2. **Use the bug report template** - Provide all requested information
 3. **Include details**:
-   - JClassLoader version
+   - classloader-java version
    - Java version (output of `java -version`)
    - Operating system
    - Full stack trace
@@ -26,8 +26,8 @@ Thank you for your interest in contributing to JClassLoader!
 
 1. **Fork the repository**
    ```bash
-   git clone https://github.com/YOUR-USERNAME/jclassloader.git
-   cd jclassloader
+   git clone https://github.com/YOUR-USERNAME/classloader-java.git
+   cd classloader-java
    ```
 
 2. **Create a feature branch**
@@ -175,7 +175,7 @@ open target/site/apidocs/index.html
 
 ## Contribution Agreement
 
-By contributing to JClassLoader, you agree that:
+By contributing to ApplicationClassLoader, you agree that:
 - Your contributions will be licensed under the **GNU General Public License v3.0**
 - You have the right to contribute the code (you own it or have permission)
 - You understand that contributions may be modified or rejected
@@ -197,4 +197,88 @@ Contributors are recognized in:
 - GitHub contributors page
 - Release notes (for significant contributions)
 
-Thank you for contributing to JClassLoader!
+## Release Process
+
+**Note:** Only project maintainers can create releases.
+
+### Creating a Release
+
+Releases are created through the GitHub Actions workflow:
+
+1. **Navigate to Actions** → "Release" workflow
+2. **Click "Run workflow"**
+3. **Enter version** (e.g., `2.1`, `3.0`)
+   - Must follow `X.Y` format (semantic versioning: major.minor)
+   - No `-SNAPSHOT` suffix for releases
+
+### What Happens During Release
+
+The workflow automatically:
+
+1. ✅ Validates version format
+2. ✅ Updates `pom.xml` to release version
+3. ✅ Runs full test suite
+4. ✅ Builds and signs artifacts (requires GPG key)
+5. ✅ Deploys to Maven Central via OSSRH
+6. ✅ Creates Git tag (`vX.Y`)
+7. ✅ Generates changelog from commit history
+8. ✅ Creates GitHub Release with installation instructions
+9. ✅ Bumps `pom.xml` to next development version (`X.(Y+1)-SNAPSHOT`)
+
+### Prerequisites for Releases
+
+Maintainers must configure these GitHub secrets:
+
+- `OSSRH_USERNAME` - Sonatype OSSRH username
+- `OSSRH_TOKEN` - Sonatype OSSRH token
+- `GPG_PRIVATE_KEY` - GPG private key for signing artifacts
+- `GPG_PASSPHRASE` - GPG key passphrase
+
+### Maven Central Deployment
+
+After release:
+- Artifacts appear on Maven Central within 30 minutes to 2 hours
+- Users can then add the dependency:
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>classloader-java</artifactId>
+    <version>X.Y</version>
+</dependency>
+```
+
+### Release Checklist
+
+Before creating a release:
+
+- [ ] All tests passing on `main` branch
+- [ ] CHANGELOG.md updated with release notes
+- [ ] Version number decided (follows semantic versioning)
+- [ ] Breaking changes documented
+- [ ] Security issues addressed
+- [ ] Quality gate passing (46% instruction coverage)
+
+### Hotfix Releases
+
+For critical bug fixes:
+
+1. Create hotfix branch from release tag
+2. Apply fix and increment minor version
+3. Follow normal release process
+4. Merge back to main
+
+### Version Numbering
+
+This project follows **Semantic Versioning 2.0.0**:
+
+- **Major version (X.0)**: Breaking changes, incompatible API changes
+- **Minor version (X.Y)**: New features, backwards-compatible enhancements
+- **Patch version**: Not used (we only release X.Y versions)
+
+Examples:
+- `2.0` → `3.0`: Breaking change (extracted protocols to separate libraries)
+- `2.0` → `2.1`: New features, backwards-compatible
+- `2.1` → `3.0`: Another breaking change
+
+Thank you for contributing to ApplicationClassLoader!
