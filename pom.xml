@@ -11,6 +11,15 @@
 
     <name>JClassLoader</name>
     <description>A Java ClassLoader capable of loading classes from local and remote (HTTP/HTTPS) locations with caching support</description>
+    <url>https://github.com/FlossWare/classloader-java</url>
+
+    <licenses>
+        <license>
+            <name>GNU General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -54,11 +63,17 @@
     </issueManagement>
 
     <distributionManagement>
+        <!-- Maven Central (OSSRH) - for public releases -->
         <repository>
-            <id>packagecloud-flossware</id>
-            <name>packagecloud-flossware</name>
-            <url>https://packagecloud.io/flossware/java/maven2/</url>
+            <id>ossrh</id>
+            <name>Central Repository OSSRH</name>
+            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <name>Central Repository OSSRH Snapshots</name>
+            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
 
     <repositories>
@@ -363,4 +378,27 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Maven Central deployment profile -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- Nexus Staging Plugin for Maven Central -->
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>1.6.13</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
