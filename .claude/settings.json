@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Write",
+      "Edit",
+      "Read",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskList",
+      "TaskGet",
+      "Workflow",
+      "Agent"
+    ],
+    "alwaysAllow": {
+      "tools": [
+        {
+          "name": "Bash",
+          "patterns": [
+            "*"
+          ]
+        },
+        {
+          "name": "Write",
+          "patterns": [
+            "*"
+          ]
+        },
+        {
+          "name": "Edit",
+          "patterns": [
+            "*"
+          ]
+        }
+      ]
+    }
+  }
+}
