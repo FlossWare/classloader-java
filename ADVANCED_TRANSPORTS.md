@@ -446,7 +446,7 @@ JClassLoader bigDataLoader = JClassLoader.builder()
 9. **Hadoop HDFS** - HdfsClassSource
 10. **MinIO** - MinioClassSource
 11. **Custom Protocol Handlers** - CustomProtocolClassSource
-12. **JarRemoteClassSource** - Load from remote JAR files
+12. **RemoteJarClassSource** - Load from remote JAR files
 13. **Backblaze B2** - MinioClassSource (S3-compatible)
 14. **CloudFlare R2** - MinioClassSource (S3-compatible)
 

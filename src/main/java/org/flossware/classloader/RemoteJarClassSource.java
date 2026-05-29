@@ -26,8 +26,8 @@ import javax.net.ssl.HttpsURLConnection;
  * Supports HTTP/HTTPS with optional authentication.
  * Implements AutoCloseable - call close() to release resources and delete temp file.
  */
-public class JarRemoteClassSource implements ClassSource, AutoCloseable {
-    private static final Logger logger = LoggerFactory.getLogger(JarRemoteClassSource.class);
+public class RemoteJarClassSource implements ClassSource, AutoCloseable {
+    private static final Logger logger = LoggerFactory.getLogger(RemoteJarClassSource.class);
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 10000;
     private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
     private static final long MAX_JAR_SIZE = 100 * 1024 * 1024; // 100MB default
@@ -53,7 +53,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
      * @param retryPolicy The retry policy for download failures (null for default policy)
      * @throws NullPointerException if jarUrl is null
      */
-    public JarRemoteClassSource(String jarUrl, AuthConfig authConfig, int connectTimeoutMs,
+    public RemoteJarClassSource(String jarUrl, AuthConfig authConfig, int connectTimeoutMs,
                                int readTimeoutMs, RetryPolicy retryPolicy) {
         Objects.requireNonNull(jarUrl, "jarUrl cannot be null");
         this.jarUrl = jarUrl;
@@ -69,7 +69,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
      * @param jarUrl The URL of the JAR file to download
      * @param authConfig The authentication configuration
      */
-    public JarRemoteClassSource(String jarUrl, AuthConfig authConfig) {
+    public RemoteJarClassSource(String jarUrl, AuthConfig authConfig) {
         this(jarUrl, authConfig, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
     }
 
@@ -78,7 +78,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
      *
      * @param jarUrl The URL of the JAR file to download
      */
-    public JarRemoteClassSource(String jarUrl) {
+    public RemoteJarClassSource(String jarUrl) {
         this(jarUrl, null, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
     }
 
@@ -90,7 +90,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
      */
     private synchronized void ensureJarReady() throws IOException {
         if (closed) {
-            throw new IllegalStateException("JarRemoteClassSource is closed");
+            throw new IllegalStateException("RemoteJarClassSource is closed");
         }
 
         if (jarFile != null) {
@@ -227,7 +227,7 @@ public class JarRemoteClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public String getDescription() {
-        return "JarRemoteClassSource[" + jarUrl + ", auth=" + authConfig.getAuthType() + "]";
+        return "RemoteJarClassSource[" + jarUrl + ", auth=" + authConfig.getAuthType() + "]";
     }
 
     /**
