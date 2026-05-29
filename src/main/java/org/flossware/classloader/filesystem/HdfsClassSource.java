@@ -206,11 +206,31 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Sets a custom Hadoop Configuration.
+         *
+         * <p>Use this to override default Hadoop settings or provide configuration
+         * for HA NameNodes, Kerberos authentication, etc.</p>
+         *
+         * <p>If not set, creates a new Configuration() which loads from classpath.</p>
+         *
+         * @param configuration Hadoop Configuration (null to use default)
+         * @return this builder
+         */
         public Builder configuration(Configuration configuration) {
             this.configuration = configuration;
             return this;
         }
 
+        /**
+         * Sets the maximum allowed class file size.
+         *
+         * <p>Prevents OOM attacks by rejecting files larger than this limit.</p>
+         *
+         * @param maxBytes Maximum size in bytes (default: 10MB)
+         * @return this builder
+         * @throws IllegalArgumentException if maxBytes <= 0
+         */
         public Builder maxClassSize(long maxBytes) {
             if (maxBytes <= 0) {
                 throw new IllegalArgumentException("maxClassSize must be positive");
@@ -219,6 +239,15 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Sets the socket timeout for HDFS read operations.
+         *
+         * <p>Prevents hanging indefinitely when reading class files from HDFS.</p>
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 30000ms = 30 seconds, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder socketTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("socketTimeout must be >= 0");
@@ -227,6 +256,15 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Sets the connection timeout for HDFS NameNode connections.
+         *
+         * <p>Prevents hanging indefinitely when connecting to HDFS.</p>
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 10000ms = 10 seconds, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs < 0
+         */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -235,6 +273,14 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        /**
+         * Builds the HdfsClassSource with configured settings.
+         *
+         * <p>Establishes connection to HDFS FileSystem.</p>
+         *
+         * @return A new HdfsClassSource instance
+         * @throws IOException if HDFS connection fails
+         */
         public HdfsClassSource build() throws IOException {
             Configuration conf = configuration != null ? configuration : new Configuration();
 
