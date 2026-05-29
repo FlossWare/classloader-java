@@ -1,0 +1,362 @@
+=== Public API without JavaDoc ===
+src/main/java/org/flossware/classloader/cache/ClassCache.java:9:public interface ClassCache {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:23:public class FileSystemCache implements ClassCache {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:38:    public FileSystemCache(Path cacheDirectory) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:50:    public FileSystemCache(String cacheDirectory) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:55:    public byte[] get(String className) {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:77:    public void put(String className, byte[] classData) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:105:    public boolean contains(String className) {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:114:    public void clear() throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:150:    public void remove(String className) throws IOException {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:198:    public Path getCacheDirectory() {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandler.java:9:public interface ProtocolHandler {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:13:public class ProtocolHandlerRegistry {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:25:    public static ProtocolHandlerRegistry getInstance() {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:36:    public void register(String protocol, Class<? extends ProtocolHandler> handlerClass) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:47:    public void unregister(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:57:    public Class<? extends ProtocolHandler> getHandler(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:67:    public boolean isRegistered(String protocol) {
+src/main/java/org/flossware/classloader/protocol/ProtocolHandlerRegistry.java:76:    public Map<String, Class<? extends ProtocolHandler>> getAllHandlers() {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:22:public class HdfsClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:38:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:79:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:89:    public String getDescription() {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:102:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:113:    public static Builder builder() {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:162:    public static class Builder {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:187:        public Builder nameNodeUri(String nameNodeUri) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:204:        public Builder basePath(String basePath) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:220:        public Builder configuration(Configuration configuration) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:234:        public Builder maxClassSize(long maxBytes) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:251:        public Builder socketTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:268:        public Builder connectTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:284:        public HdfsClassSource build() throws IOException {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:30:public class MinioClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:46:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:97:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:115:    public String getDescription() {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:129:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:149:    public static Builder builder() {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:202:    public static class Builder {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:228:        public Builder endpoint(String endpoint) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:240:        public Builder accessKey(String accessKey) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:252:        public Builder secretKey(String secretKey) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:264:        public Builder bucket(String bucketName) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:280:        public Builder prefix(String prefix) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:291:        public Builder region(String region) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:304:        public Builder secure(boolean secure) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:327:        public Builder port(int port) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:344:        public Builder maxClassSize(long maxBytes) {
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:358:        public MinioClassSource build() {
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:9:public class CustomDelegation implements DelegationStrategy {
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:19:    public CustomDelegation(Predicate<String> parentFirstPredicate) {
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:24:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/delegation/CustomDelegation.java:44:    public String toString() {
+src/main/java/org/flossware/classloader/delegation/DelegationStrategy.java:7:public interface DelegationStrategy {
+src/main/java/org/flossware/classloader/delegation/ParentFirstDelegation.java:7:public class ParentFirstDelegation implements DelegationStrategy {
+src/main/java/org/flossware/classloader/delegation/ParentFirstDelegation.java:10:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/delegation/ParentFirstDelegation.java:20:    public String toString() {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:10:public class ParentLastDelegation implements DelegationStrategy {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:19:    public ParentLastDelegation(String... alwaysParentPrefixes) {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:27:    public static ParentLastDelegation withDefaults() {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:42:    public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:61:    public String[] getAlwaysParentPrefixes() {
+src/main/java/org/flossware/classloader/delegation/ParentLastDelegation.java:66:    public String toString() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoaderLifecycleListener.java:7:public interface ClassLoaderLifecycleListener {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:8:public class ClassLoadEvent {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:15:    public ClassLoadEvent(String className, ClassSource source, long loadTimeNanos, int classSizeBytes) {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:23:    public String getClassName() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:27:    public ClassSource getSource() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:31:    public long getLoadTimeNanos() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:35:    public long getLoadTimeMillis() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:39:    public int getClassSizeBytes() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:43:    public long getTimestamp() {
+src/main/java/org/flossware/classloader/lifecycle/ClassLoadEvent.java:48:    public String toString() {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:7:public class LoggingListener implements ClassLoaderLifecycleListener {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:16:    public LoggingListener(boolean verbose) {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:23:    public LoggingListener() {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:28:    public void onClassLoaded(ClassLoadEvent event) {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:37:    public void onClassCacheHit(String className) {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:44:    public void onClassCached(String className, byte[] classData) {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:51:    public void onClassLoadFailed(String className, Throwable error) {
+src/main/java/org/flossware/classloader/lifecycle/LoggingListener.java:56:    public void onResourceOpened(String resourceName, AutoCloseable resource) {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:14:public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:23:    public void onClassLoaded(ClassLoadEvent event) {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:30:    public void onClassCacheHit(String className) {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:35:    public void onResourceOpened(String resourceName, AutoCloseable resource) {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:44:    public Set<String> getLoadedClasses() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:53:    public long getTotalClassesLoaded() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:62:    public long getTotalBytesLoaded() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:71:    public long getCacheHits() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:78:    public void closeAllResources() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:93:    public void reset() {
+src/main/java/org/flossware/classloader/lifecycle/ResourceTrackingListener.java:102:    public String toString() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:42:public class ClassLoaderCleanupUtil {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:56:    public ClassLoaderCleanupUtil(String applicationId, ClassLoader classLoader) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:68:    public void cleanupAll() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:86:    public void cleanupThreadLocals() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:163:    public void cleanupJdbcDrivers() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:194:    public void cleanupMBeans() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:229:    public void cleanupShutdownHooks() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:262:    public void cleanupResourceBundles() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:293:    public boolean detectLeaks() {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:344:    public String getApplicationId() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:19:public class ClassLoaderStatistics {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:33:    public ClassLoaderStatistics(String name, int classesLoaded,
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:46:    public String getName() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:55:    public int getClassesLoaded() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:64:    public long getTotalBytesLoaded() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:73:    public long getCacheHits() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:82:    public double getCacheHitRate() {
+src/main/java/org/flossware/classloader/util/ClassLoaderStatistics.java:87:    public String toString() {
+src/main/java/org/flossware/classloader/util/ClassNameUtil.java:29:    public static String toClassFilePath(String className) {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:12:public class CustomProtocolClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:21:    public CustomProtocolClassSource(ProtocolHandler handler) {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:26:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:31:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:36:    public String getDescription() {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:45:    public ProtocolHandler getHandler() {
+src/main/java/org/flossware/classloader/CustomProtocolClassSource.java:55:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/MavenArtifact.java:27:    public MavenArtifact(String groupId, String artifactId, String version, String classifier, String packaging) {
+src/main/java/org/flossware/classloader/MavenArtifact.java:42:    public MavenArtifact(String groupId, String artifactId, String version) {
+src/main/java/org/flossware/classloader/MavenArtifact.java:55:    public static MavenArtifact parse(String coordinates) {
+src/main/java/org/flossware/classloader/MavenArtifact.java:80:    public String toPath() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:101:    public String getGroupId() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:110:    public String getArtifactId() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:119:    public String getVersion() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:128:    public String getClassifier() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:137:    public String getPackaging() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:142:    public String toString() {
+src/main/java/org/flossware/classloader/MavenArtifact.java:155:    public boolean equals(Object o) {
+src/main/java/org/flossware/classloader/MavenArtifact.java:167:    public int hashCode() {
+src/main/java/org/flossware/classloader/BytecodeVerifier.java:8:public interface BytecodeVerifier {
+src/main/java/org/flossware/classloader/ChecksumValidator.java:25:    public ChecksumValidator(Map<String, String> checksums, String algorithm) {
+src/main/java/org/flossware/classloader/ChecksumValidator.java:37:    public ChecksumValidator(Map<String, String> checksums) {
+src/main/java/org/flossware/classloader/ChecksumValidator.java:42:    public void verify(String className, byte[] bytecode) throws SecurityException {
+src/main/java/org/flossware/classloader/ChecksumValidator.java:99:    public Map<String, String> getChecksums() {
+src/main/java/org/flossware/classloader/ChecksumValidator.java:108:    public String getAlgorithm() {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:50:public class DatabaseClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:67:    public DatabaseClassSource(DataSource dataSource, String tableName,
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:91:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:111:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:127:    public String getDescription() {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:132:    public String getTableName() {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:136:    public String getClassNameColumn() {
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:140:    public String getClassBytesColumn() {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:43:public class ContainerClientClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:54:    public ContainerClientClassSource(ContainerClient client, String resourceName) {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:60:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:66:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:76:    public String getDescription() {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:81:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:102:    public ContainerClient getClient() {
+src/main/java/org/flossware/classloader/ContainerClientClassSource.java:111:    public String getResourceName() {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:46:public class CloudStorageClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:55:    public CloudStorageClassSource(CloudStorageClient client) {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:60:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:66:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:76:    public String getDescription() {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:81:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/CloudStorageClassSource.java:102:    public CloudStorageClient getClient() {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:48:public class FileTransferClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:57:    public FileTransferClassSource(FileTransferClient client) {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:62:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:68:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:78:    public String getDescription() {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:83:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/FileTransferClassSource.java:104:    public FileTransferClient getClient() {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:45:public class MessageClientClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:54:    public MessageClientClassSource(MessageClient client) {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:59:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:65:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:75:    public String getDescription() {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:80:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/MessageClientClassSource.java:101:    public MessageClient getClient() {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:47:public class VcsClientClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:56:    public VcsClientClassSource(VcsClient client) {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:61:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:67:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:77:    public String getDescription() {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:82:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/VcsClientClassSource.java:103:    public VcsClient getClient() {
+src/main/java/org/flossware/classloader/AuthConfig.java:47:    public enum AuthType {
+src/main/java/org/flossware/classloader/AuthConfig.java:73:    public static AuthConfig none() {
+src/main/java/org/flossware/classloader/AuthConfig.java:85:    public static AuthConfig basic(String username, String password) {
+src/main/java/org/flossware/classloader/AuthConfig.java:98:    public static AuthConfig bearer(String token) {
+src/main/java/org/flossware/classloader/AuthConfig.java:108:    public AuthType getAuthType() {
+src/main/java/org/flossware/classloader/AuthConfig.java:117:    public String getUsername() {
+src/main/java/org/flossware/classloader/AuthConfig.java:126:    public String getPassword() {
+src/main/java/org/flossware/classloader/AuthConfig.java:135:    public String getToken() {
+src/main/java/org/flossware/classloader/AuthConfig.java:148:    public boolean equals(Object o) {
+src/main/java/org/flossware/classloader/AuthConfig.java:165:    public int hashCode() {
+src/main/java/org/flossware/classloader/AuthConfig.java:176:    public String toString() {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:20:public class RemoteClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:52:    public RemoteClassSource(String baseUrl, AuthConfig authConfig, int connectTimeoutMs, int readTimeoutMs, RetryPolicy retryPolicy) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:70:    public RemoteClassSource(String baseUrl, AuthConfig authConfig, int connectTimeoutMs, int readTimeoutMs) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:81:    public RemoteClassSource(String baseUrl, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:90:    public RemoteClassSource(String baseUrl) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:95:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:153:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:192:    public String getDescription() {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:216:    public String getBaseUrl() {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:225:    public AuthConfig getAuthConfig() {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:234:    public RetryPolicy getRetryPolicy() {
+src/main/java/org/flossware/classloader/ClassSource.java:44:public interface ClassSource {
+src/main/java/org/flossware/classloader/AuthHelper.java:11:public class AuthHelper {
+src/main/java/org/flossware/classloader/AuthHelper.java:20:    public static void configureAuth(HttpURLConnection connection, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/LocalClassSource.java:15:public class LocalClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/LocalClassSource.java:28:    public LocalClassSource(Path basePath, long maxClassSize) {
+src/main/java/org/flossware/classloader/LocalClassSource.java:42:    public LocalClassSource(Path basePath) {
+src/main/java/org/flossware/classloader/LocalClassSource.java:51:    public LocalClassSource(String basePath) {
+src/main/java/org/flossware/classloader/LocalClassSource.java:56:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/LocalClassSource.java:85:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/LocalClassSource.java:95:    public String getDescription() {
+src/main/java/org/flossware/classloader/LocalClassSource.java:117:    public Path getBasePath() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:29:public class MavenNexusClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:55:    public MavenNexusClassSource(String nexusUrl, String repository, List<MavenArtifact> artifacts,
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:87:    public MavenNexusClassSource(String nexusUrl, String repository, List<MavenArtifact> artifacts, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:98:    public MavenNexusClassSource(String nexusUrl, String repository, List<MavenArtifact> artifacts) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:103:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:137:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:147:    public String getDescription() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:217:    public void addArtifact(MavenArtifact artifact) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:222:    public void addArtifact(String coordinates) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:226:    public List<MavenArtifact> getArtifacts() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:230:    public String getNexusUrl() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:234:    public String getRepository() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:238:    public AuthConfig getAuthConfig() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:242:    public static Builder builder() {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:246:    public static class Builder {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:254:        public Builder nexusUrl(String nexusUrl) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:259:        public Builder repository(String repository) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:264:        public Builder addArtifact(MavenArtifact artifact) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:269:        public Builder addArtifact(String groupId, String artifactId, String version) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:273:        public Builder addArtifact(String coordinates) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:277:        public Builder auth(AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:282:        public Builder connectTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:290:        public Builder readTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:298:        public MavenNexusClassSource build() {
+src/main/java/org/flossware/classloader/NexusClassSource.java:26:public class NexusClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/NexusClassSource.java:40:    public enum NexusMode {
+src/main/java/org/flossware/classloader/NexusClassSource.java:60:    public NexusClassSource(String nexusUrl, String repository, NexusMode mode, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:76:    public NexusClassSource(String nexusUrl, String repository, NexusMode mode) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:86:    public NexusClassSource(String nexusUrl, String repository) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:91:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/NexusClassSource.java:100:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:110:    public String getDescription() {
+src/main/java/org/flossware/classloader/NexusClassSource.java:180:    protected byte[] loadClassFromJar(String jarUrl, String classFileName) throws IOException {
+src/main/java/org/flossware/classloader/NexusClassSource.java:227:    public String getNexusUrl() {
+src/main/java/org/flossware/classloader/NexusClassSource.java:231:    public String getRepository() {
+src/main/java/org/flossware/classloader/NexusClassSource.java:235:    public NexusMode getMode() {
+src/main/java/org/flossware/classloader/NexusClassSource.java:239:    public AuthConfig getAuthConfig() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:18:    public interface IOSupplier<T> {
+src/main/java/org/flossware/classloader/RetryPolicy.java:36:    public RetryPolicy(int maxRetries, long initialDelayMs, long maxDelayMs,
+src/main/java/org/flossware/classloader/RetryPolicy.java:63:    public static RetryPolicy defaultPolicy() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:72:    public static RetryPolicy noRetry() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:81:    public static RetryPolicy aggressive() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:93:    public <T> T execute(IOSupplier<T> operation) throws IOException {
+src/main/java/org/flossware/classloader/RetryPolicy.java:159:    public int getMaxRetries() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:163:    public long getInitialDelayMs() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:167:    public long getMaxDelayMs() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:171:    public double getBackoffMultiplier() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:175:    public boolean hasJitter() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:180:    public String toString() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:211:    public static class Builder {
+src/main/java/org/flossware/classloader/RetryPolicy.java:225:        public Builder maxRetries(int maxRetries) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:240:        public Builder initialDelay(Duration initialDelay) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:260:        public Builder maxDelay(Duration maxDelay) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:288:        public Builder backoffMultiplier(double backoffMultiplier) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:312:        public Builder jitter(boolean jitter) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:322:        public RetryPolicy build() {
+src/main/java/org/flossware/classloader/RetryPolicy.java:333:    public static Builder builder() {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:22:public class RestApiClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:40:    public enum ResponseFormat {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:66:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:126:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:152:    public String getDescription() {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:231:    public static Builder builder() {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:289:    public static class Builder {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:316:        public Builder baseUrl(String baseUrl) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:336:        public Builder classPathTemplate(String template) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:357:        public Builder addHeader(String name, String value) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:379:        public Builder addQueryParam(String name, String value) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:400:        public Builder auth(AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:418:        public Builder responseFormat(ResponseFormat format) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:432:        public Builder connectTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:449:        public Builder readTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:471:        public Builder enableCanLoadCheck(boolean enable) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:481:        public RestApiClassSource build() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:28:public class MavenRepositoryClassSource implements ClassSource {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:52:    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig,
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:82:    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:92:    public MavenRepositoryClassSource(String repositoryUrl, List<MavenArtifact> artifacts) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:97:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:131:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:141:    public String getDescription() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:207:    public void addArtifact(MavenArtifact artifact) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:212:    public void addArtifact(String coordinates) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:216:    public List<MavenArtifact> getArtifacts() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:220:    public String getRepositoryUrl() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:229:    public static Builder builder() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:290:    public static class Builder {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:313:        public Builder repositoryUrl(String repositoryUrl) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:325:        public Builder mavenCentral() {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:337:        public Builder addArtifact(MavenArtifact artifact) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:350:        public Builder addArtifact(String groupId, String artifactId, String version) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:368:        public Builder addArtifact(String coordinates) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:380:        public Builder auth(AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:392:        public Builder connectTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:407:        public Builder readTimeout(int timeoutMs) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:421:        public MavenRepositoryClassSource build() {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:29:public class RemoteJarClassSource implements ClassSource, AutoCloseable {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:56:    public RemoteJarClassSource(String jarUrl, AuthConfig authConfig, int connectTimeoutMs,
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:72:    public RemoteJarClassSource(String jarUrl, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:81:    public RemoteJarClassSource(String jarUrl) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:149:    public byte[] loadClassData(String className) throws IOException {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:218:    public boolean canLoad(String className) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:229:    public String getDescription() {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:239:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:286:    public String getJarUrl() {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:295:    public AuthConfig getAuthConfig() {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:304:    public RetryPolicy getRetryPolicy() {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:313:    public boolean isClosed() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:89:public class ApplicationClassLoader extends ClassLoader implements AutoCloseable {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:109:    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:127:    protected Class<?> findClass(String name) throws ClassNotFoundException {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:345:    public void close() throws IOException {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:401:    public boolean isClosed() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:405:    public List<ClassSource> getClassSources() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:409:    public ClassCache getCache() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:413:    public boolean isCacheEnabled() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:417:    public DelegationStrategy getDelegationStrategy() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:421:    public List<ClassLoaderLifecycleListener> getListeners() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:425:    public BytecodeVerifier getBytecodeVerifier() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:434:    public static Builder builder() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:479:    public static class Builder {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:498:        public Builder parent(ClassLoader parent) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:513:        public Builder addClassSource(ClassSource source) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:531:        public Builder addLocalSource(String path) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:543:        public Builder addRemoteSource(String baseUrl) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:554:        public Builder addRemoteSource(String baseUrl, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:566:        public Builder addRemoteJar(String jarUrl) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:570:        public Builder addRemoteJar(String jarUrl, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:574:        public Builder addNexusRawSource(String nexusUrl, String repository) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:578:        public Builder addNexusRawSource(String nexusUrl, String repository, AuthConfig authConfig) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:582:        public Builder addNexusMavenSource(MavenNexusClassSource source) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:602:        public Builder addMavenCentral(String... artifactCoordinates) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:611:        public Builder addMavenRepository(String repositoryUrl, String... artifactCoordinates) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:620:        public Builder addDatabaseSource(javax.sql.DataSource dataSource, String tableName,
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:626:        public Builder addRestApiSource(RestApiClassSource source) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:630:        public Builder addCloudStorage(org.flossware.cloud.storage.CloudStorageClient client) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:634:        public Builder cache(ClassCache cache) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:639:        public Builder useCache(boolean useCache) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:653:        public Builder delegationStrategy(DelegationStrategy strategy) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:665:        public Builder parentFirst() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:691:        public Builder parentLast(String... alwaysParentPrefixes) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:695:        public Builder customDelegation(java.util.function.Predicate<String> parentFirstPredicate) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:699:        public Builder addListener(ClassLoaderLifecycleListener listener) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:704:        public Builder addLoggingListener() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:708:        public Builder addLoggingListener(boolean verbose) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:712:        public Builder trackResources() {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:732:        public Builder bytecodeVerifier(BytecodeVerifier verifier) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:743:        public ApplicationClassLoader build() {

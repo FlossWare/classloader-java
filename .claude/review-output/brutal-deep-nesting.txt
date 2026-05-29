@@ -1,0 +1,83 @@
+=== Deep Nesting (>3 levels) ===
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:59:4 levels:                // Validate file size before loading to prevent OutOfMemoryError
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:61:4 levels:                if (fileSize > MAX_CLASS_FILE_SIZE) {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:63:5 levels:                    // Delete it and return null to force re-fetch from source
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:123:5 levels:                    // Sort by depth (deepest first) to delete files before directories
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:125:6.25 levels:                         .forEach(path -> {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:136:4 levels:                if (!errors.isEmpty()) {
+src/main/java/org/flossware/classloader/cache/FileSystemCache.java:140:5 levels:                    errors.forEach(exception::addSuppressed);
+src/main/java/org/flossware/classloader/filesystem/HdfsClassSource.java:64:4 levels:                if (n == -1) break;
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:83:4 levels:                if (n == -1) break;
+src/main/java/org/flossware/classloader/objectstore/MinioClassSource.java:308:4 levels:                this.port = 9000;  // Default MinIO port for HTTP
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:92:4 levels:                if (thread.getName().contains(applicationId)) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:93:5 levels:                    if (clearThreadLocals(thread)) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:125:4 levels:                if (table != null) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:127:5 levels:                    for (int i = 0; i < table.length; i++) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:129:6 levels:                        if (entry != null) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:130:7 levels:                            // Check if entry's value was loaded by our ClassLoader
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:135:7 levels:                            if (value != null && value.getClass().getClassLoader() == classLoader) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:170:4 levels:                if (driver.getClass().getClassLoader() == classLoader) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:202:4 levels:                if (name.toString().contains(applicationId)) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:238:4 levels:                if (hook.getName().contains(applicationId)) {
+src/main/java/org/flossware/classloader/util/ClassLoaderCleanupUtil.java:272:5 levels:                    if (cacheList instanceof Map) {
+src/main/java/org/flossware/classloader/MavenArtifact.java:61:4 levels:                ". Expected format: groupId:artifactId:version[:classifier][:packaging]");
+src/main/java/org/flossware/classloader/MavenArtifact.java:160:3.75 levels:               Objects.equals(artifactId, that.artifactId) &&
+src/main/java/org/flossware/classloader/MavenArtifact.java:162:3.75 levels:               Objects.equals(classifier, that.classifier) &&
+src/main/java/org/flossware/classloader/ChecksumValidator.java:57:4 levels:                String.format("Checksum mismatch for %s: expected %s, got %s",
+src/main/java/org/flossware/classloader/DatabaseClassSource.java:98:4 levels:                if (rs.next()) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:108:4 levels:                if (connection instanceof HttpURLConnection) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:115:5 levels:                    if (responseCode < 200 || responseCode >= 300) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:116:6 levels:                        throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+src/main/java/org/flossware/classloader/RemoteClassSource.java:120:4 levels:                // Use content length for initial capacity if available
+src/main/java/org/flossware/classloader/RemoteClassSource.java:132:5 levels:                    while ((bytesRead = in.read(buffer)) != -1) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:134:6 levels:                        if (totalBytes > MAX_CLASS_SIZE) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:136:12 levels:                                                " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + className);
+src/main/java/org/flossware/classloader/RemoteClassSource.java:145:4 levels:                if (httpConnection != null) {
+src/main/java/org/flossware/classloader/RemoteClassSource.java:172:4 levels:                // Accept any 2xx success code or 304 Not Modified
+src/main/java/org/flossware/classloader/AuthHelper.java:29:4 levels:                if (username == null || password == null) {
+src/main/java/org/flossware/classloader/AuthHelper.java:30:5 levels:                    throw new IllegalArgumentException("Username and password must not be null for BASIC authentication");
+src/main/java/org/flossware/classloader/AuthHelper.java:38:4 levels:                if (token == null) {
+src/main/java/org/flossware/classloader/AuthHelper.java:39:5 levels:                    throw new IllegalArgumentException("Token must not be null for BEARER authentication");
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:116:4 levels:                String jarUrl = buildJarUrl(artifact);
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:122:4 levels:                String errorMsg = String.format("Artifact %s - %s",
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:123:5 levels:                    artifact.toString(), e.getMessage());
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:149:3.75 levels:               ", artifacts=" + artifacts.size() + ", auth=" + authConfig.getAuthType() + "]";
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:182:4 levels:                if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:185:5 levels:                    if (size > MAX_CLASS_SIZE) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:191:5 levels:                    // Read with size enforcement
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:197:5 levels:                    while ((bytesRead = jarIn.read(buffer)) != -1) {
+src/main/java/org/flossware/classloader/MavenNexusClassSource.java:199:6 levels:                        if (totalRead > MAX_CLASS_SIZE) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:195:4 levels:                if (entry.getName().equals(classFileName)) {
+src/main/java/org/flossware/classloader/NexusClassSource.java:199:5 levels:                    while ((bytesRead = jarIn.read(buffer)) != -1) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:102:4 levels:                if (attempt < maxRetries) {
+src/main/java/org/flossware/classloader/RetryPolicy.java:113:4 levels:                if (e instanceof RuntimeException) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:78:4 levels:                throw new IOException("HTTP " + responseCode + " for URL: " + url);
+src/main/java/org/flossware/classloader/RestApiClassSource.java:92:4 levels:                // Download with size limit enforcement
+src/main/java/org/flossware/classloader/RestApiClassSource.java:97:4 levels:                while ((bytesRead = in.read(buffer)) != -1) {
+src/main/java/org/flossware/classloader/RestApiClassSource.java:99:5 levels:                    if (totalRead > MAX_RESPONSE_SIZE) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:110:4 levels:                String jarUrl = buildJarUrl(artifact);
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:116:4 levels:                String errorMsg = String.format("Artifact %s - %s",
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:117:5 levels:                    artifact.toString(), e.getMessage());
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:143:3.75 levels:               artifacts.size() + ", auth=" + authConfig.getAuthType() + "]";
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:176:4 levels:                if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:179:5 levels:                    if (size > MAX_CLASS_SIZE) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:185:5 levels:                    // Read with size enforcement
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:191:5 levels:                    while ((bytesRead = jarIn.read(buffer)) != -1) {
+src/main/java/org/flossware/classloader/MavenRepositoryClassSource.java:193:6 levels:                        if (totalRead > MAX_CLASS_SIZE) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:115:4 levels:                if (responseCode != HttpURLConnection.HTTP_OK) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:116:5 levels:                    throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:119:4 levels:                // Check JAR size before downloading
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:121:4 levels:                if (contentLength > MAX_JAR_SIZE) {
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:181:4 levels:                if (n == -1) break;
+src/main/java/org/flossware/classloader/RemoteJarClassSource.java:197:4 levels:                if (totalRead > maxSize) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:144:4 levels:                verifyBytecode(name, classData);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:165:4 levels:                if (classData != null) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:172:5 levels:                    // Verify bytecode
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:173:5 levels:                    verifyBytecode(name, classData);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:176:5 levels:                    if (useCache && cache != null) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:232:4 levels:                bytecodeVerifier.verify(name, classData);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:235:5 levels:                    "Bytecode verification failed: " + name, e);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:360:4 levels:                if (source instanceof AutoCloseable) {
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:390:4 levels:                exceptions.forEach(ex::addSuppressed);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:606:4 levels:                builder.addArtifact(coords);
+src/main/java/org/flossware/classloader/ApplicationClassLoader.java:615:4 levels:                builder.addArtifact(coords);

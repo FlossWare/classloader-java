@@ -1,0 +1,1 @@
+=== Empty Catch Blocks (Exception Swallowing) ===
