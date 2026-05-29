@@ -1,7 +1,8 @@
 #!/bin/bash
-# Automated code review script
-# Python: mypy, flake8, bandit, security scans, TODO checks
-# Java: security scans, TODO checks only
+# Automated code review script for Java projects
+# Java: security scans, TODO checks
+# Shell scripts: security scans, TODO checks
+# Python: skipped (only automation scripts present)
 
 set -euo pipefail
 
@@ -20,46 +21,14 @@ cd "$PROJECT_ROOT"
 # Clean previous review outputs
 rm -f "$REVIEW_OUTPUT_DIR"/*.txt
 
-# Count Python and Java files
-PYTHON_COUNT=$(find . -name "*.py" -type f | wc -l)
+# Count Java files (exclude Python - only automation scripts)
 JAVA_COUNT=$(find . -name "*.java" -type f | wc -l)
 
-echo "Found $PYTHON_COUNT Python files, $JAVA_COUNT Java files"
+echo "Found $JAVA_COUNT Java files"
 echo ""
 
-# Python checks (if Python files exist)
-if [ $PYTHON_COUNT -gt 0 ]; then
-    echo "=== Python Code Checks ==="
-
-    # 1. MyPy (type checking)
-    echo "[1/3] Running mypy..."
-    if find . -name "*.py" -type f -print0 | xargs -0 mypy --ignore-missing-imports --no-error-summary 2>&1 | tee "$REVIEW_OUTPUT_DIR/mypy.txt"; then
-        echo "✓ MyPy: PASSED"
-    else
-        echo "✗ MyPy: FOUND ISSUES"
-    fi
-
-    # 2. Flake8 (style and quality)
-    echo "[2/3] Running flake8..."
-    if find . -name "*.py" -type f -print0 | xargs -0 flake8 --extend-ignore=E501 2>&1 | tee "$REVIEW_OUTPUT_DIR/flake8.txt"; then
-        echo "✓ Flake8: PASSED"
-    else
-        echo "✗ Flake8: FOUND ISSUES"
-    fi
-
-    # 3. Bandit (security)
-    echo "[3/3] Running bandit..."
-    # Skip B404,B602,B603,B607 for .claude/scripts/* (automation scripts using subprocess)
-    if find . -name "*.py" -type f -print0 | xargs -0 bandit -q --skip B404,B602,B603,B607 --exclude ./.claude/scripts 2>&1 | tee "$REVIEW_OUTPUT_DIR/bandit.txt"; then
-        echo "✓ Bandit: PASSED"
-    else
-        echo "✗ Bandit: FOUND SECURITY ISSUES"
-    fi
-    echo ""
-else
-    echo "No Python files found, skipping Python checks"
-    echo ""
-fi
+# Skip Python checks - this is a Java project
+# (Python files are only automation scripts in .claude/scripts/)
 
 # Java checks (security scans and TODO checks only)
 if [ $JAVA_COUNT -gt 0 ]; then
@@ -89,24 +58,7 @@ else
     echo ""
 fi
 
-# Security scans for Python (if exists)
-if [ $PYTHON_COUNT -gt 0 ]; then
-    echo "=== Python Security Pattern Scan ==="
-    {
-        echo "=== Python Security Patterns ==="
-        # Exclude .claude/scripts from security pattern scan (automation code)
-        find . -type f -name "*.py" ! -path "./.claude/scripts/*" -exec grep -Hn "eval\|exec\|__import__\|pickle.loads\|yaml.load[^s]\|subprocess.call\|os.system" {} \; 2>/dev/null || true
-    } > "$REVIEW_OUTPUT_DIR/python-security-scans.txt"
-
-    PY_SECURITY_COUNT=$(grep -c ".py:" "$REVIEW_OUTPUT_DIR/python-security-scans.txt" 2>/dev/null || echo "0")
-    PY_SECURITY_COUNT=$(echo "$PY_SECURITY_COUNT" | tr -d ' \n')
-    if [ "$PY_SECURITY_COUNT" -gt 0 ] 2>/dev/null; then
-        echo "✗ Found $PY_SECURITY_COUNT security patterns in Python code"
-    else
-        echo "✓ Python Security Patterns: PASSED"
-    fi
-    echo ""
-fi
+# Skip Python security scans - only automation scripts present in .claude/scripts/
 
 # TODO/FIXME checks (all languages)
 echo "=== TODO/FIXME Checks ==="
