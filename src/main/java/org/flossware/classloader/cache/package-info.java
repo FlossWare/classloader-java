@@ -19,7 +19,7 @@
  * // Filesystem cache for persistence
  * ClassCache fileCache = new FileSystemCache(Paths.get("/tmp/class-cache"));
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addRemoteSource("https://example.com/classes/")
  *     .cache(memoryCache)
  *     .build();

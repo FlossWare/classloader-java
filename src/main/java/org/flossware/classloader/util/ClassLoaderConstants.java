@@ -1,7 +1,7 @@
 package org.flossware.classloader.util;
 
 /**
- * Common constants used throughout the JClassLoader library.
+ * Common constants used throughout the ApplicationClassLoader library.
  *
  * <p>This class provides shared constant values for buffer sizes, timeouts,
  * and other configuration parameters used across multiple ClassSource implementations.</p>

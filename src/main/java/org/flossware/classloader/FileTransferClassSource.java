@@ -24,7 +24,7 @@ import java.util.Objects;
  *     .basePath("/opt/classes")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new FileTransferClassSource(sftp))
  *     .build();
  *
@@ -35,12 +35,12 @@ import java.util.Objects;
  *     .password("pass")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new FileTransferClassSource(webdav))
  *     .build();
  * }</pre>
  *
- * <p>The FileTransferClassSource will be automatically closed when the JClassLoader is closed.</p>
+ * <p>The FileTransferClassSource will be automatically closed when the ApplicationClassLoader is closed.</p>
  *
  * @see org.flossware.filetransfer.FileTransferClient
  * @see org.flossware.filetransfer.SftpFileTransferClient

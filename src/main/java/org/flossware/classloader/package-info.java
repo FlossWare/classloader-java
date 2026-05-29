@@ -1,13 +1,13 @@
 /**
- * Core JClassLoader implementation for loading classes from multiple sources.
+ * Core ApplicationClassLoader implementation for loading classes from multiple sources.
  *
- * <p>This package provides the main {@link org.flossware.jclassloader.JClassLoader}
+ * <p>This package provides the main {@link org.flossware.jclassloader.ApplicationClassLoader}
  * class and supporting interfaces for loading classes from local and remote sources
  * including HTTP/HTTPS, SFTP, databases, cloud storage, and more.</p>
  *
  * <h2>Key Classes</h2>
  * <ul>
- *   <li>{@link org.flossware.jclassloader.JClassLoader} - Main classloader implementation with builder pattern</li>
+ *   <li>{@link org.flossware.jclassloader.ApplicationClassLoader} - Main classloader implementation with builder pattern</li>
  *   <li>{@link org.flossware.jclassloader.ClassSource} - Interface for class loading sources</li>
  *   <li>{@link org.flossware.jclassloader.AuthConfig} - Authentication configuration for remote sources</li>
  *   <li>{@link org.flossware.jclassloader.RetryPolicy} - Retry logic for transient failures</li>
@@ -17,7 +17,7 @@
  * <h2>Example Usage</h2>
  * <pre>{@code
  * // Load from multiple sources
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addLocalSource("/path/to/classes")
  *     .addRemoteSource("https://example.com/classes/")
  *     .addRemoteJar("https://example.com/libs/my-lib.jar")

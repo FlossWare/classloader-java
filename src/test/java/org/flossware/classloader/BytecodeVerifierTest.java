@@ -195,7 +195,7 @@ class BytecodeVerifierTest {
     }
 
     @Test
-    void testVerifierWithJClassLoader(@TempDir Path tempDir) throws Exception {
+    void testVerifierWithApplicationClassLoader(@TempDir Path tempDir) throws Exception {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
@@ -215,7 +215,7 @@ class BytecodeVerifierTest {
             }
         };
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .bytecodeVerifier(verifier)
             .build();
@@ -227,7 +227,7 @@ class BytecodeVerifierTest {
     }
 
     @Test
-    void testVerifierRejectsByJClassLoader(@TempDir Path tempDir) throws Exception {
+    void testVerifierRejectsByApplicationClassLoader(@TempDir Path tempDir) throws Exception {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
@@ -247,7 +247,7 @@ class BytecodeVerifierTest {
             }
         };
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .bytecodeVerifier(verifier)
             .build();

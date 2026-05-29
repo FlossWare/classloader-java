@@ -22,7 +22,7 @@ import java.util.Objects;
  *     .prefix("production/classes/")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new CloudStorageClassSource(s3))
  *     .build();
  *
@@ -32,12 +32,12 @@ import java.util.Objects;
  *     .containerName("classes")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new CloudStorageClassSource(azure))
  *     .build();
  * }</pre>
  *
- * <p>The CloudStorageClassSource will be automatically closed when the JClassLoader is closed
+ * <p>The CloudStorageClassSource will be automatically closed when the ApplicationClassLoader is closed
  * (assuming the CloudStorageClient implements AutoCloseable).</p>
  *
  * @see org.flossware.cloud.storage.CloudStorageClient

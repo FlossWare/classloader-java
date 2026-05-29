@@ -26,7 +26,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
 
     @Override
     public void onClassLoaded(ClassLoadEvent event) {
-        System.out.printf("[JClassLoader] Loaded %s from %s in %dms (%d bytes)%n",
+        System.out.printf("[ApplicationClassLoader] Loaded %s from %s in %dms (%d bytes)%n",
                 event.getClassName(),
                 event.getSource().getDescription(),
                 event.getLoadTimeMillis(),
@@ -36,26 +36,26 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
     @Override
     public void onClassCacheHit(String className) {
         if (verbose) {
-            System.out.printf("[JClassLoader] Cache hit: %s%n", className);
+            System.out.printf("[ApplicationClassLoader] Cache hit: %s%n", className);
         }
     }
 
     @Override
     public void onClassCached(String className, byte[] classData) {
         if (verbose) {
-            System.out.printf("[JClassLoader] Cached: %s (%d bytes)%n", className, classData.length);
+            System.out.printf("[ApplicationClassLoader] Cached: %s (%d bytes)%n", className, classData.length);
         }
     }
 
     @Override
     public void onClassLoadFailed(String className, Throwable error) {
-        System.out.printf("[JClassLoader] Failed to load %s: %s%n", className, error.getMessage());
+        System.out.printf("[ApplicationClassLoader] Failed to load %s: %s%n", className, error.getMessage());
     }
 
     @Override
     public void onResourceOpened(String resourceName, AutoCloseable resource) {
         if (verbose) {
-            System.out.printf("[JClassLoader] Opened resource: %s%n", resourceName);
+            System.out.printf("[ApplicationClassLoader] Opened resource: %s%n", resourceName);
         }
     }
 }

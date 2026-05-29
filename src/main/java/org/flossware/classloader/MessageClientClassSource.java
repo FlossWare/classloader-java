@@ -21,7 +21,7 @@ import java.util.Objects;
  *     .topic("class-definitions")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new MessageClientClassSource(kafka))
  *     .build();
  *
@@ -32,12 +32,12 @@ import java.util.Objects;
  *     .keyPrefix("classes:")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new MessageClientClassSource(redis))
  *     .build();
  * }</pre>
  *
- * <p>The MessageClientClassSource will be automatically closed when the JClassLoader is closed.</p>
+ * <p>The MessageClientClassSource will be automatically closed when the ApplicationClassLoader is closed.</p>
  *
  * @see org.flossware.messaging.MessageClient
  * @see org.flossware.messaging.KafkaMessageClient

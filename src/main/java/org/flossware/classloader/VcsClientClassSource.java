@@ -22,7 +22,7 @@ import java.util.Objects;
  *     .basePath("build/classes")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new VcsClientClassSource(git))
  *     .build();
  *
@@ -34,12 +34,12 @@ import java.util.Objects;
  *     .basePath("target/classes")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new VcsClientClassSource(git))
  *     .build();
  * }</pre>
  *
- * <p>The VcsClientClassSource will be automatically closed when the JClassLoader is closed.</p>
+ * <p>The VcsClientClassSource will be automatically closed when the ApplicationClassLoader is closed.</p>
  *
  * @see org.flossware.vcs.VcsClient
  * @see org.flossware.vcs.GitVcsClient

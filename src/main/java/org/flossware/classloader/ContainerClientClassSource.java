@@ -20,7 +20,7 @@ import java.util.Objects;
  *     .namespace("production")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new ContainerClientClassSource(k8s, "app-classes"))
  *     .build();
  *
@@ -30,12 +30,12 @@ import java.util.Objects;
  *     .addAddress("hazelcast:5701")
  *     .build();
  *
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addClassSource(new ContainerClientClassSource(hazelcast, "class-map"))
  *     .build();
  * }</pre>
  *
- * <p>The ContainerClientClassSource will be automatically closed when the JClassLoader is closed.</p>
+ * <p>The ContainerClientClassSource will be automatically closed when the ApplicationClassLoader is closed.</p>
  *
  * @see org.flossware.container.ContainerClient
  * @see org.flossware.container.KubernetesContainerClient
