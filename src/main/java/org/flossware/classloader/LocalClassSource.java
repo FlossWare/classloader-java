@@ -13,20 +13,38 @@ import java.util.Objects;
  * This is the fastest class loading source as it reads directly from disk.
  */
 public class LocalClassSource implements ClassSource {
+    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default max size
     private final Path basePath;
+    private final long maxClassSize;
 
     /**
-     * Creates a local class source with the specified base path.
+     * Creates a local class source with the specified base path and max class size.
+     *
+     * @param basePath The base directory path containing class files
+     * @param maxClassSize Maximum size of a class file in bytes
+     * @throws NullPointerException if basePath is null
+     * @throws IllegalArgumentException if maxClassSize is not positive
+     */
+    public LocalClassSource(Path basePath, long maxClassSize) {
+        this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null").toAbsolutePath().normalize();
+        if (maxClassSize <= 0) {
+            throw new IllegalArgumentException("maxClassSize must be positive");
+        }
+        this.maxClassSize = maxClassSize;
+    }
+
+    /**
+     * Creates a local class source with the specified base path and default max size (10MB).
      *
      * @param basePath The base directory path containing class files
      * @throws NullPointerException if basePath is null
      */
     public LocalClassSource(Path basePath) {
-        this.basePath = Objects.requireNonNull(basePath, "basePath cannot be null").toAbsolutePath().normalize();
+        this(basePath, MAX_CLASS_SIZE);
     }
 
     /**
-     * Creates a local class source with the specified base path string.
+     * Creates a local class source with the specified base path string and default max size (10MB).
      *
      * @param basePath The base directory path string containing class files
      */
@@ -37,10 +55,30 @@ public class LocalClassSource implements ClassSource {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Path classFile = getClassFilePath(className);
-        if (Files.exists(classFile) && Files.isRegularFile(classFile)) {
-            return Files.readAllBytes(classFile);
+
+        if (!Files.exists(classFile)) {
+            throw new IOException("Class file not found: " + classFile);
         }
-        throw new IOException("Class file not found: " + classFile);
+
+        if (!Files.isRegularFile(classFile)) {
+            throw new IOException("Not a regular file: " + classFile);
+        }
+
+        // Check size before reading to prevent OOM on large files
+        long size = Files.size(classFile);
+        if (size > maxClassSize) {
+            throw new IOException(
+                "Class file too large: " + size + " bytes (max " + maxClassSize + ")"
+            );
+        }
+
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException(
+                "Class file exceeds Java array limit: " + size + " bytes"
+            );
+        }
+
+        return Files.readAllBytes(classFile);
     }
 
     @Override
@@ -59,15 +97,11 @@ public class LocalClassSource implements ClassSource {
     }
 
     private Path getClassFilePath(String className) throws IOException {
-        // Prevent path traversal attacks
-        if (className.contains("..") || className.contains("/") || className.contains("\\")) {
-            throw new IOException("Invalid class name (potential path traversal): " + className);
-        }
-
+        // Convert class name to file path
         String fileName = ClassNameUtil.toClassFilePath(className);
         Path resolvedPath = basePath.resolve(fileName).normalize();
 
-        // Ensure the resolved path is within basePath
+        // Ensure the resolved path is within basePath (this is the real protection)
         if (!resolvedPath.startsWith(basePath)) {
             throw new IOException("Path traversal attempt detected: " + className);
         }
