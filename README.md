@@ -42,7 +42,7 @@ A flexible Java ClassLoader that can load classes from 34+ transport protocols w
 <dependency>
     <groupId>org.flossware</groupId>
     <artifactId>classloader-java</artifactId>
-    <version>1.1</version>
+    <version>2.0</version>
 </dependency>
 ```
 
