@@ -10,11 +10,11 @@ A flexible Java ClassLoader that can load classes from 34+ transport protocols w
 - **FTP/FTPS Support**: Load classes from FTP and FTPS servers
 - **Nexus Repository Support**: Load classes from Sonatype Nexus repositories (both raw and Maven repositories)
 - **Maven Artifact Resolution**: Automatically extract classes from Maven JARs hosted in Nexus
-- **Cloud Storage** (via [jcloudstorage](https://github.com/FlossWare/jcloudstorage)): AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive
-- **File Transfer** (via [jfiletransfer](https://github.com/FlossWare/jfiletransfer)): SFTP, WebDAV, SMB/CIFS, FTP/FTPS
-- **Messaging** (via [jmessaging](https://github.com/FlossWare/jmessaging)): Kafka, RabbitMQ, Redis
-- **Containers** (via [jcontainer](https://github.com/FlossWare/jcontainer)): Kubernetes ConfigMaps, Docker, Hazelcast
-- **Version Control** (via [jvcs](https://github.com/FlossWare/jvcs)): Git (local and remote)
+- **Cloud Storage** (via [jcloudstorage](https://github.com/FlossWare/cloudstorage-java)): AWS S3, Azure Blob, Google Cloud Storage, Google Drive, Dropbox, OneDrive
+- **File Transfer** (via [jfiletransfer](https://github.com/FlossWare/filetransfer-java)): SFTP, WebDAV, SMB/CIFS, FTP/FTPS
+- **Messaging** (via [jmessaging](https://github.com/FlossWare/messaging-java)): Kafka, RabbitMQ, Redis
+- **Containers** (via [jcontainer](https://github.com/FlossWare/container-java)): Kubernetes ConfigMaps, Docker, Hazelcast
+- **Version Control** (via [jvcs](https://github.com/FlossWare/vcs-java)): Git (local and remote)
 - **Databases**: Load classes from JDBC-accessible databases
 
 ### Isolation & Control
@@ -237,13 +237,13 @@ JClassLoader loader = JClassLoader.builder()
 
 ### Cloud Storage Support
 
-Load classes from cloud storage providers using the [jcloudstorage](https://github.com/FlossWare/jcloudstorage) library:
+Load classes from cloud storage providers using the [jcloudstorage](https://github.com/FlossWare/cloudstorage-java) library:
 
 ```xml
 <!-- Add jcloudstorage dependency -->
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jcloudstorage</artifactId>
+    <artifactId>cloudstorage-java</artifactId>
     <version>1.0</version>
 </dependency>
 
@@ -286,16 +286,16 @@ Supported cloud providers (via jcloudstorage):
 - Dropbox
 - OneDrive
 
-See [jcloudstorage documentation](https://github.com/FlossWare/jcloudstorage) for provider-specific configuration.
+See [jcloudstorage documentation](https://github.com/FlossWare/cloudstorage-java) for provider-specific configuration.
 
 ### File Transfer Support
 
-Load classes via file transfer protocols using [jfiletransfer](https://github.com/FlossWare/jfiletransfer):
+Load classes via file transfer protocols using [jfiletransfer](https://github.com/FlossWare/filetransfer-java):
 
 ```xml
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jfiletransfer</artifactId>
+    <artifactId>filetransfer-java</artifactId>
     <version>1.0</version>
 </dependency>
 ```
@@ -318,16 +318,16 @@ JClassLoader loader = JClassLoader.builder()
     .build();
 ```
 
-Supported protocols: SFTP, WebDAV, SMB/CIFS, FTP/FTPS. See [jfiletransfer docs](https://github.com/FlossWare/jfiletransfer).
+Supported protocols: SFTP, WebDAV, SMB/CIFS, FTP/FTPS. See [jfiletransfer docs](https://github.com/FlossWare/filetransfer-java).
 
 ### Messaging System Support
 
-Load classes from messaging systems using [jmessaging](https://github.com/FlossWare/jmessaging):
+Load classes from messaging systems using [jmessaging](https://github.com/FlossWare/messaging-java):
 
 ```xml
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jmessaging</artifactId>
+    <artifactId>messaging-java</artifactId>
     <version>1.0</version>
 </dependency>
 ```
@@ -348,16 +348,16 @@ JClassLoader loader = JClassLoader.builder()
     .build();
 ```
 
-Supported systems: Kafka, RabbitMQ, Redis. See [jmessaging docs](https://github.com/FlossWare/jmessaging).
+Supported systems: Kafka, RabbitMQ, Redis. See [jmessaging docs](https://github.com/FlossWare/messaging-java).
 
 ### Container System Support
 
-Load classes from containers using [jcontainer](https://github.com/FlossWare/jcontainer):
+Load classes from containers using [jcontainer](https://github.com/FlossWare/container-java):
 
 ```xml
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jcontainer</artifactId>
+    <artifactId>container-java</artifactId>
     <version>1.0</version>
 </dependency>
 ```
@@ -377,16 +377,16 @@ JClassLoader loader = JClassLoader.builder()
     .build();
 ```
 
-Supported systems: Kubernetes ConfigMaps, Docker, Hazelcast. See [jcontainer docs](https://github.com/FlossWare/jcontainer).
+Supported systems: Kubernetes ConfigMaps, Docker, Hazelcast. See [jcontainer docs](https://github.com/FlossWare/container-java).
 
 ### Version Control Support
 
-Load classes from version control using [jvcs](https://github.com/FlossWare/jvcs):
+Load classes from version control using [jvcs](https://github.com/FlossWare/vcs-java):
 
 ```xml
 <dependency>
     <groupId>org.flossware</groupId>
-    <artifactId>jvcs</artifactId>
+    <artifactId>vcs-java</artifactId>
     <version>1.0</version>
 </dependency>
 ```
@@ -408,7 +408,7 @@ JClassLoader loader = JClassLoader.builder()
     .build();
 ```
 
-Supported systems: Git (local and remote). See [jvcs docs](https://github.com/FlossWare/jvcs).
+Supported systems: Git (local and remote). See [jvcs docs](https://github.com/FlossWare/vcs-java).
 
 ### Custom Parent ClassLoader
 
@@ -703,7 +703,7 @@ JClassLoader tenantLoader = JClassLoader.builder()
 
 ### 1.0 (Current)
 - ✅ 30+ ClassSource implementations (HTTP, FTP, SFTP, WebDAV, Maven, databases, Kafka, RabbitMQ, Redis, HDFS, Kubernetes, Docker, Git, MinIO, Hazelcast, etc.)
-- ✅ Cloud storage support via [jcloudstorage](https://github.com/FlossWare/jcloudstorage) library (S3, Azure Blob, GCS, Google Drive, Dropbox, OneDrive)
+- ✅ Cloud storage support via [jcloudstorage](https://github.com/FlossWare/cloudstorage-java) library (S3, Azure Blob, GCS, Google Drive, Dropbox, OneDrive)
 - ✅ JAR file loading from remote sources (HTTP/HTTPS)
 - ✅ Bytecode verification and checksum validation (SHA-256)
 - ✅ Retry logic with exponential backoff and jitter
