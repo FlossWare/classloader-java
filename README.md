@@ -586,13 +586,28 @@ ApplicationClassLoader loader = ApplicationClassLoader.builder()
 
 ## Security Considerations
 
-**Important**: Loading classes from remote sources can be a security risk. Only load classes from trusted sources.
+**⚠️ CRITICAL SECURITY WARNING ⚠️**
 
-- Always use HTTPS instead of HTTP when possible
-- Validate the source of remote classes
-- Consider implementing checksum verification
-- Use authentication for protected resources
-- Be aware that cached classes persist between runs
+**Loading classes from untrusted sources can lead to remote code execution and complete system compromise.**
+
+**Only load classes from sources you completely trust and control.**
+
+For comprehensive security guidance, see **[SECURITY.md](SECURITY.md)** which covers:
+- Threat model and attack vectors
+- Bytecode verification with ChecksumValidator
+- Transport security (HTTPS/TLS)
+- Credential management best practices
+- Source-specific security guidance
+- Production security checklist
+- Incident response procedures
+
+**Quick Security Checklist:**
+- ✅ Always use HTTPS (never HTTP) for remote sources
+- ✅ Use `ChecksumValidator` to verify bytecode integrity
+- ✅ Store credentials in environment variables (never hardcode)
+- ✅ Configure size limits and timeouts
+- ✅ Enable audit logging
+- ✅ Review [SECURITY.md](SECURITY.md) before production deployment
 
 ## Testing
 
