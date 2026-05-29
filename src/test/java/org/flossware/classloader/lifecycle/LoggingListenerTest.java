@@ -31,7 +31,7 @@ class LoggingListenerTest {
             listener.onClassLoaded(event);
 
             String output = outContent.toString();
-            assertTrue(output.contains("[JClassLoader]"));
+            assertTrue(output.contains("[ApplicationClassLoader]"));
             assertTrue(output.contains("com.example.Test"));
             assertTrue(output.contains("test-source"));
 

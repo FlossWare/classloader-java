@@ -5,12 +5,12 @@ import java.io.IOException;
 /**
  * Interface for class loading sources.
  * Implementations provide class bytecode from various sources (local files, HTTP, cloud storage, etc.).
- * This is the core abstraction that enables JClassLoader's multi-protocol support.
+ * This is the core abstraction that enables ApplicationClassLoader's multi-protocol support.
  *
  * <h2>Implementation Contract</h2>
  *
  * <h3>Thread Safety</h3>
- * <p>Implementations MUST be thread-safe if used with JClassLoader, which may load classes
+ * <p>Implementations MUST be thread-safe if used with ApplicationClassLoader, which may load classes
  * concurrently from multiple threads.</p>
  *
  * <h3>Return Values and Exceptions</h3>
@@ -30,7 +30,7 @@ import java.io.IOException;
  * <h3>Performance Characteristics</h3>
  * <ul>
  *   <li>{@link #canLoad(String)} may be expensive for remote sources (network calls)</li>
- *   <li>JClassLoader optimizes by skipping {@link #canLoad(String)} checks for remote sources</li>
+ *   <li>ApplicationClassLoader optimizes by skipping {@link #canLoad(String)} checks for remote sources</li>
  *   <li>For best performance, {@link #canLoad(String)} should return quickly or always return true</li>
  * </ul>
  *
@@ -51,7 +51,7 @@ public interface ClassSource {
      *   <li>MUST throw IOException if the class doesn't exist or cannot be loaded</li>
      *   <li>MUST NOT return null under any circumstances</li>
      *   <li>SHOULD return identical bytecode if called multiple times for the same class</li>
-     *   <li>MUST be thread-safe if used with JClassLoader</li>
+     *   <li>MUST be thread-safe if used with ApplicationClassLoader</li>
      * </ul>
      *
      * <p><b>Error Handling:</b></p>
@@ -77,7 +77,7 @@ public interface ClassSource {
      *
      * <p><b>Performance Warning:</b> This method may NOT be lightweight for remote sources.
      * Remote implementations typically make network calls (HTTP HEAD, stat operations) which
-     * can be as expensive as {@link #loadClassData(String)}. For this reason, JClassLoader
+     * can be as expensive as {@link #loadClassData(String)}. For this reason, ApplicationClassLoader
      * may skip this check and call {@link #loadClassData(String)} directly for remote sources.</p>
      *
      * <p><b>Implementation Guidance:</b></p>

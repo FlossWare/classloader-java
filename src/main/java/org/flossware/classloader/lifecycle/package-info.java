@@ -15,7 +15,7 @@
  * <h2>Example Usage</h2>
  * <pre>{@code
  * // Add logging listener
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .addRemoteSource("https://example.com/classes/")
  *     .addLoggingListener(true)  // verbose mode
  *     .build();

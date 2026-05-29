@@ -25,7 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <h3>Always Close When Done</h3>
  * <p>Use try-with-resources to ensure proper cleanup:</p>
  * <pre>{@code
- * try (JClassLoader loader = JClassLoader.builder()
+ * try (ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *         .addLocalSource("/path/to/classes")
  *         .build()) {
  *     Class<?> clazz = loader.loadClass("com.example.MyClass");
@@ -46,13 +46,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <p><b>Example - Proper Hot Reload:</b></p>
  * <pre>{@code
  * // Old way (MEMORY LEAK - old ClassLoader never released):
- * JClassLoader loader = JClassLoader.builder()...build();
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()...build();
  * // ... use loader ...
- * loader = JClassLoader.builder()...build();  // OLD LOADER LEAKED!
+ * loader = ApplicationClassLoader.builder()...build();  // OLD LOADER LEAKED!
  *
  * // Correct way:
- * JClassLoader oldLoader = currentLoader;
- * JClassLoader newLoader = JClassLoader.builder()...build();
+ * ApplicationClassLoader oldLoader = currentLoader;
+ * ApplicationClassLoader newLoader = ApplicationClassLoader.builder()...build();
  *
  * // Switch to new loader
  * currentLoader = newLoader;
@@ -86,7 +86,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @see #close()
  * @see #isClosed()
  */
-public class JClassLoader extends ClassLoader implements AutoCloseable {
+public class ApplicationClassLoader extends ClassLoader implements AutoCloseable {
     private final List<ClassSource> classSources;
     private final ClassCache cache;
     private final boolean useCache;
@@ -95,7 +95,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
     private final BytecodeVerifier bytecodeVerifier;
     private volatile boolean closed = false;
 
-    private JClassLoader(Builder builder) {
+    private ApplicationClassLoader(Builder builder) {
         super(builder.parent != null ? builder.parent : getSystemClassLoader());
         this.classSources = new ArrayList<>(builder.classSources);
         this.cache = builder.cache;
@@ -130,7 +130,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
 
     private Class<?> findClassInternal(String name) throws ClassNotFoundException {
         if (closed) {
-            throw new IllegalStateException("JClassLoader is closed");
+            throw new IllegalStateException("ApplicationClassLoader is closed");
         }
 
         byte[] classData = null;
@@ -326,11 +326,11 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             // Try SLF4J if available (optional dependency)
             Class<?> loggerFactoryClass = Class.forName("org.slf4j.LoggerFactory");
             Object logger = loggerFactoryClass.getMethod("getLogger", Class.class)
-                .invoke(null, JClassLoader.class);
+                .invoke(null, ApplicationClassLoader.class);
             logger.getClass().getMethod("error", String.class).invoke(logger, message);
         } catch (Exception e) {
             // SLF4J not available or error occurred, fall back to System.err
-            System.err.println("[JClassLoader ERROR] " + message);
+            System.err.println("[ApplicationClassLoader ERROR] " + message);
         }
     }
 
@@ -386,7 +386,7 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
 
             // Throw if any exceptions occurred
             if (!exceptions.isEmpty()) {
-                IOException ex = new IOException("Failed to close JClassLoader");
+                IOException ex = new IOException("Failed to close ApplicationClassLoader");
                 exceptions.forEach(ex::addSuppressed);
                 throw ex;
             }
@@ -569,12 +569,12 @@ public class JClassLoader extends ClassLoader implements AutoCloseable {
             return this;
         }
 
-        public JClassLoader build() {
+        public ApplicationClassLoader build() {
             if (classSources.isEmpty()) {
                 throw new IllegalStateException("At least one class source must be configured");
             }
 
-            return new JClassLoader(this);
+            return new ApplicationClassLoader(this);
         }
     }
 }

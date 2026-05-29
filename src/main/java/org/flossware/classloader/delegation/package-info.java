@@ -15,17 +15,17 @@
  * <h2>Example Usage</h2>
  * <pre>{@code
  * // Parent-first (default Java behavior)
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .parentFirst()
  *     .build();
  *
  * // Parent-last for plugin isolation
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .parentLast("java.", "javax.")  // Always use parent for JDK classes
  *     .build();
  *
  * // Custom delegation logic
- * JClassLoader loader = JClassLoader.builder()
+ * ApplicationClassLoader loader = ApplicationClassLoader.builder()
  *     .customDelegation(className ->
  *         className.startsWith("com.example.core"))
  *     .build();

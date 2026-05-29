@@ -33,12 +33,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
-class JClassLoaderTest {
+class ApplicationClassLoaderTest {
 
     @Test
     void testBuilderRequiresAtLeastOneSource() {
         assertThrows(IllegalStateException.class, () -> {
-            JClassLoader.builder().build();
+            ApplicationClassLoader.builder().build();
         });
     }
 
@@ -47,7 +47,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -59,7 +59,7 @@ class JClassLoaderTest {
 
     @Test
     void testBuilderWithRemoteSource() {
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addRemoteSource("https://example.com/classes/")
             .useCache(false)
             .build();
@@ -72,7 +72,7 @@ class JClassLoaderTest {
     @Test
     void testBuilderWithRemoteSourceAndAuth() {
         AuthConfig auth = AuthConfig.basic("user", "pass");
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addRemoteSource("https://example.com/classes/", auth)
             .useCache(false)
             .build();
@@ -87,7 +87,7 @@ class JClassLoaderTest {
         Path cacheDir = tempDir.resolve("cache");
         FileSystemCache cache = new FileSystemCache(cacheDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(tempDir.toString())
             .cache(cache)
             .useCache(true)
@@ -113,7 +113,7 @@ class JClassLoaderTest {
         int exitCode = process.waitFor();
         assertEquals(0, exitCode, "javac compilation should succeed");
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -129,7 +129,7 @@ class JClassLoaderTest {
 
     @Test
     void testLoadClassNotFound() {
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addRemoteSource("https://example.com/nonexistent/")
             .useCache(false)
             .build();
@@ -144,7 +144,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -161,7 +161,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -192,7 +192,7 @@ class JClassLoaderTest {
         Process process = pb.start();
         assertEquals(0, process.waitFor());
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .addListener(listener)
@@ -219,7 +219,7 @@ class JClassLoaderTest {
         ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
         assertEquals(0, pb.start().waitFor());
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .cache(mockCache)
             .useCache(true)
@@ -242,7 +242,7 @@ class JClassLoaderTest {
         when(mockCache.contains("com.example.CachedClass")).thenReturn(true);
         when(mockCache.get("com.example.CachedClass")).thenReturn(fakeClassData);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .cache(mockCache)
             .useCache(true)
@@ -260,7 +260,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .delegationStrategy(new ParentLastDelegation())
@@ -276,7 +276,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .delegationStrategy(new ParentFirstDelegation())
@@ -294,7 +294,7 @@ class JClassLoaderTest {
         Files.createDirectories(classDir1);
         Files.createDirectories(classDir2);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir1.toString())
             .addLocalSource(classDir2.toString())
             .useCache(false)
@@ -319,7 +319,7 @@ class JClassLoaderTest {
         ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
         assertEquals(0, pb.start().waitFor());
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .addListener(listener1)
@@ -337,7 +337,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -354,7 +354,7 @@ class JClassLoaderTest {
 
         ClassLoader customParent = Thread.currentThread().getContextClassLoader();
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .parent(customParent)
@@ -371,7 +371,7 @@ class JClassLoaderTest {
 
         AtomicBoolean closed = new AtomicBoolean(false);
 
-        try (JClassLoader loader = JClassLoader.builder()
+        try (ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build()) {
@@ -394,7 +394,7 @@ class JClassLoaderTest {
         ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
         assertEquals(0, pb.start().waitFor());
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .useCache(false)
             .build();
@@ -412,7 +412,7 @@ class JClassLoaderTest {
 
         FileSystemCache cache = new FileSystemCache(cacheDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .cache(cache)
             .useCache(false)
@@ -436,7 +436,7 @@ class JClassLoaderTest {
         ProcessBuilder pb1 = new ProcessBuilder("javac", "-d", classDir1.toString(), srcFile1.toString());
         assertEquals(0, pb1.start().waitFor());
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir1.toString())
             .addLocalSource(classDir2.toString())
             .useCache(false)
@@ -453,7 +453,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .parentFirst()
             .build();
@@ -466,7 +466,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .parentLast("java.", "javax.")
             .build();
@@ -479,7 +479,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .customDelegation(name -> name.startsWith("java."))
             .build();
@@ -492,7 +492,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .addLoggingListener()
             .build();
@@ -505,7 +505,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .addLoggingListener(true)
             .build();
@@ -518,7 +518,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .trackResources()
             .build();
@@ -532,7 +532,7 @@ class JClassLoaderTest {
         Files.createDirectories(classDir);
 
         assertThrows(NullPointerException.class, () -> {
-            JClassLoader.builder()
+            ApplicationClassLoader.builder()
                 .addLocalSource(classDir.toString())
                 .delegationStrategy(null)
                 .build();
@@ -542,7 +542,7 @@ class JClassLoaderTest {
     @Test
     void testBuilderNullListenerThrows(@TempDir Path tempDir) throws Exception {
         assertThrows(NullPointerException.class, () -> {
-            JClassLoader.builder()
+            ApplicationClassLoader.builder()
                 .addLocalSource("/tmp")
                 .addListener(null);
         });
@@ -553,7 +553,7 @@ class JClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        JClassLoader.Builder builder = JClassLoader.builder();
+        ApplicationClassLoader.Builder builder = ApplicationClassLoader.builder();
 
         // Add 100 sources (the MAX_CLASS_SOURCES limit)
         for (int i = 0; i < 100; i++) {
@@ -569,7 +569,7 @@ class JClassLoaderTest {
     @Test
     void testBuilderNullClassSourceThrows() {
         assertThrows(NullPointerException.class, () -> {
-            JClassLoader.builder()
+            ApplicationClassLoader.builder()
                 .addClassSource(null);
         });
     }
@@ -577,7 +577,7 @@ class JClassLoaderTest {
     @Test
     void testBuilderNoClassSourcesThrows() {
         assertThrows(IllegalStateException.class, () -> {
-            JClassLoader.builder().build();
+            ApplicationClassLoader.builder().build();
         });
     }
 
@@ -588,7 +588,7 @@ class JClassLoaderTest {
 
         ClassLoader customParent = ClassLoader.getSystemClassLoader();
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .parent(customParent)
             .addLocalSource(classDir.toString())
             .build();
@@ -604,7 +604,7 @@ class JClassLoaderTest {
 
         FileSystemCache cache = new FileSystemCache(cacheDir);
 
-        JClassLoader loader = JClassLoader.builder()
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
             .addLocalSource(classDir.toString())
             .cache(cache)
             .useCache(true)
