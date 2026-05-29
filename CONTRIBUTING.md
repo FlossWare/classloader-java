@@ -158,7 +158,7 @@ open target/site/apidocs/index.html
 ## Code Review Process
 
 1. **Automated checks** run on all PRs:
-   - Tests must pass (463+ tests)
+   - Tests must pass (493+ tests)
    - Code must compile
    - No wildcard imports
    
