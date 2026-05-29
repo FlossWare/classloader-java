@@ -3,6 +3,7 @@ package org.flossware.classloader.filesystem;
 import org.apache.hadoop.conf.Configuration;
 
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.flossware.classloader.ClassSource;
@@ -19,28 +20,58 @@ import java.util.Objects;
  * Requires the Hadoop client dependency.
  */
 public class HdfsClassSource implements ClassSource, AutoCloseable {
+    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
+    private static final int DEFAULT_SOCKET_TIMEOUT = 30000; // 30 seconds
+    private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
+
     private final FileSystem hdfs;
     private final String basePath;
+    private final long maxClassSize;
 
-    private HdfsClassSource(FileSystem hdfs, String basePath) {
+    private HdfsClassSource(FileSystem hdfs, String basePath, long maxClassSize) {
         this.hdfs = Objects.requireNonNull(hdfs, "hdfs cannot be null");
         this.basePath = basePath != null ? basePath : "/";
+        this.maxClassSize = maxClassSize;
     }
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Path classPath = getClassPath(className);
 
-        try (InputStream in = hdfs.open(classPath);
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        // Check size BEFORE downloading to prevent OOM
+        FileStatus status = hdfs.getFileStatus(classPath);
+        long size = status.getLen();
 
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+        if (size > maxClassSize) {
+            throw new IOException(
+                "Class file too large: " + size + " bytes (max " + maxClassSize + ")"
+            );
+        }
+
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException(
+                "Class file exceeds Java array limit: " + size + " bytes"
+            );
+        }
+
+        // Safe to download - size is within limits
+        try (InputStream in = hdfs.open(classPath)) {
+            byte[] data = new byte[(int)size];
+            int totalRead = 0;
+
+            while (totalRead < size) {
+                int n = in.read(data, totalRead, (int)size - totalRead);
+                if (n == -1) break;
+                totalRead += n;
             }
 
-            return out.toByteArray();
+            if (totalRead != size) {
+                throw new IOException(
+                    "Expected " + size + " bytes but read " + totalRead
+                );
+            }
+
+            return data;
         }
     }
 
@@ -82,6 +113,9 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         private String nameNodeUri;
         private String basePath = "/";
         private Configuration configuration;
+        private long maxClassSize = MAX_CLASS_SIZE;
+        private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+        private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
 
         public Builder nameNodeUri(String nameNodeUri) {
             this.nameNodeUri = nameNodeUri;
@@ -98,6 +132,30 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
+        public Builder maxClassSize(long maxBytes) {
+            if (maxBytes <= 0) {
+                throw new IllegalArgumentException("maxClassSize must be positive");
+            }
+            this.maxClassSize = maxBytes;
+            return this;
+        }
+
+        public Builder socketTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("socketTimeout must be >= 0");
+            }
+            this.socketTimeout = timeoutMs;
+            return this;
+        }
+
+        public Builder connectTimeout(int timeoutMs) {
+            if (timeoutMs < 0) {
+                throw new IllegalArgumentException("connectTimeout must be >= 0");
+            }
+            this.connectTimeout = timeoutMs;
+            return this;
+        }
+
         public HdfsClassSource build() throws IOException {
             Configuration conf = configuration != null ? configuration : new Configuration();
 
@@ -105,8 +163,14 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
                 conf.set("fs.defaultFS", nameNodeUri);
             }
 
+            // Configure timeouts to prevent hanging
+            conf.setInt("ipc.client.connect.timeout", connectTimeout);
+            conf.setInt("ipc.client.connect.max.retries", 3);
+            conf.setInt("ipc.ping.interval", 10000);
+            conf.setInt("dfs.client.socket-timeout", socketTimeout);
+
             FileSystem hdfs = FileSystem.get(conf);
-            return new HdfsClassSource(hdfs, basePath);
+            return new HdfsClassSource(hdfs, basePath, maxClassSize);
         }
     }
 }
