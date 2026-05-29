@@ -32,11 +32,19 @@ public class NexusClassSource implements ClassSource {
 
     /**
      * Nexus repository mode.
+     *
+     * <p><b>WARNING:</b> MAVEN mode is currently non-functional due to incomplete
+     * implementation of searchInJars(). Use MavenNexusClassSource instead for loading
+     * classes from Maven artifacts in Nexus, or use RAW mode for direct .class files.</p>
      */
     public enum NexusMode {
         /** Raw repository with direct .class files */
         RAW,
-        /** Maven repository with JAR files */
+        /**
+         * Maven repository with JAR files.
+         * @deprecated MAVEN mode is non-functional. Use {@link MavenNexusClassSource} instead.
+         */
+        @Deprecated
         MAVEN
     }
 
@@ -109,48 +117,41 @@ public class NexusClassSource implements ClassSource {
         return fetchUrl(url);
     }
 
+    /**
+     * @deprecated MAVEN mode is non-functional. searchInJars() is broken.
+     *             Use {@link MavenNexusClassSource} instead.
+     */
+    @Deprecated
     private byte[] loadFromMaven(String className) throws IOException {
-        String packagePath = getPackagePath(className);
-        if (packagePath == null) {
-            throw new IOException("Cannot determine Maven coordinates for class: " + className);
-        }
-
-        String cachedKey = packagePath;
-        // Atomic get() - avoids TOCTOU race condition with contains() + get()
-        byte[] cachedData = jarCache.get(cachedKey);
-        if (cachedData != null) {
-            return cachedData;
-        }
-
-        String simpleClassName = getSimpleClassName(className);
-        String classFileInJar = ClassNameUtil.toClassFilePath(className);
-
-        byte[] classData = searchInJars(packagePath, classFileInJar);
-        if (classData != null) {
-            jarCache.put(cachedKey, classData);
-            return classData;
-        }
-
-        throw new IOException("Class not found in Nexus Maven repository: " + className);
+        throw new UnsupportedOperationException(
+            "MAVEN mode is non-functional (searchInJars() not implemented). " +
+            "Use MavenNexusClassSource instead for loading classes from Maven artifacts in Nexus."
+        );
     }
 
+    /**
+     * @deprecated This method is non-functional (returns null always).
+     *             Proper implementation would require JSON parsing of Nexus search API response.
+     */
+    @Deprecated
+    @SuppressWarnings("unused")
     private byte[] searchInJars(String packagePath, String classFileInJar) throws IOException {
-        String searchUrl = nexusUrl + "service/rest/v1/search?repository=" + repository + "&name=" + packagePath;
-
-        try {
-            URL url = new URL(searchUrl);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            configureAuthentication(connection);
-            connection.setRequestMethod("GET");
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                return null;
-            }
-        } catch (IOException e) {
-        }
-
-        return null;
+        // This method is completely broken:
+        // 1. Returns null when HTTP 200 OK (backwards logic!)
+        // 2. Swallows all exceptions
+        // 3. Never actually parses the response or downloads JARs
+        // 4. Always returns null
+        //
+        // Proper implementation would require:
+        // - Parse Nexus search API JSON response
+        // - Extract JAR download URLs
+        // - Download each JAR and search for the class
+        // - Return class bytecode
+        //
+        // Use MavenNexusClassSource instead - it's a complete implementation.
+        throw new UnsupportedOperationException(
+            "searchInJars() is not implemented. Use MavenNexusClassSource instead."
+        );
     }
 
     private byte[] fetchUrl(String urlString) throws IOException {
