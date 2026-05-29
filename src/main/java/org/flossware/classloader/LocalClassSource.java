@@ -54,6 +54,7 @@ public class LocalClassSource implements ClassSource {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         Path classFile = getClassFilePath(className);
 
         if (!Files.exists(classFile)) {

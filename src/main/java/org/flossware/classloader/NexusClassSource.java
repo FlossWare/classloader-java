@@ -89,6 +89,7 @@ public class NexusClassSource implements ClassSource {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         if (mode == NexusMode.RAW) {
             return loadFromRaw(className);
         } else {
@@ -98,6 +99,7 @@ public class NexusClassSource implements ClassSource {
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             loadClassData(className);
             return true;

@@ -64,6 +64,7 @@ public class RestApiClassSource implements ClassSource {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         String url = buildUrl(className);
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 
@@ -124,6 +125,7 @@ public class RestApiClassSource implements ClassSource {
      */
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         if (!enableCanLoadCheck) {
             return true;  // Skip expensive check, let loadClassData() fail if needed
         }

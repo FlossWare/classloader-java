@@ -147,6 +147,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         ensureJarReady();
 
         String entryName = ClassNameUtil.toClassFilePath(className);
@@ -216,6 +217,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
      */
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             ensureJarReady();
             String entryName = ClassNameUtil.toClassFilePath(className);

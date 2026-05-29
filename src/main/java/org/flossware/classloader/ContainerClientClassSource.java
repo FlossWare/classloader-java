@@ -58,12 +58,14 @@ public class ContainerClientClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         String key = classNameToKey(className);
         return client.read(resourceName, key);
     }
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             String key = classNameToKey(className);
             return client.exists(resourceName, key);

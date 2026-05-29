@@ -1,6 +1,7 @@
 package org.flossware.classloader.delegation;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Parent-last delegation for application isolation.
@@ -15,8 +16,10 @@ public class ParentLastDelegation implements DelegationStrategy {
      * Creates a parent-last delegation strategy with custom parent-first prefixes.
      *
      * @param alwaysParentPrefixes Class name prefixes that should always be loaded from parent
+     * @throws NullPointerException if alwaysParentPrefixes is null
      */
     public ParentLastDelegation(String... alwaysParentPrefixes) {
+        Objects.requireNonNull(alwaysParentPrefixes, "alwaysParentPrefixes cannot be null");
         this.alwaysParentPrefixes = alwaysParentPrefixes.clone();
     }
 
@@ -41,6 +44,10 @@ public class ParentLastDelegation implements DelegationStrategy {
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
+        Objects.requireNonNull(name, "name cannot be null");
+        Objects.requireNonNull(parent, "parent cannot be null");
+        Objects.requireNonNull(findInSources, "findInSources cannot be null");
+
         // System classes and specified prefixes always from parent
         // Use simple for-each loop instead of Stream.anyMatch() for better performance on hot path
         for (String prefix : alwaysParentPrefixes) {

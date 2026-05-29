@@ -59,12 +59,14 @@ public class VcsClientClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         String path = classNameToPath(className);
         return client.readFile(path);
     }
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             String path = classNameToPath(className);
             return client.exists(path);

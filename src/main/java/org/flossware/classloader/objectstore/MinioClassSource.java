@@ -44,6 +44,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         String objectName = buildObjectName(className);
 
         // Check size first to prevent OOM
@@ -95,6 +96,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
 
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         String objectName = buildObjectName(className);
 
         try {
