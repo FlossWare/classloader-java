@@ -5,6 +5,8 @@ import io.minio.GetObjectArgs;
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import io.minio.MinioClient;
 import io.minio.StatObjectArgs;
+import io.minio.StatObjectResponse;
+import io.minio.errors.MinioException;
 import org.flossware.classloader.ClassSource;
 import org.flossware.classloader.util.ClassNameUtil;
 
@@ -12,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * ClassSource implementation for loading classes from MinIO object storage.
@@ -25,37 +28,68 @@ import java.util.Objects;
  * perform explicit cleanup.</p>
  */
 public class MinioClassSource implements ClassSource, AutoCloseable {
+    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
+
     private final MinioClient minioClient;
     private final String bucketName;
     private final String prefix;
+    private final long maxClassSize;
 
-    private MinioClassSource(MinioClient minioClient, String bucketName, String prefix) {
+    private MinioClassSource(MinioClient minioClient, String bucketName, String prefix, long maxClassSize) {
         this.minioClient = Objects.requireNonNull(minioClient, "minioClient cannot be null");
         this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
         this.prefix = prefix != null ? prefix : "";
+        this.maxClassSize = maxClassSize;
     }
 
     @Override
     public byte[] loadClassData(String className) throws IOException {
         String objectName = buildObjectName(className);
 
+        // Check size first to prevent OOM
+        StatObjectResponse stat;
+        try {
+            stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectName)
+                    .build());
+        } catch (MinioException e) {
+            throw new IOException("MinIO error getting object stats: " + objectName, e);
+        } catch (Exception e) {
+            throw new IOException("Unexpected error getting object stats: " + objectName, e);
+        }
+
+        long size = stat.size();
+        if (size > maxClassSize) {
+            throw new IOException("Class file too large: " + size + " bytes (max " + maxClassSize + ")");
+        }
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException("Class file exceeds Java array limit: " + size);
+        }
+
+        // Safe to download - size is within limits
         try (InputStream stream = minioClient.getObject(
                 GetObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
-                    .build());
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                    .build())) {
 
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = stream.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+            byte[] data = new byte[(int)size];
+            int totalRead = 0;
+
+            while (totalRead < size) {
+                int n = stream.read(data, totalRead, (int)size - totalRead);
+                if (n == -1) break;
+                totalRead += n;
             }
 
-            return out.toByteArray();
+            return data;
 
+        } catch (MinioException e) {
+            throw new IOException("MinIO error loading class: " + objectName, e);
         } catch (Exception e) {
-            throw new IOException("Failed to load class from MinIO: " + objectName, e);
+            throw new IOException("Unexpected error loading class: " + objectName, e);
         }
     }
 
@@ -72,6 +106,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
             );
             return true;
         } catch (Exception e) {
+            // Object doesn't exist, auth failure, or other error
             return false;
         }
     }
@@ -118,6 +153,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         private String prefix;
         private String region;
         private boolean secure = true;
+        private int port = 443;  // Default HTTPS port
+        private long maxClassSize = MAX_CLASS_SIZE;
 
         public Builder endpoint(String endpoint) {
             this.endpoint = Objects.requireNonNull(endpoint, "endpoint cannot be null");
@@ -151,6 +188,26 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
 
         public Builder secure(boolean secure) {
             this.secure = secure;
+            // Adjust default port based on secure setting
+            if (!secure && this.port == 443) {
+                this.port = 9000;  // Default MinIO port for HTTP
+            }
+            return this;
+        }
+
+        public Builder port(int port) {
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("Port must be 1-65535");
+            }
+            this.port = port;
+            return this;
+        }
+
+        public Builder maxClassSize(long maxBytes) {
+            if (maxBytes <= 0) {
+                throw new IllegalArgumentException("maxClassSize must be positive");
+            }
+            this.maxClassSize = maxBytes;
             return this;
         }
 
@@ -161,15 +218,19 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
             Objects.requireNonNull(bucketName, "bucketName must be set");
 
             MinioClient.Builder clientBuilder = MinioClient.builder()
-                .endpoint(endpoint, 443, secure)
+                .endpoint(endpoint, port, secure)
                 .credentials(accessKey, secretKey);
+
+            // Note: Timeout configuration depends on MinIO SDK version
+            // Older versions don't support timeout methods directly
+            // Configure timeouts via OkHttpClient if needed
 
             if (region != null) {
                 clientBuilder.region(region);
             }
 
             MinioClient client = clientBuilder.build();
-            return new MinioClassSource(client, bucketName, prefix);
+            return new MinioClassSource(client, bucketName, prefix, maxClassSize);
         }
     }
 }
