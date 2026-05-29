@@ -718,7 +718,7 @@ ApplicationClassLoader tenantLoader = ApplicationClassLoader.builder()
 
 ## Version History
 
-### 1.1 (Current)
+### 2.0 (Current)
 - ✅ 30+ ClassSource implementations (HTTP, FTP, SFTP, WebDAV, Maven, databases, Kafka, RabbitMQ, Redis, HDFS, Kubernetes, Docker, Git, MinIO, Hazelcast, etc.)
 - ✅ Cloud storage support via [jcloudstorage](https://github.com/FlossWare/cloudstorage-java) library (S3, Azure Blob, GCS, Google Drive, Dropbox, OneDrive)
 - ✅ JAR file loading from remote sources (HTTP/HTTPS)
