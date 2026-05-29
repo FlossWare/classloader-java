@@ -138,6 +138,8 @@ JClassLoader authLoader = JClassLoader.builder()
 
 #### Loading from Nexus Maven Repository
 
+**Note:** Use `MavenNexusClassSource` for loading classes from Maven artifacts in Nexus. The `NexusClassSource` MAVEN mode is deprecated and non-functional.
+
 Load classes from JAR files stored as Maven artifacts:
 
 ```java
