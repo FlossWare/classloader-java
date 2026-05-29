@@ -186,7 +186,27 @@ public final class RetryPolicy {
     }
 
     /**
-     * Builder for creating RetryPolicy instances.
+     * Builder for creating RetryPolicy instances with fluent API.
+     *
+     * <p>Default values:</p>
+     * <ul>
+     *   <li>maxRetries: 3</li>
+     *   <li>initialDelay: 100ms</li>
+     *   <li>maxDelay: 10000ms (10 seconds)</li>
+     *   <li>backoffMultiplier: 2.0 (exponential)</li>
+     *   <li>jitter: true (±25% random variation)</li>
+     * </ul>
+     *
+     * <p>Example usage:</p>
+     * <pre>{@code
+     * RetryPolicy policy = RetryPolicy.builder()
+     *     .maxRetries(5)
+     *     .initialDelay(Duration.ofMillis(200))
+     *     .maxDelay(Duration.ofSeconds(30))
+     *     .backoffMultiplier(1.5)
+     *     .jitter(true)
+     *     .build();
+     * }</pre>
      */
     public static class Builder {
         private int maxRetries = 3;
@@ -195,6 +215,13 @@ public final class RetryPolicy {
         private double backoffMultiplier = 2.0;
         private boolean jitter = true;
 
+        /**
+         * Sets the maximum number of retry attempts.
+         *
+         * @param maxRetries Maximum retry attempts (0 = fail immediately, no retries)
+         * @return this builder
+         * @throws IllegalArgumentException if maxRetries < 0
+         */
         public Builder maxRetries(int maxRetries) {
             if (maxRetries < 0) {
                 throw new IllegalArgumentException("maxRetries must be >= 0, got: " + maxRetries);
@@ -203,6 +230,13 @@ public final class RetryPolicy {
             return this;
         }
 
+        /**
+         * Sets the initial delay before the first retry.
+         *
+         * @param initialDelay Initial delay (must be >= 0 and <= maxDelay)
+         * @return this builder
+         * @throws IllegalArgumentException if initialDelay < 0 or > maxDelay
+         */
         public Builder initialDelay(Duration initialDelay) {
             long ms = initialDelay.toMillis();
             if (ms < 0) {
@@ -216,6 +250,13 @@ public final class RetryPolicy {
             return this;
         }
 
+        /**
+         * Sets the maximum delay between retries.
+         *
+         * @param maxDelay Maximum delay (must be >= initialDelay)
+         * @return this builder
+         * @throws IllegalArgumentException if maxDelay < 0 or < initialDelay
+         */
         public Builder maxDelay(Duration maxDelay) {
             long ms = maxDelay.toMillis();
             if (ms < 0) {
@@ -229,6 +270,21 @@ public final class RetryPolicy {
             return this;
         }
 
+        /**
+         * Sets the exponential backoff multiplier.
+         *
+         * <p>Delay grows as: initialDelay × multiplier^attemptNumber</p>
+         * <p>Common values:</p>
+         * <ul>
+         *   <li>2.0 = exponential (default): 100ms, 200ms, 400ms, 800ms...</li>
+         *   <li>1.5 = slower growth: 100ms, 150ms, 225ms, 337ms...</li>
+         *   <li>1.0 = linear (no backoff): 100ms, 100ms, 100ms...</li>
+         * </ul>
+         *
+         * @param backoffMultiplier Multiplier for exponential backoff (must be >= 1.0)
+         * @return this builder
+         * @throws IllegalArgumentException if backoffMultiplier < 1.0
+         */
         public Builder backoffMultiplier(double backoffMultiplier) {
             if (backoffMultiplier < 1.0) {
                 throw new IllegalArgumentException(
@@ -238,17 +294,42 @@ public final class RetryPolicy {
             return this;
         }
 
+        /**
+         * Enables or disables jitter (±25% random variation in delays).
+         *
+         * <p>Jitter prevents the "thundering herd" problem where many clients
+         * retry simultaneously. When enabled, delays vary by ±25% randomly.</p>
+         *
+         * <p>Example with 100ms base delay and jitter enabled:</p>
+         * <ul>
+         *   <li>Possible delays: 75ms, 80ms, 90ms, 100ms, 110ms, 120ms, 125ms</li>
+         *   <li>Without jitter: always exactly 100ms</li>
+         * </ul>
+         *
+         * @param jitter true to enable jitter (recommended), false for fixed delays
+         * @return this builder
+         */
         public Builder jitter(boolean jitter) {
             this.jitter = jitter;
             return this;
         }
 
+        /**
+         * Builds the RetryPolicy with configured parameters.
+         *
+         * @return A new RetryPolicy instance
+         */
         public RetryPolicy build() {
             return new RetryPolicy(maxRetries, initialDelayMs, maxDelayMs,
                                   backoffMultiplier, jitter);
         }
     }
 
+    /**
+     * Creates a new Builder instance for constructing RetryPolicy.
+     *
+     * @return A new Builder with default values
+     */
     public static Builder builder() {
         return new Builder();
     }
