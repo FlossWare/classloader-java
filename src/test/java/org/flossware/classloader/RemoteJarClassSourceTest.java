@@ -11,7 +11,7 @@ import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class JarRemoteClassSourceTest {
+class RemoteJarClassSourceTest {
 
     private static final byte[] SIMPLE_CLASS_BYTECODE = {
         (byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE, // Magic number
@@ -46,7 +46,7 @@ class JarRemoteClassSourceTest {
         // Use file:// URL for local testing
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             byte[] classData = source.loadClassData("com.example.TestClass");
@@ -62,7 +62,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             assertTrue(source.canLoad("com.example.TestClass"));
@@ -76,7 +76,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             assertFalse(source.canLoad("com.example.MissingClass"));
@@ -90,7 +90,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             IOException thrown = assertThrows(IOException.class, () -> {
@@ -111,7 +111,7 @@ class JarRemoteClassSourceTest {
             "com.example.Class3");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             // Load all three classes
@@ -137,7 +137,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             // First load triggers download
@@ -159,7 +159,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         // Load a class to trigger JAR download
         source.loadClassData("com.example.TestClass");
@@ -180,7 +180,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
         source.loadClassData("com.example.TestClass");
 
         // Multiple closes should not throw
@@ -197,7 +197,7 @@ class JarRemoteClassSourceTest {
         AuthConfig auth = AuthConfig.bearer("test-token");
         RetryPolicy retry = RetryPolicy.noRetry();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl, auth, 5000, 10000, retry);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl, auth, 5000, 10000, retry);
 
         try {
             assertEquals(jarUrl, source.getJarUrl());
@@ -214,7 +214,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         assertFalse(source.isClosed());
 
@@ -228,12 +228,12 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             String description = source.getDescription();
 
-            assertTrue(description.contains("JarRemoteClassSource"));
+            assertTrue(description.contains("RemoteJarClassSource"));
             assertTrue(description.contains(jarUrl) || description.contains("file"));
             assertTrue(description.contains("auth="));
         } finally {
@@ -244,7 +244,7 @@ class JarRemoteClassSourceTest {
     @Test
     void testConstructorNullJarUrl() {
         assertThrows(NullPointerException.class, () -> {
-            new JarRemoteClassSource(null);
+            new RemoteJarClassSource(null);
         });
     }
 
@@ -255,7 +255,7 @@ class JarRemoteClassSourceTest {
 
         AuthConfig auth = AuthConfig.basic("user", "pass");
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl, auth);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl, auth);
 
         try {
             assertEquals(auth, source.getAuthConfig());
@@ -269,7 +269,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "test.jar", "com.example.TestClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             // First call should trigger JAR download
@@ -282,7 +282,7 @@ class JarRemoteClassSourceTest {
 
     @Test
     void testInvalidJarUrlThrowsIOException() {
-        JarRemoteClassSource source = new JarRemoteClassSource("http://invalid-url-that-does-not-exist-12345.com/test.jar");
+        RemoteJarClassSource source = new RemoteJarClassSource("http://invalid-url-that-does-not-exist-12345.com/test.jar");
 
         try {
             IOException thrown = assertThrows(IOException.class, () -> {
@@ -302,7 +302,7 @@ class JarRemoteClassSourceTest {
 
     @Test
     void testCanLoadReturnsFalseOnError() {
-        JarRemoteClassSource source = new JarRemoteClassSource("http://invalid-url-12345.com/test.jar");
+        RemoteJarClassSource source = new RemoteJarClassSource("http://invalid-url-12345.com/test.jar");
 
         try {
             // canLoad should return false on errors
@@ -325,7 +325,7 @@ class JarRemoteClassSourceTest {
         byte[] classData;
 
         // Use try-with-resources
-        try (JarRemoteClassSource source = new JarRemoteClassSource(jarUrl)) {
+        try (RemoteJarClassSource source = new RemoteJarClassSource(jarUrl)) {
             classData = source.loadClassData("com.example.TestClass");
             assertFalse(source.isClosed());
         }
@@ -342,7 +342,7 @@ class JarRemoteClassSourceTest {
             "com.example.OuterClass$InnerClass");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             byte[] outerClass = source.loadClassData("com.example.OuterClass");
@@ -363,7 +363,7 @@ class JarRemoteClassSourceTest {
             "org.test.Class3");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             assertNotNull(source.loadClassData("com.example.pkg1.Class1"));
@@ -380,7 +380,7 @@ class JarRemoteClassSourceTest {
         Path jarPath = createTestJar(tempDir, "empty.jar");
         String jarUrl = jarPath.toUri().toString();
 
-        JarRemoteClassSource source = new JarRemoteClassSource(jarUrl);
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
 
         try {
             IOException thrown = assertThrows(IOException.class, () -> {

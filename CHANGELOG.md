@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored code duplication: Extracted `className.replace('.', '/') + ".class"` pattern into `ClassNameUtil.toClassFilePath()` method (#37)
   - Affects: FileTransferClassSource, MavenNexusClassSource, MessageClientClassSource, VcsClientClassSource, HdfsClassSource, MinioClassSource, NexusClassSource, MavenRepositoryClassSource, and others
   - Benefits: Single source of truth, easier maintenance, more self-documenting code
-- Replaced System.err with SLF4J logging in JarRemoteClassSource for temp file deletion errors (#35)
+- Replaced System.err with SLF4J logging in RemoteJarClassSource for temp file deletion errors (#35)
 - Added AutoCloseable interface to MinioClassSource for API consistency (#36)
 - Fixed locale-sensitive toLowerCase() in ProtocolHandlerRegistry - now uses Locale.ROOT for consistent case conversion across all locales (#38)
 - Documented design decision to use String instead of char[] for credentials in AuthConfig with comprehensive security best practices guidance (#39)
@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Nexus repositories (`NexusClassSource`, `MavenNexusClassSource`)
   - REST APIs (`RestApiClassSource`)
   - Cloud storage (`CloudStorageClassSource`)
-  - JAR files (`JarRemoteClassSource`)
+  - JAR files (`RemoteJarClassSource`)
   - Database storage (`DatabaseClassSource`)
   - WebDAV (`WebDavClassSource`)
   - Custom protocols (`CustomProtocolClassSource`)

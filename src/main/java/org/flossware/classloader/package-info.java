@@ -36,7 +36,7 @@
  * <ul>
  *   <li>Local filesystem ({@link org.flossware.classloader.LocalClassSource})</li>
  *   <li>HTTP/HTTPS ({@link org.flossware.classloader.RemoteClassSource})</li>
- *   <li>Remote JAR files ({@link org.flossware.classloader.JarRemoteClassSource})</li>
+ *   <li>Remote JAR files ({@link org.flossware.classloader.RemoteJarClassSource})</li>
  *   <li>SFTP/SCP ({@link org.flossware.classloader.SftpClassSource})</li>
  *   <li>FTP/FTPS ({@link org.flossware.classloader.FtpClassSource})</li>
  *   <li>WebDAV ({@link org.flossware.classloader.WebDavClassSource})</li>
