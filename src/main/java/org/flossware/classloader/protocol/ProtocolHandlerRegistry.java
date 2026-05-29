@@ -43,8 +43,10 @@ public class ProtocolHandlerRegistry {
      * Unregisters a protocol handler.
      *
      * @param protocol The protocol name to unregister (case-insensitive)
+     * @throws NullPointerException if protocol is null
      */
     public void unregister(String protocol) {
+        Objects.requireNonNull(protocol, "protocol cannot be null");
         handlers.remove(protocol.toLowerCase(Locale.ROOT));
     }
 
@@ -63,8 +65,10 @@ public class ProtocolHandlerRegistry {
      *
      * @param protocol The protocol name (case-insensitive)
      * @return true if the protocol is registered, false otherwise
+     * @throws NullPointerException if protocol is null
      */
     public boolean isRegistered(String protocol) {
+        Objects.requireNonNull(protocol, "protocol cannot be null");
         return handlers.containsKey(protocol.toLowerCase(Locale.ROOT));
     }
 

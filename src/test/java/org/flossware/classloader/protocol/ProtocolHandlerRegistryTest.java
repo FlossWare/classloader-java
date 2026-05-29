@@ -209,4 +209,22 @@ class ProtocolHandlerRegistryTest {
         Map<String, Class<? extends ProtocolHandler>> all = registry.getAllHandlers();
         assertEquals(3, all.size());
     }
+
+    @Test
+    void testUnregisterNullProtocolThrowsException() {
+        ProtocolHandlerRegistry registry = ProtocolHandlerRegistry.getInstance();
+        assertThrows(NullPointerException.class, () -> registry.unregister(null));
+    }
+
+    @Test
+    void testGetHandlerNullProtocolThrowsException() {
+        ProtocolHandlerRegistry registry = ProtocolHandlerRegistry.getInstance();
+        assertThrows(NullPointerException.class, () -> registry.getHandler(null));
+    }
+
+    @Test
+    void testIsRegisteredNullProtocolThrowsException() {
+        ProtocolHandlerRegistry registry = ProtocolHandlerRegistry.getInstance();
+        assertThrows(NullPointerException.class, () -> registry.isRegistered(null));
+    }
 }
