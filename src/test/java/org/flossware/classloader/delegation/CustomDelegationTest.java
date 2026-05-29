@@ -2,6 +2,7 @@ package org.flossware.classloader.delegation;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -49,5 +50,33 @@ class CustomDelegationTest {
         CustomDelegation delegation = new CustomDelegation(name -> true);
         String str = delegation.toString();
         assertTrue(str.contains("CustomDelegation"));
+    }
+
+    @Test
+    void testNullPredicateThrowsException() {
+        assertThrows(NullPointerException.class, () -> new CustomDelegation(null));
+    }
+
+    @Test
+    void testLoadClassNullNameThrowsException() {
+        CustomDelegation delegation = new CustomDelegation(name -> true);
+        ClassLoader parent = ClassLoader.getSystemClassLoader();
+        assertThrows(NullPointerException.class, () ->
+            delegation.loadClass(null, parent, name -> { throw new ClassNotFoundException(); }));
+    }
+
+    @Test
+    void testLoadClassNullParentThrowsException() {
+        CustomDelegation delegation = new CustomDelegation(name -> true);
+        assertThrows(NullPointerException.class, () ->
+            delegation.loadClass("test.Class", null, name -> { throw new ClassNotFoundException(); }));
+    }
+
+    @Test
+    void testLoadClassNullFinderThrowsException() {
+        CustomDelegation delegation = new CustomDelegation(name -> true);
+        ClassLoader parent = ClassLoader.getSystemClassLoader();
+        assertThrows(NullPointerException.class, () ->
+            delegation.loadClass("test.Class", parent, null));
     }
 }

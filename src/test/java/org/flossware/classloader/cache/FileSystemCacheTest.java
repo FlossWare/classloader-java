@@ -237,4 +237,22 @@ class FileSystemCacheTest {
                     "Missing class " + i);
         }
     }
+
+    @Test
+    void testGetNullClassNameThrowsException(@TempDir Path tempDir) throws IOException {
+        FileSystemCache cache = new FileSystemCache(tempDir);
+        assertThrows(NullPointerException.class, () -> cache.get(null));
+    }
+
+    @Test
+    void testContainsNullClassNameThrowsException(@TempDir Path tempDir) throws IOException {
+        FileSystemCache cache = new FileSystemCache(tempDir);
+        assertThrows(NullPointerException.class, () -> cache.contains(null));
+    }
+
+    @Test
+    void testRemoveNullClassNameThrowsException(@TempDir Path tempDir) throws IOException {
+        FileSystemCache cache = new FileSystemCache(tempDir);
+        assertThrows(NullPointerException.class, () -> cache.remove(null));
+    }
 }

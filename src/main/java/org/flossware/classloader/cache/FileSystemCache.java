@@ -53,6 +53,7 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public byte[] get(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             Path classFile = getClassFilePath(className);
             if (Files.exists(classFile)) {
@@ -103,6 +104,7 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public boolean contains(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             return Files.exists(getClassFilePath(className));
         } catch (IOException e) {
@@ -148,6 +150,7 @@ public class FileSystemCache implements ClassCache {
 
     @Override
     public void remove(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         // Use same lock as put() to prevent race conditions
         writeLock.lock();
         try {

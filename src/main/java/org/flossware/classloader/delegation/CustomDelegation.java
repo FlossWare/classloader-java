@@ -1,5 +1,6 @@
 package org.flossware.classloader.delegation;
 
+import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
@@ -15,14 +16,20 @@ public class CustomDelegation implements DelegationStrategy {
      *
      * @param parentFirstPredicate Predicate that returns true if a class should use parent-first,
      *                            false for parent-last (sources first)
+     * @throws NullPointerException if parentFirstPredicate is null
      */
     public CustomDelegation(Predicate<String> parentFirstPredicate) {
-        this.parentFirstPredicate = parentFirstPredicate;
+        this.parentFirstPredicate = Objects.requireNonNull(parentFirstPredicate,
+            "parentFirstPredicate cannot be null");
     }
 
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
+        Objects.requireNonNull(name, "name cannot be null");
+        Objects.requireNonNull(parent, "parent cannot be null");
+        Objects.requireNonNull(findInSources, "findInSources cannot be null");
+
         if (parentFirstPredicate.test(name)) {
             // Parent-first for this class
             try {
