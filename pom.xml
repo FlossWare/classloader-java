@@ -18,6 +18,13 @@
         <maven.compiler.target>11</maven.compiler.target>
         <junit.version>6.1.0</junit.version>
         <message>Automated Version Bump ${project.version} [ci skip]</message>
+
+        <!-- FlossWare dependency versions -->
+        <flossware.jcloudstorage.version>1.0</flossware.jcloudstorage.version>
+        <flossware.jfiletransfer.version>1.0</flossware.jfiletransfer.version>
+        <flossware.jmessaging.version>1.0</flossware.jmessaging.version>
+        <flossware.jcontainer.version>1.0</flossware.jcontainer.version>
+        <flossware.jvcs.version>1.0</flossware.jvcs.version>
     </properties>
 
     <scm>
@@ -66,35 +73,35 @@
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jcloudstorage</artifactId>
-            <version>1.0</version>
+            <version>${flossware.jcloudstorage.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jfiletransfer</artifactId>
-            <version>1.0</version>
+            <version>${flossware.jfiletransfer.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jmessaging</artifactId>
-            <version>1.0</version>
+            <version>${flossware.jmessaging.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jcontainer</artifactId>
-            <version>1.0</version>
+            <version>${flossware.jcontainer.version}</version>
             <optional>true</optional>
         </dependency>
 
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jvcs</artifactId>
-            <version>1.0</version>
+            <version>${flossware.jvcs.version}</version>
             <optional>true</optional>
         </dependency>
 
