@@ -1,88 +1,238 @@
-# Security Policy
+# Security Considerations for Remote Bytecode Loading
 
-## Supported Versions
+## ⚠️ Security Warning
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x     | :white_check_mark: |
+**Loading classes from untrusted sources is extremely dangerous and can lead to:**
+- Remote code execution (RCE)
+- Data exfiltration
+- Privilege escalation
+- Complete system compromise
 
-## Reporting a Vulnerability
+**Only load classes from sources you completely trust and control.**
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+## Threat Model
 
-Instead, please report them via email to: scot.floess@gmail.com
+### Attack Vectors
 
-You should receive a response within 48 hours. If for some reason you do not, please follow up via email to ensure we received your original message.
+1. **Malicious Bytecode Injection**
+   - Attacker replaces legitimate class with malicious one
+   - Malicious code executes with full JVM privileges
+   - Can access file system, network, system resources
 
-Please include:
-- Type of issue (e.g., path traversal, remote code execution, arbitrary class loading)
-- Full paths of source file(s) related to the issue
-- Location of the affected source code (tag/branch/commit or direct URL)
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the issue, including attack scenario
+2. **Man-in-the-Middle (MITM) Attacks**
+   - Attacker intercepts HTTP traffic and injects malicious bytecode
+   - Applies to: RemoteClassSource, RestApiClassSource, HTTP-based sources
 
-## Security Considerations for Users
+3. **Supply Chain Attacks**
+   - Compromised Maven repository serves malicious JARs
+   - Applies to: MavenNexusClassSource, MavenRepositoryClassSource
 
-JClassLoader loads and executes classes from potentially untrusted sources. Users should:
+4. **Credential Theft**
+   - Hardcoded credentials in code
+   - Credentials logged or leaked
+   - Applies to: All authenticated sources
 
-### 1. **Only Load Classes from Trusted Sources**
-- Validate URLs before adding them as class sources
-- Use HTTPS instead of HTTP for remote sources
-- Verify authentication credentials are secure
+5. **Deserialization Attacks**
+   - Malicious serialized objects in class static initializers
+   - Can trigger on class load without instantiation
 
-### 2. **Path Traversal Protection**
-JClassLoader validates class names to prevent path traversal:
-- Rejects class names containing `..`
-- Rejects class names with path separators (`/`, `\`)
+## Security Controls
 
-### 3. **SSL/TLS Validation**
-Remote sources use default SSL/TLS validation:
-- Certificate chain validation enabled
-- Hostname verification enabled
-- No custom trust managers that bypass validation
+### 1. Transport Security
 
-### 4. **Authentication**
-When using authenticated sources:
-- Use environment variables for credentials (not hardcoded)
-- Rotate credentials regularly
-- Use least-privilege access (read-only when possible)
+**✅ ALWAYS use HTTPS/TLS for remote sources**
 
-## Disclosure Policy
+\`\`\`java
+// ❌ INSECURE - HTTP is vulnerable to MITM
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
+    .addRemoteSource("http://example.com/classes/")  // NO!
+    .build();
 
-When we receive a security report, we will:
-1. Confirm the problem and determine affected versions
-2. Audit code to find similar problems
-3. Prepare fixes for all supported versions
-4. Release patches as quickly as possible
-5. Publish security advisories on GitHub
+// ✅ SECURE - HTTPS encrypts traffic
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
+    .addRemoteSource("https://example.com/classes/")  // YES!
+    .build();
+\`\`\`
 
-We ask that you:
-- Give us reasonable time to fix the issue before public disclosure (90 days)
-- Make a good faith effort to avoid privacy violations and data destruction
-- Do not exploit the vulnerability beyond proof-of-concept
+**Certificate Validation:**
+- Never disable certificate validation in production
+- Pin certificates for critical sources
+- Use internal CA for private deployments
 
-## Known Security Considerations
+### 2. Bytecode Verification
 
-### ClassLoader Security
-- **Arbitrary Code Execution**: By design, JClassLoader loads and executes arbitrary classes. Only use with trusted sources.
-- **Hot Reload**: Improper hot reload can leak memory (see issue #27 for mitigation)
+**Use ChecksumValidator to verify class integrity:**
 
-### Network Sources
-- **Man-in-the-Middle**: Use HTTPS and verify certificates
-- **Credential Exposure**: Never log or expose authentication credentials
+\`\`\`java
+// 1. Generate checksums for trusted classes
+Map<String, String> trustedChecksums = Map.of(
+    "com.example.TrustedClass",
+    "a1b2c3d4..." // SHA-256 checksum
+);
 
-### Caching
-- **Cache Poisoning**: Validate class bytes before caching
-- **Stale Classes**: Clear cache when updating remote sources
+// 2. Create validator
+BytecodeVerifier verifier = new ChecksumValidator(trustedChecksums);
 
-## Security Updates
+// 3. Configure loader with verification
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
+    .addRemoteSource("https://example.com/classes/")
+    .bytecodeVerifier(verifier)  // Rejects any class that doesn't match
+    .build();
 
-Security updates are released as patch versions (e.g., 1.0.1, 1.1.2) and announced via:
-- GitHub Security Advisories
-- Release notes
-- This SECURITY.md file (updates section)
+// 4. Load will fail if checksum doesn't match
+try {
+    Class<?> clazz = loader.loadClass("com.example.TrustedClass");
+} catch (SecurityException e) {
+    // Checksum mismatch - potential attack!
+    log.error("SECURITY: Class failed verification", e);
+}
+\`\`\`
 
-## Contact
+**Generating Checksums:**
 
-For security concerns, contact the project maintainer through GitHub or the email address listed in the project's pom.xml.
+\`\`\`bash
+# For .class files
+sha256sum MyClass.class
+
+# For classes in JARs
+unzip -p mylib.jar com/example/MyClass.class | sha256sum
+\`\`\`
+
+### 3. Source Authentication
+
+**Always authenticate to private repositories:**
+
+\`\`\`java
+// ✅ Use proper authentication
+AuthConfig auth = AuthConfig.basic(
+    System.getenv("NEXUS_USER"),      // From environment
+    System.getenv("NEXUS_PASSWORD")   // NOT hardcoded!
+);
+
+ApplicationClassLoader loader = ApplicationClassLoader.builder()
+    .addRemoteSource("https://private-repo.example.com/", auth)
+    .build();
+\`\`\`
+
+**Credential Management Best Practices:**
+- ❌ Never hardcode credentials in source code
+- ❌ Never log credentials
+- ❌ Never commit credentials to version control
+- ✅ Use environment variables or secret management systems
+- ✅ Rotate credentials regularly
+- ✅ Use least-privilege accounts
+- ✅ Enable audit logging on repositories
+
+### 4. Size Limits
+
+**All ClassSource implementations now enforce size limits:**
+
+The library automatically enforces size limits to prevent DoS attacks:
+- Class files: 10MB maximum (configurable)
+- JAR files: 100MB maximum (configurable)
+
+This prevents out-of-memory (OOM) attacks, disk exhaustion, and denial of service.
+
+## Security by Source Type
+
+### RemoteClassSource / RestApiClassSource
+**Risk Level: HIGH**
+- Direct HTTP(S) access to arbitrary URLs
+- Vulnerable to MITM if not using HTTPS
+- **Mitigation:**
+  - Always use HTTPS
+  - Use ChecksumValidator
+  - Whitelist allowed URLs
+  - Configure timeouts (prevent DoS)
+
+### MavenNexusClassSource / MavenRepositoryClassSource
+**Risk Level: MEDIUM-HIGH**
+- Trusted repository can be compromised
+- Dependencies can have vulnerabilities
+- **Mitigation:**
+  - Use private, secured Nexus instance
+  - Enable repository signing
+  - Use ChecksumValidator
+  - Audit all dependencies
+  - Keep dependencies updated
+
+### MinioClassSource / Cloud Storage
+**Risk Level: HIGH**
+- S3/MinIO buckets can be misconfigured (public access)
+- Credentials can be stolen
+- **Mitigation:**
+  - Never use public buckets
+  - Use IAM roles (not access keys) when possible
+  - Enable bucket versioning (detect tampering)
+  - Enable access logging
+  - Use ChecksumValidator
+
+### DatabaseClassSource
+**Risk Level: CRITICAL**
+- Database compromise = code execution
+- SQL injection can inject malicious bytecode
+- **Mitigation:**
+  - Use parameterized queries
+  - Restrict database permissions
+  - Enable audit logging
+  - Use ChecksumValidator
+  - Isolate class storage database
+
+### Messaging Sources (Kafka, RabbitMQ, Redis)
+**Risk Level: CRITICAL**
+- Message tampering can inject malicious code
+- Difficult to audit/trace
+- **Mitigation:**
+  - Use TLS for all messaging connections
+  - Enable message signing/encryption
+  - Use ChecksumValidator (mandatory!)
+  - Implement message authentication
+  - Audit all class updates
+
+### LocalClassSource
+**Risk Level: LOW**
+- Local file system access
+- **Mitigation:**
+  - Restrict file permissions (read-only if possible)
+  - Monitor for unauthorized file changes
+  - Use file integrity monitoring (FIM)
+
+## Security Checklist
+
+Before deploying to production:
+
+- [ ] All remote sources use HTTPS (never HTTP)
+- [ ] ChecksumValidator configured for all untrusted sources
+- [ ] Credentials stored in environment variables or secret manager
+- [ ] No credentials hardcoded or committed to version control
+- [ ] Network firewall rules restrict outbound connections
+- [ ] Size limits configured appropriately
+- [ ] Timeouts configured (prevent DoS)
+- [ ] Audit logging enabled
+- [ ] Incident response plan in place
+- [ ] Regular security audits scheduled
+- [ ] Dependency vulnerabilities monitored
+
+## Reporting Security Issues
+
+**Do NOT open public GitHub issues for security vulnerabilities.**
+
+Email: scot.floess@gmail.com
+
+Include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+
+We aim to respond within 48 hours.
+
+## References
+
+- [OWASP Java Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Java_Security_Cheat_Sheet.html)
+- [CWE-494: Download of Code Without Integrity Check](https://cwe.mitre.org/data/definitions/494.html)
+- [CWE-829: Inclusion of Functionality from Untrusted Control Sphere](https://cwe.mitre.org/data/definitions/829.html)
+
+## License
+
+This security guide is part of the classloader-java project and is licensed under the GNU General Public License v3.0.
