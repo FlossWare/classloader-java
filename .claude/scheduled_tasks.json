@@ -5,7 +5,7 @@
       "cron": "*/10 * * * *",
       "prompt": "Run the automated code review workflow: execute .claude/scripts/code_review.sh, create GitHub issues via .claude/scripts/create_review_issues.py, auto-commit any fixes, and push to main. Stop when no new issues are found for 2 consecutive cycles.",
       "createdAt": 1780068397375,
-      "lastFiredAt": 1780101846810,
+      "lastFiredAt": 1780102446797,
       "recurring": true,
       "createdBySessionId": "8cbb97ab-1c4f-49bf-a8f7-b64b9b26e19a",
       "createdByPid": 1107370,
