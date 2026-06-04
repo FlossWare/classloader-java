@@ -57,8 +57,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build());
         } catch (MinioException e) {
             throw new IOException("MinIO error getting object stats: " + objectName, e);
-        } catch (Exception e) {
-            throw new IOException("Unexpected error getting object stats: " + objectName, e);
+        } catch (IOException e) {
+            throw new IOException("IO error getting object stats: " + objectName, e);
         }
 
         long size = stat.size();
@@ -77,20 +77,27 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build())) {
 
             byte[] data = new byte[(int)size];
-            int totalRead = 0;
-
-            while (totalRead < size) {
-                int n = stream.read(data, totalRead, (int)size - totalRead);
-                if (n == -1) break;
-                totalRead += n;
-            }
-
+            readFully(stream, data, (int)size);
             return data;
 
         } catch (MinioException e) {
             throw new IOException("MinIO error loading class: " + objectName, e);
-        } catch (Exception e) {
-            throw new IOException("Unexpected error loading class: " + objectName, e);
+        } catch (IOException e) {
+            throw new IOException("IO error loading class: " + objectName, e);
+        }
+    }
+
+    private void readFully(InputStream stream, byte[] data, int size) throws IOException {
+        Objects.requireNonNull(stream, "stream cannot be null");
+        Objects.requireNonNull(data, "data cannot be null");
+        int totalRead = 0;
+
+        while (totalRead < size) {
+            int n = stream.read(data, totalRead, size - totalRead);
+            if (n == -1) {
+                break;
+            }
+            totalRead += n;
         }
     }
 
@@ -107,7 +114,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build()
             );
             return true;
-        } catch (Exception e) {
+        } catch (MinioException | IOException e) {
             // Object doesn't exist, auth failure, or other error
             return false;
         }

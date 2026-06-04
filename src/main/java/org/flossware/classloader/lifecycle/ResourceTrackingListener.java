@@ -1,7 +1,9 @@
 package org.flossware.classloader.lifecycle;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +23,7 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
 
     @Override
     public void onClassLoaded(ClassLoadEvent event) {
+        Objects.requireNonNull(event, "event cannot be null");
         loadedClasses.add(event.getClassName());
         totalClassesLoaded.incrementAndGet();
         totalBytesLoaded.addAndGet(event.getClassSizeBytes());
@@ -28,11 +31,14 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
 
     @Override
     public void onClassCacheHit(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         cacheHits.incrementAndGet();
     }
 
     @Override
     public void onResourceOpened(String resourceName, AutoCloseable resource) {
+        Objects.requireNonNull(resourceName, "resourceName cannot be null");
+        Objects.requireNonNull(resource, "resource cannot be null");
         openResources.add(resource);
     }
 
@@ -80,7 +86,7 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
             try {
                 resource.close();
             } catch (Exception e) {
-                // Log but don't propagate
+                // Log but don't propagate errors (covers both checked and runtime exceptions)
             }
         }
         openResources.clear();
@@ -102,5 +108,10 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
     public String toString() {
         return String.format("ResourceTracker{classes=%d, bytes=%d, cacheHits=%d, resources=%d}",
                 totalClassesLoaded.get(), totalBytesLoaded.get(), cacheHits.get(), openResources.size());
+    }
+
+    @Override
+    public void onClassLoaderClosed() {
+        closeAllResources();
     }
 }

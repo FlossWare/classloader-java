@@ -108,12 +108,6 @@ public final class RetryPolicy {
                         throw new IOException("Retry interrupted", ie);
                     }
                 }
-            } catch (Exception e) {
-                // Non-IOException - don't retry (likely a programming error)
-                if (e instanceof RuntimeException) {
-                    throw (RuntimeException) e;
-                }
-                throw new IOException("Unexpected exception during retry", e);
             }
         }
 
@@ -156,22 +150,47 @@ public final class RetryPolicy {
         return delay;
     }
 
+    /**
+     * Gets the maximum number of retry attempts.
+     *
+     * @return the maximum number of retries (0 means no retries)
+     */
     public int getMaxRetries() {
         return maxRetries;
     }
 
+    /**
+     * Gets the initial delay before the first retry in milliseconds.
+     *
+     * @return the initial delay in milliseconds
+     */
     public long getInitialDelayMs() {
         return initialDelayMs;
     }
 
+    /**
+     * Gets the maximum delay between retries in milliseconds.
+     *
+     * @return the maximum delay in milliseconds
+     */
     public long getMaxDelayMs() {
         return maxDelayMs;
     }
 
+    /**
+     * Gets the exponential backoff multiplier.
+     *
+     * @return the backoff multiplier (1.0 or greater)
+     */
     public double getBackoffMultiplier() {
         return backoffMultiplier;
     }
 
+    /**
+     * Checks whether jitter is enabled for retry delays.
+     *
+     * @return true if jitter is enabled, false for fixed delays
+     */
     public boolean hasJitter() {
         return jitter;
     }

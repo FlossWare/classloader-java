@@ -158,93 +158,150 @@ public class MavenNexusClassSource implements ClassSource {
     private byte[] extractClassFromJar(String jarUrl, String classFileName) throws IOException {
         URL url = new URL(jarUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setConnectTimeout(connectTimeout);
-        connection.setReadTimeout(readTimeout);
-        configureAuthentication(connection);
-        connection.setRequestMethod("GET");
+        try {
+            connection.setConnectTimeout(connectTimeout);
+            connection.setReadTimeout(readTimeout);
+            configureAuthentication(connection);
+            connection.setRequestMethod("GET");
 
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
-        }
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
+            }
 
-        // Check JAR size before downloading
-        long contentLength = connection.getContentLengthLong();
-        if (contentLength > MAX_JAR_SIZE) {
-            throw new IOException(
-                "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
-            );
-        }
+            // Check JAR size before downloading
+            long contentLength = connection.getContentLengthLong();
+            if (contentLength > MAX_JAR_SIZE) {
+                throw new IOException(
+                    "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
+                );
+            }
 
-        try (InputStream in = connection.getInputStream();
-             JarInputStream jarIn = new JarInputStream(in)) {
+            try (InputStream in = connection.getInputStream();
+                 JarInputStream jarIn = new JarInputStream(in)) {
 
-            JarEntry entry;
-            while ((entry = jarIn.getNextJarEntry()) != null) {
-                if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
-                    long size = entry.getSize();
+                JarEntry entry;
+                while ((entry = jarIn.getNextJarEntry()) != null) {
+                    if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
+                        long size = entry.getSize();
 
-                    if (size > MAX_CLASS_SIZE) {
-                        throw new IOException(
-                            "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
-                        );
-                    }
-
-                    // Read with size enforcement
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                    long totalRead = 0;
-                    int bytesRead;
-
-                    while ((bytesRead = jarIn.read(buffer)) != -1) {
-                        totalRead += bytesRead;
-                        if (totalRead > MAX_CLASS_SIZE) {
-                            throw new IOException("Class exceeded size limit: " + totalRead);
+                        if (size > MAX_CLASS_SIZE) {
+                            throw new IOException(
+                                "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
+                            );
                         }
-                        out.write(buffer, 0, bytesRead);
-                    }
 
-                    return out.toByteArray();
+                        // Read with size enforcement
+                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                            long totalRead = 0;
+                            int bytesRead;
+
+                            while ((bytesRead = jarIn.read(buffer)) != -1) {
+                                totalRead += bytesRead;
+                                if (totalRead > MAX_CLASS_SIZE) {
+                                    throw new IOException("Class exceeded size limit: " + totalRead);
+                                }
+                                out.write(buffer, 0, bytesRead);
+                            }
+
+                            return out.toByteArray();
+                        }
+                    }
                 }
             }
-        }
 
-        throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+        } finally {
+            connection.disconnect();
+        }
     }
 
     private void configureAuthentication(HttpURLConnection connection) {
         AuthHelper.configureAuth(connection, authConfig);
     }
 
+    /**
+     * Adds a Maven artifact to load classes from.
+     *
+     * @param artifact The Maven artifact to add
+     * @throws NullPointerException if artifact is null
+     */
     public void addArtifact(MavenArtifact artifact) {
         Objects.requireNonNull(artifact, "artifact cannot be null");
         artifacts.add(artifact);
     }
 
+    /**
+     * Adds a Maven artifact by coordinate string.
+     * Parses the coordinates in the format "groupId:artifactId:version".
+     *
+     * @param coordinates Maven coordinates string
+     */
     public void addArtifact(String coordinates) {
         addArtifact(MavenArtifact.parse(coordinates));
     }
 
+    /**
+     * Gets the list of configured Maven artifacts.
+     *
+     * @return a copy of the artifacts list
+     */
     public List<MavenArtifact> getArtifacts() {
         return new ArrayList<>(artifacts);
     }
 
+    /**
+     * Gets the Nexus server URL.
+     *
+     * @return the Nexus URL
+     */
     public String getNexusUrl() {
         return nexusUrl;
     }
 
+    /**
+     * Gets the Maven repository name in Nexus.
+     *
+     * @return the repository name
+     */
     public String getRepository() {
         return repository;
     }
 
+    /**
+     * Gets the authentication configuration.
+     *
+     * @return the authentication configuration
+     */
     public AuthConfig getAuthConfig() {
         return authConfig;
     }
 
+    /**
+     * Creates a new Builder for constructing MavenNexusClassSource instances.
+     *
+     * @return a new Builder with default configuration
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Builder for constructing MavenNexusClassSource instances with fluent API.
+     *
+     * <p>Configures Nexus Maven repository access for class loading.</p>
+     *
+     * <p><b>Example:</b></p>
+     * <pre>{@code
+     * MavenNexusClassSource source = MavenNexusClassSource.builder()
+     *     .nexusUrl("https://nexus.example.com")
+     *     .repository("maven-releases")
+     *     .addArtifact("com.example:my-lib:1.0.0")
+     *     .auth(AuthConfig.basic("user", "pass"))
+     *     .build();
+     * }</pre>
+     */
     public static class Builder {
         private String nexusUrl;
         private String repository;
@@ -253,34 +310,83 @@ public class MavenNexusClassSource implements ClassSource {
         private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
         private int readTimeout = DEFAULT_READ_TIMEOUT;
 
+        /**
+         * Sets the Nexus server URL.
+         *
+         * @param nexusUrl The Nexus URL (e.g., "https://nexus.example.com")
+         * @return this builder
+         * @throws NullPointerException if nexusUrl is null
+         */
         public Builder nexusUrl(String nexusUrl) {
             this.nexusUrl = Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
             return this;
         }
 
+        /**
+         * Sets the Maven repository name in Nexus.
+         *
+         * @param repository The repository name (e.g., "maven-releases")
+         * @return this builder
+         * @throws NullPointerException if repository is null
+         */
         public Builder repository(String repository) {
             this.repository = Objects.requireNonNull(repository, "repository cannot be null");
             return this;
         }
 
+        /**
+         * Adds a Maven artifact to load classes from.
+         *
+         * @param artifact The Maven artifact descriptor
+         * @return this builder
+         * @throws NullPointerException if artifact is null
+         */
         public Builder addArtifact(MavenArtifact artifact) {
             this.artifacts.add(Objects.requireNonNull(artifact, "artifact cannot be null"));
             return this;
         }
 
+        /**
+         * Adds a Maven artifact using individual coordinates.
+         *
+         * @param groupId The Maven group ID
+         * @param artifactId The Maven artifact ID
+         * @param version The artifact version
+         * @return this builder
+         */
         public Builder addArtifact(String groupId, String artifactId, String version) {
             return addArtifact(new MavenArtifact(groupId, artifactId, version));
         }
 
+        /**
+         * Adds a Maven artifact by coordinate string.
+         * Format: "groupId:artifactId:version"
+         *
+         * @param coordinates Maven coordinates string
+         * @return this builder
+         */
         public Builder addArtifact(String coordinates) {
             return addArtifact(MavenArtifact.parse(coordinates));
         }
 
+        /**
+         * Sets the authentication configuration for accessing Nexus.
+         *
+         * @param authConfig Authentication configuration (null for no auth)
+         * @return this builder
+         */
         public Builder auth(AuthConfig authConfig) {
             this.authConfig = authConfig;
             return this;
         }
 
+        /**
+         * Sets the connection timeout for Nexus requests.
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 10000ms, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs is negative
+         */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -289,6 +395,13 @@ public class MavenNexusClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Sets the read timeout for downloading JARs from Nexus.
+         *
+         * @param timeoutMs Timeout in milliseconds (default: 30000ms, 0 = infinite)
+         * @return this builder
+         * @throws IllegalArgumentException if timeoutMs is negative
+         */
         public Builder readTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("readTimeout must be >= 0");
@@ -297,6 +410,12 @@ public class MavenNexusClassSource implements ClassSource {
             return this;
         }
 
+        /**
+         * Builds the MavenNexusClassSource with configured settings.
+         *
+         * @return a new MavenNexusClassSource instance
+         * @throws NullPointerException if nexusUrl or repository is not set
+         */
         public MavenNexusClassSource build() {
             Objects.requireNonNull(nexusUrl, "nexusUrl must be set");
             Objects.requireNonNull(repository, "repository must be set");

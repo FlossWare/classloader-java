@@ -158,55 +158,66 @@ public class NexusClassSource implements ClassSource {
 
     private byte[] fetchUrl(String urlString) throws IOException {
         URL url = new URL(urlString);
+        // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        configureAuthentication(connection);
+        try {
+            configureAuthentication(connection);
 
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP error code: " + responseCode + " for URL: " + urlString);
-        }
-
-        try (InputStream in = connection.getInputStream();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP error code: " + responseCode + " for URL: " + urlString);
             }
 
-            return out.toByteArray();
+            try (InputStream in = connection.getInputStream();
+                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+
+                return out.toByteArray();
+            }
+        } finally {
+            connection.disconnect();
         }
     }
 
     protected byte[] loadClassFromJar(String jarUrl, String classFileName) throws IOException {
         URL url = new URL(jarUrl);
+        // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        configureAuthentication(connection);
+        try {
+            configureAuthentication(connection);
 
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP error code: " + responseCode + " for JAR URL: " + jarUrl);
-        }
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP error code: " + responseCode + " for JAR URL: " + jarUrl);
+            }
 
-        try (InputStream in = connection.getInputStream();
-             JarInputStream jarIn = new JarInputStream(in)) {
+            try (InputStream in = connection.getInputStream();
+                 JarInputStream jarIn = new JarInputStream(in)) {
 
-            JarEntry entry;
-            while ((entry = jarIn.getNextJarEntry()) != null) {
-                if (entry.getName().equals(classFileName)) {
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                    int bytesRead;
-                    while ((bytesRead = jarIn.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
+                JarEntry entry;
+                while ((entry = jarIn.getNextJarEntry()) != null) {
+                    if (entry.getName().equals(classFileName)) {
+                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                            int bytesRead;
+                            while ((bytesRead = jarIn.read(buffer)) != -1) {
+                                out.write(buffer, 0, bytesRead);
+                            }
+                            return out.toByteArray();
+                        }
                     }
-                    return out.toByteArray();
                 }
             }
-        }
 
-        throw new IOException("Class file not found in JAR: " + classFileName);
+            throw new IOException("Class file not found in JAR: " + classFileName);
+        } finally {
+            connection.disconnect();
+        }
     }
 
     private void configureAuthentication(HttpURLConnection connection) {

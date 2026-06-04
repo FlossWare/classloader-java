@@ -262,7 +262,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassLoaded(event);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoaded: " + e.getMessage());
@@ -274,7 +274,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCacheHit(className);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCacheHit: " + e.getMessage());
@@ -286,7 +286,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCached(className, classData);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCached: " + e.getMessage());
@@ -298,7 +298,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassLoadFailed(className, error);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoadFailed: " + e.getMessage());
@@ -310,7 +310,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCacheFailed(className, error);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Don't let listener exceptions break class loading, but log them
                 logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCacheFailed: " + e.getMessage());
@@ -328,7 +328,8 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             Object logger = loggerFactoryClass.getMethod("getLogger", Class.class)
                 .invoke(null, ApplicationClassLoader.class);
             logger.getClass().getMethod("error", String.class).invoke(logger, message);
-        } catch (Exception e) {
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
+                 java.lang.reflect.InvocationTargetException e) {
             // SLF4J not available or error occurred, fall back to System.err
             System.err.println("[ApplicationClassLoader ERROR] " + message);
         }
@@ -360,7 +361,9 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
                 if (source instanceof AutoCloseable) {
                     try {
                         ((AutoCloseable) source).close();
-                    } catch (Exception e) {
+                    } catch (IOException e) {
+                        exceptions.add(e);
+                    } catch (RuntimeException e) {
                         exceptions.add(e);
                     }
                 }
@@ -370,7 +373,9 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             if (cache instanceof AutoCloseable) {
                 try {
                     ((AutoCloseable) cache).close();
-                } catch (Exception e) {
+                } catch (IOException e) {
+                    exceptions.add(e);
+                } catch (RuntimeException e) {
                     exceptions.add(e);
                 }
             }
@@ -379,7 +384,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             for (ClassLoaderLifecycleListener listener : listeners) {
                 try {
                     listener.onClassLoaderClosed();
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     exceptions.add(e);
                 }
             }
@@ -402,26 +407,56 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         return closed;
     }
 
+    /**
+     * Gets the list of class sources configured for this ClassLoader.
+     *
+     * @return an unmodifiable list of class sources
+     */
     public List<ClassSource> getClassSources() {
         return Collections.unmodifiableList(classSources);
     }
 
+    /**
+     * Gets the class cache used by this ClassLoader.
+     *
+     * @return the class cache, or null if no cache is configured
+     */
     public ClassCache getCache() {
         return cache;
     }
 
+    /**
+     * Checks whether class caching is enabled.
+     *
+     * @return true if caching is enabled and a cache is configured, false otherwise
+     */
     public boolean isCacheEnabled() {
         return useCache;
     }
 
+    /**
+     * Gets the delegation strategy used by this ClassLoader.
+     *
+     * @return the delegation strategy
+     */
     public DelegationStrategy getDelegationStrategy() {
         return delegationStrategy;
     }
 
+    /**
+     * Gets the lifecycle listeners registered with this ClassLoader.
+     *
+     * @return an unmodifiable list of lifecycle listeners
+     */
     public List<ClassLoaderLifecycleListener> getListeners() {
         return Collections.unmodifiableList(listeners);
     }
 
+    /**
+     * Gets the bytecode verifier used by this ClassLoader.
+     *
+     * @return the bytecode verifier, or null if no verifier is configured
+     */
     public BytecodeVerifier getBytecodeVerifier() {
         return bytecodeVerifier;
     }
@@ -567,18 +602,46 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return addClassSource(new RemoteJarClassSource(jarUrl));
         }
 
+        /**
+         * Adds a remote JAR file as a class source with authentication.
+         *
+         * @param jarUrl URL to JAR file
+         * @param authConfig Authentication configuration
+         * @return this builder
+         */
         public Builder addRemoteJar(String jarUrl, AuthConfig authConfig) {
             return addClassSource(new RemoteJarClassSource(jarUrl, authConfig));
         }
 
+        /**
+         * Adds a Nexus RAW repository as a class source without authentication.
+         *
+         * @param nexusUrl The Nexus server URL
+         * @param repository The repository name
+         * @return this builder
+         */
         public Builder addNexusRawSource(String nexusUrl, String repository) {
             return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW));
         }
 
+        /**
+         * Adds a Nexus RAW repository as a class source with authentication.
+         *
+         * @param nexusUrl The Nexus server URL
+         * @param repository The repository name
+         * @param authConfig Authentication configuration
+         * @return this builder
+         */
         public Builder addNexusRawSource(String nexusUrl, String repository, AuthConfig authConfig) {
             return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW, authConfig));
         }
 
+        /**
+         * Adds a pre-configured MavenNexusClassSource as a class source.
+         *
+         * @param source The MavenNexusClassSource to add
+         * @return this builder
+         */
         public Builder addNexusMavenSource(MavenNexusClassSource source) {
             return addClassSource(source);
         }

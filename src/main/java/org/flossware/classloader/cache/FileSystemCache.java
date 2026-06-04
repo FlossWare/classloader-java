@@ -56,22 +56,28 @@ public class FileSystemCache implements ClassCache {
         Objects.requireNonNull(className, "className cannot be null");
         try {
             Path classFile = getClassFilePath(className);
-            if (Files.exists(classFile)) {
-                // Validate file size before loading to prevent OutOfMemoryError
-                long fileSize = Files.size(classFile);
-                if (fileSize > MAX_CLASS_FILE_SIZE) {
-                    // File is too large - possibly corrupted or malicious
-                    // Delete it and return null to force re-fetch from source
-                    Files.deleteIfExists(classFile);
-                    return null;
-                }
-                return Files.readAllBytes(classFile);
+            if (!Files.exists(classFile)) {
+                return null;
             }
+
+            return loadClassFileIfValid(classFile);
         } catch (IOException e) {
             // Invalid class name, path traversal attempt, or I/O error
             return null;
         }
-        return null;
+    }
+
+    private byte[] loadClassFileIfValid(Path classFile) throws IOException {
+        Objects.requireNonNull(classFile, "classFile cannot be null");
+        // Validate file size before loading to prevent OutOfMemoryError
+        long fileSize = Files.size(classFile);
+        if (fileSize > MAX_CLASS_FILE_SIZE) {
+            // File is too large - possibly corrupted or malicious
+            // Delete it and return null to force re-fetch from source
+            Files.deleteIfExists(classFile);
+            return null;
+        }
+        return Files.readAllBytes(classFile);
     }
 
     @Override
@@ -117,35 +123,52 @@ public class FileSystemCache implements ClassCache {
         // Use same lock as put() to prevent race conditions
         writeLock.lock();
         try {
-            if (Files.exists(cacheDirectory)) {
-                List<IOException> errors = new ArrayList<>();
-
-                // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
-                try (Stream<Path> paths = Files.walk(cacheDirectory)) {
-                    // Sort by depth (deepest first) to delete files before directories
-                    paths.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
-                         .forEach(path -> {
-                             try {
-                                 Files.deleteIfExists(path);
-                             } catch (IOException e) {
-                                 // Collect errors to report after attempting all deletions
-                                 errors.add(e);
-                             }
-                         });
-                }
-
-                // Report any errors that occurred
-                if (!errors.isEmpty()) {
-                    IOException exception = new IOException(
-                        "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
-                    );
-                    errors.forEach(exception::addSuppressed);
-                    throw exception;
-                }
+            if (!Files.exists(cacheDirectory)) {
+                return;
             }
+
+            List<IOException> errors = deleteCacheFiles();
+            reportDeletionErrors(errors);
         } finally {
             writeLock.unlock();
         }
+    }
+
+    private List<IOException> deleteCacheFiles() throws IOException {
+        List<IOException> errors = new ArrayList<>();
+
+        // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
+        try (Stream<Path> paths = Files.walk(cacheDirectory)) {
+            // Sort by depth (deepest first) to delete files before directories
+            paths.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
+                 .forEach(path -> deletePathSafely(path, errors));
+        }
+
+        return errors;
+    }
+
+    private void deletePathSafely(Path path, List<IOException> errors) {
+        Objects.requireNonNull(path, "path cannot be null");
+        Objects.requireNonNull(errors, "errors cannot be null");
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            // Collect errors to report after attempting all deletions
+            errors.add(e);
+        }
+    }
+
+    private void reportDeletionErrors(List<IOException> errors) throws IOException {
+        Objects.requireNonNull(errors, "errors cannot be null");
+        if (errors.isEmpty()) {
+            return;
+        }
+
+        IOException exception = new IOException(
+            "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
+        );
+        errors.forEach(exception::addSuppressed);
+        throw exception;
     }
 
     @Override

@@ -10,6 +10,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.sql.Driver;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -97,8 +98,8 @@ public class ClassLoaderCleanupUtil {
             }
 
             logger.info("[{}] Cleaned ThreadLocals from {} threads", applicationId, cleaned);
-        } catch (Exception e) {
-            logger.warn("[{}] Failed to clean ThreadLocals: {}", applicationId, e.getMessage());
+        } catch (SecurityException e) {
+            logger.warn("[{}] Failed to clean ThreadLocals (security): {}", applicationId, e.getMessage());
         }
     }
 
@@ -146,7 +147,7 @@ public class ClassLoaderCleanupUtil {
             inheritableThreadLocalsField.set(thread, null);
 
             return true;
-        } catch (Exception e) {
+        } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
             logger.debug("[{}] Could not clear ThreadLocals for thread {}: {}",
                     applicationId, thread.getName(), e.getMessage());
             return false;
@@ -180,7 +181,7 @@ public class ClassLoaderCleanupUtil {
             if (!driversToDeregister.isEmpty()) {
                 logger.info("[{}] Deregistered {} JDBC drivers", applicationId, driversToDeregister.size());
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             logger.warn("[{}] Failed to cleanup JDBC drivers: {}", applicationId, e.getMessage());
         }
     }
@@ -204,7 +205,7 @@ public class ClassLoaderCleanupUtil {
                         mbs.unregisterMBean(name);
                         unregistered++;
                         logger.debug("[{}] Unregistered MBean: {}", applicationId, name);
-                    } catch (Exception e) {
+                    } catch (javax.management.InstanceNotFoundException | javax.management.MBeanRegistrationException e) {
                         logger.warn("[{}] Failed to unregister MBean {}: {}",
                                 applicationId, name, e.getMessage());
                     }
@@ -214,7 +215,7 @@ public class ClassLoaderCleanupUtil {
             if (unregistered > 0) {
                 logger.info("[{}] Unregistered {} MBeans", applicationId, unregistered);
             }
-        } catch (Exception e) {
+        } catch (javax.management.MalformedObjectNameException | javax.management.ReflectionException e) {
             logger.warn("[{}] Failed to cleanup MBeans: {}", applicationId, e.getMessage());
         }
     }
@@ -248,7 +249,7 @@ public class ClassLoaderCleanupUtil {
             if (!toRemove.isEmpty()) {
                 logger.info("[{}] Removed {} shutdown hooks", applicationId, toRemove.size());
             }
-        } catch (Exception e) {
+        } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
             logger.warn("[{}] Failed to cleanup shutdown hooks: {}", applicationId, e.getMessage());
         }
     }
@@ -275,7 +276,7 @@ public class ClassLoaderCleanupUtil {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (ClassNotFoundException | NoSuchFieldException | SecurityException | IllegalAccessException e) {
             // ResourceBundle implementation details vary by JDK version
             logger.debug("[{}] Could not clear ResourceBundle cache: {}", applicationId, e.getMessage());
         }

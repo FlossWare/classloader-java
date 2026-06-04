@@ -58,21 +58,28 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         // Safe to download - size is within limits
         try (InputStream in = hdfs.open(classPath)) {
             byte[] data = new byte[(int)size];
-            int totalRead = 0;
-
-            while (totalRead < size) {
-                int n = in.read(data, totalRead, (int)size - totalRead);
-                if (n == -1) break;
-                totalRead += n;
-            }
-
-            if (totalRead != size) {
-                throw new IOException(
-                    "Expected " + size + " bytes but read " + totalRead
-                );
-            }
-
+            readFully(in, data, (int)size);
             return data;
+        }
+    }
+
+    private void readFully(InputStream in, byte[] data, int size) throws IOException {
+        Objects.requireNonNull(in, "in cannot be null");
+        Objects.requireNonNull(data, "data cannot be null");
+        int totalRead = 0;
+
+        while (totalRead < size) {
+            int n = in.read(data, totalRead, size - totalRead);
+            if (n == -1) {
+                break;
+            }
+            totalRead += n;
+        }
+
+        if (totalRead != size) {
+            throw new IOException(
+                "Expected " + size + " bytes but read " + totalRead
+            );
         }
     }
 

@@ -151,74 +151,102 @@ public class MavenRepositoryClassSource implements ClassSource {
 
     private byte[] extractClassFromJar(String jarUrl, String classFileName) throws IOException {
         URL url = new URL(jarUrl);
+        // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setConnectTimeout(connectTimeout);
-        connection.setReadTimeout(readTimeout);
-        AuthHelper.configureAuth(connection, authConfig);
-        connection.setRequestMethod("GET");
+        try {
+            connection.setConnectTimeout(connectTimeout);
+            connection.setReadTimeout(readTimeout);
+            AuthHelper.configureAuth(connection, authConfig);
+            connection.setRequestMethod("GET");
 
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
-        }
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
+            }
 
-        // Check JAR size before downloading
-        long contentLength = connection.getContentLengthLong();
-        if (contentLength > MAX_JAR_SIZE) {
-            throw new IOException(
-                "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
-            );
-        }
+            // Check JAR size before downloading
+            long contentLength = connection.getContentLengthLong();
+            if (contentLength > MAX_JAR_SIZE) {
+                throw new IOException(
+                    "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
+                );
+            }
 
-        try (InputStream in = connection.getInputStream();
-             JarInputStream jarIn = new JarInputStream(in)) {
+            try (InputStream in = connection.getInputStream();
+                 JarInputStream jarIn = new JarInputStream(in)) {
 
-            JarEntry entry;
-            while ((entry = jarIn.getNextJarEntry()) != null) {
-                if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
-                    long size = entry.getSize();
+                JarEntry entry;
+                while ((entry = jarIn.getNextJarEntry()) != null) {
+                    if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
+                        long size = entry.getSize();
 
-                    if (size > MAX_CLASS_SIZE) {
-                        throw new IOException(
-                            "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
-                        );
-                    }
-
-                    // Read with size enforcement
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                    long totalRead = 0;
-                    int bytesRead;
-
-                    while ((bytesRead = jarIn.read(buffer)) != -1) {
-                        totalRead += bytesRead;
-                        if (totalRead > MAX_CLASS_SIZE) {
-                            throw new IOException("Class exceeded size limit: " + totalRead);
+                        if (size > MAX_CLASS_SIZE) {
+                            throw new IOException(
+                                "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
+                            );
                         }
-                        out.write(buffer, 0, bytesRead);
-                    }
 
-                    return out.toByteArray();
+                        // Read with size enforcement
+                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                            long totalRead = 0;
+                            int bytesRead;
+
+                            while ((bytesRead = jarIn.read(buffer)) != -1) {
+                                totalRead += bytesRead;
+                                if (totalRead > MAX_CLASS_SIZE) {
+                                    throw new IOException("Class exceeded size limit: " + totalRead);
+                                }
+                                out.write(buffer, 0, bytesRead);
+                            }
+
+                            return out.toByteArray();
+                        }
+                    }
                 }
             }
-        }
 
-        throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+        } finally {
+            connection.disconnect();
+        }
     }
 
+    /**
+     * Adds a Maven artifact to load classes from.
+     *
+     * @param artifact The Maven artifact to add
+     * @throws NullPointerException if artifact is null
+     */
     public void addArtifact(MavenArtifact artifact) {
         Objects.requireNonNull(artifact, "artifact cannot be null");
         artifacts.add(artifact);
     }
 
+    /**
+     * Adds a Maven artifact by coordinate string.
+     * Parses the coordinates in the format "groupId:artifactId:version".
+     *
+     * @param coordinates Maven coordinates string
+     */
     public void addArtifact(String coordinates) {
         addArtifact(MavenArtifact.parse(coordinates));
     }
 
+    /**
+     * Gets the list of configured Maven artifacts.
+     *
+     * @return a copy of the artifacts list
+     */
     public List<MavenArtifact> getArtifacts() {
         return new ArrayList<>(artifacts);
     }
 
+    /**
+     * Gets the Maven repository URL.
+     *
+     * @return the repository URL
+     */
     public String getRepositoryUrl() {
         return repositoryUrl;
     }
@@ -427,7 +455,15 @@ public class MavenRepositoryClassSource implements ClassSource {
         }
     }
 
+    /** Maven Central repository URL. */
     public static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
+
+    /**
+     * JCenter repository URL.
+     * @deprecated JCenter is deprecated and read-only since February 2021.
+     */
     public static final String JCENTER = "https://jcenter.bintray.com/";
+
+    /** Google Maven repository URL. */
     public static final String GOOGLE = "https://maven.google.com/";
 }

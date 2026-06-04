@@ -65,6 +65,11 @@ public class ParentLastDelegation implements DelegationStrategy {
         }
     }
 
+    /**
+     * Gets the class name prefixes that are always loaded from the parent ClassLoader.
+     *
+     * @return a copy of the always-parent prefixes array
+     */
     public String[] getAlwaysParentPrefixes() {
         return alwaysParentPrefixes.clone();
     }

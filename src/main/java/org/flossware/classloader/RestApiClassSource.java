@@ -66,8 +66,8 @@ public class RestApiClassSource implements ClassSource {
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
         String url = buildUrl(className);
+        // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-
         try {
             connection.setConnectTimeout(connectTimeout);
             connection.setReadTimeout(readTimeout);
@@ -130,23 +130,24 @@ public class RestApiClassSource implements ClassSource {
             return true;  // Skip expensive check, let loadClassData() fail if needed
         }
 
+        // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
+        HttpURLConnection connection = null;
         try {
             String url = buildUrl(className);
-            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setConnectTimeout(connectTimeout);
+            connection.setReadTimeout(readTimeout);
+            connection.setRequestMethod("HEAD");
+            configureConnection(connection);
 
-            try {
-                connection.setConnectTimeout(connectTimeout);
-                connection.setReadTimeout(readTimeout);
-                connection.setRequestMethod("HEAD");
-                configureConnection(connection);
-
-                int responseCode = connection.getResponseCode();
-                return responseCode == HttpURLConnection.HTTP_OK;
-            } finally {
-                connection.disconnect();
-            }
+            int responseCode = connection.getResponseCode();
+            return responseCode == HttpURLConnection.HTTP_OK;
         } catch (IOException e) {
             return false;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 

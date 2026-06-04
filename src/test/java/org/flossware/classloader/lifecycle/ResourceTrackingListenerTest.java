@@ -22,8 +22,11 @@ class ResourceTrackingListenerTest {
     @Test
     void testTrackClassLoaded() {
         ClassSource mockSource = new ClassSource() {
+            @Override
             public byte[] loadClassData(String className) { return null; }
+            @Override
             public boolean canLoad(String className) { return false; }
+            @Override
             public String getDescription() { return "mock"; }
         };
 
@@ -38,8 +41,11 @@ class ResourceTrackingListenerTest {
     @Test
     void testTrackMultipleClasses() {
         ClassSource mockSource = new ClassSource() {
+            @Override
             public byte[] loadClassData(String className) { return null; }
+            @Override
             public boolean canLoad(String className) { return false; }
+            @Override
             public String getDescription() { return "mock"; }
         };
 
@@ -83,8 +89,11 @@ class ResourceTrackingListenerTest {
     @Test
     void testReset() {
         ClassSource mockSource = new ClassSource() {
+            @Override
             public byte[] loadClassData(String className) { return null; }
+            @Override
             public boolean canLoad(String className) { return false; }
+            @Override
             public String getDescription() { return "mock"; }
         };
 

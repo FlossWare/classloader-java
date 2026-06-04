@@ -131,14 +131,29 @@ public class DatabaseClassSource implements ClassSource {
                classNameColumn + ", bytesColumn=" + classBytesColumn + "]";
     }
 
+    /**
+     * Gets the database table name containing class data.
+     *
+     * @return the table name
+     */
     public String getTableName() {
         return tableName;
     }
 
+    /**
+     * Gets the column name containing fully qualified class names.
+     *
+     * @return the class name column
+     */
     public String getClassNameColumn() {
         return classNameColumn;
     }
 
+    /**
+     * Gets the column name containing class bytecode.
+     *
+     * @return the class bytes column
+     */
     public String getClassBytesColumn() {
         return classBytesColumn;
     }
