@@ -47,6 +47,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     private final int connectTimeout;
     private final int readTimeout;
     private volatile boolean closed = false;
+    private final Map<String, Object> perArtifactLocks = new ConcurrentHashMap<>();
 
     /**
      * Creates a Maven repository class source with full configuration including timeouts.
@@ -110,9 +111,13 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      *
      * <p>Searches through all configured Maven artifacts in order, downloading JARs
      * and extracting the requested class file. Results are cached in memory.</p>
+     *
+     * <p><b>Thread Safety:</b> Uses fine-grained per-artifact synchronization to allow
+     * concurrent downloads of different artifacts while maintaining cache consistency.</p>
      */
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        // Check closed flag without synchronized block (volatile for visibility)
         if (closed) {
             throw new IllegalStateException("MavenRepositoryClassSource is closed");
         }
@@ -178,34 +183,46 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     /**
      * Ensures a JAR file is cached for the given artifact.
      * Downloads the JAR once and reuses it for subsequent class extractions.
+     * Uses per-artifact synchronization to allow concurrent downloads of different artifacts.
      *
      * @param artifactKey The artifact identifier
      * @param jarUrl The URL to download the JAR from
      * @return A JarFile instance opened on the cached JAR
      * @throws IOException if download or JAR opening fails
      */
-    private synchronized JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
+    private JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
         JarFile existing = jarFileCache.get(artifactKey);
         if (existing != null) {
             return existing;
         }
 
-        // Download JAR to temp file
-        Path tempJarPath = Files.createTempFile("jclassloader-maven-", ".jar");
-        try {
-            downloadJarFile(jarUrl, tempJarPath);
-            JarFile jarFile = new JarFile(tempJarPath.toFile());
-            jarFileCache.put(artifactKey, jarFile);
-            jarPathCache.put(artifactKey, tempJarPath);
-            return jarFile;
-        } catch (IOException e) {
-            // Clean up temp file on failure
-            try {
-                Files.deleteIfExists(tempJarPath);
-            } catch (IOException ignored) {
-                // Ignore cleanup errors
+        // Get or create per-artifact lock for fine-grained synchronization
+        Object artifactLock = perArtifactLocks.computeIfAbsent(artifactKey, k -> new Object());
+
+        synchronized (artifactLock) {
+            // Double-check pattern: another thread may have cached it while waiting for lock
+            existing = jarFileCache.get(artifactKey);
+            if (existing != null) {
+                return existing;
             }
-            throw e;
+
+            // Download JAR to temp file
+            Path tempJarPath = Files.createTempFile("jclassloader-maven-", ".jar");
+            try {
+                downloadJarFile(jarUrl, tempJarPath);
+                JarFile jarFile = new JarFile(tempJarPath.toFile());
+                jarFileCache.put(artifactKey, jarFile);
+                jarPathCache.put(artifactKey, tempJarPath);
+                return jarFile;
+            } catch (IOException e) {
+                // Clean up temp file on failure
+                try {
+                    Files.deleteIfExists(tempJarPath);
+                } catch (IOException ignored) {
+                    // Ignore cleanup errors
+                }
+                throw e;
+            }
         }
     }
 
@@ -371,7 +388,8 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             return;
         }
 
-        synchronized (this) {
+        // Use explicit lock object for close coordination with loadClassData
+        synchronized (perArtifactLocks) {
             if (closed) {
                 return;
             }

@@ -17,7 +17,11 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -44,7 +48,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
-    private final Map<String, JarFile> jarFileCache;
+    private final ConcurrentHashMap<String, FutureTask<JarFile>> jarFileCache;
     private final Map<String, Path> jarPathCache;
     private final int connectTimeout;
     private final int readTimeout;
@@ -184,35 +188,38 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     /**
      * Ensures a JAR file is cached for the given artifact.
      * Downloads the JAR once and reuses it for subsequent class extractions.
+     * Uses per-artifact locking to allow concurrent downloads of different artifacts.
      *
      * @param artifactKey The artifact identifier
      * @param jarUrl The URL to download the JAR from
      * @return A JarFile instance opened on the cached JAR
      * @throws IOException if download or JAR opening fails
      */
-    private synchronized JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
-        JarFile existing = jarFileCache.get(artifactKey);
-        if (existing != null) {
-            return existing;
-        }
-
-        // Download JAR to temp file
-        Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
-        try {
-            downloadJarFile(jarUrl, tempJarPath);
-            JarFile jarFile = new JarFile(tempJarPath.toFile());
-            jarFileCache.put(artifactKey, jarFile);
-            jarPathCache.put(artifactKey, tempJarPath);
-            return jarFile;
-        } catch (IOException e) {
-            // Clean up temp file on failure
+    private JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
+        return jarFileCache.computeIfAbsent(artifactKey, key -> {
             try {
-                Files.deleteIfExists(tempJarPath);
-            } catch (IOException ignored) {
-                // Ignore cleanup errors
+                // Download JAR to temp file
+                Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
+                try {
+                    downloadJarFile(jarUrl, tempJarPath);
+                    JarFile jarFile = new JarFile(tempJarPath.toFile());
+                    jarPathCache.put(artifactKey, tempJarPath);
+                    return jarFile;
+                } catch (IOException e) {
+                    // Clean up temp file on failure
+                    try {
+                        Files.deleteIfExists(tempJarPath);
+                    } catch (IOException ignored) {
+                        // Ignore cleanup errors
+                    }
+                    throw e;
+                }
+            } catch (IOException e) {
+                // Wrap IOException in RuntimeException for computeIfAbsent compatibility
+                // This will be caught and re-thrown as IOException by the caller
+                throw new UncheckedIOException(e);
             }
-            throw e;
-        }
+        });
     }
 
     private void downloadJarFile(String jarUrl, Path tempJarPath) throws IOException {
@@ -290,7 +297,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                return;
+                throw new IOException("Incomplete read: expected " + size + " bytes, but got " + totalRead);
             }
             totalRead += n;
         }

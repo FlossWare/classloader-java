@@ -21,43 +21,46 @@ class MavenNexusClassSourceTest {
     }
 
     @Test
-    void testBuilderBasic() {
-        MavenNexusClassSource source = MavenNexusClassSource.builder()
+    void testBuilderBasic() throws Exception {
+        try (MavenNexusClassSource source = MavenNexusClassSource.builder()
             .nexusUrl("https://nexus.example.com")
             .repository("releases")
             .addArtifact("org.example:my-lib:1.0.0")
-            .build();
+            .build()) {
 
-        assertNotNull(source);
-        assertEquals("https://nexus.example.com/", source.getNexusUrl());
-        assertEquals("releases", source.getRepository());
-        assertEquals(1, source.getArtifacts().size());
+            assertNotNull(source);
+            assertEquals("https://nexus.example.com/", source.getNexusUrl());
+            assertEquals("releases", source.getRepository());
+            assertEquals(1, source.getArtifacts().size());
+        }
     }
 
     @Test
-    void testBuilderMultipleArtifacts() {
-        MavenNexusClassSource source = MavenNexusClassSource.builder()
+    void testBuilderMultipleArtifacts() throws Exception {
+        try (MavenNexusClassSource source = MavenNexusClassSource.builder()
             .nexusUrl("https://nexus.example.com")
             .repository("releases")
             .addArtifact("org.example:lib1:1.0.0")
             .addArtifact("org.example", "lib2", "2.0.0")
             .addArtifact(new MavenArtifact("org.example", "lib3", "3.0.0"))
-            .build();
+            .build()) {
 
-        assertEquals(3, source.getArtifacts().size());
+            assertEquals(3, source.getArtifacts().size());
+        }
     }
 
     @Test
-    void testBuilderWithAuth() {
+    void testBuilderWithAuth() throws Exception {
         AuthConfig auth = AuthConfig.basic("user", "pass");
-        MavenNexusClassSource source = MavenNexusClassSource.builder()
+        try (MavenNexusClassSource source = MavenNexusClassSource.builder()
             .nexusUrl("https://nexus.example.com")
             .repository("private-repo")
             .addArtifact("org.example:my-lib:1.0.0")
             .auth(auth)
-            .build();
+            .build()) {
 
-        assertEquals(AuthConfig.AuthType.BASIC, source.getAuthConfig().getAuthType());
+            assertEquals(AuthConfig.AuthType.BASIC, source.getAuthConfig().getAuthType());
+        }
     }
 
     @Test
@@ -81,31 +84,33 @@ class MavenNexusClassSourceTest {
     }
 
     @Test
-    void testGetDescription() {
-        MavenNexusClassSource source = MavenNexusClassSource.builder()
+    void testGetDescription() throws Exception {
+        try (MavenNexusClassSource source = MavenNexusClassSource.builder()
             .nexusUrl("https://nexus.example.com")
             .repository("releases")
             .addArtifact("org.example:my-lib:1.0.0")
-            .build();
+            .build()) {
 
-        String description = source.getDescription();
-        assertTrue(description.contains("nexus.example.com"));
-        assertTrue(description.contains("releases"));
-        assertTrue(description.contains("artifacts=1"));
+            String description = source.getDescription();
+            assertTrue(description.contains("nexus.example.com"));
+            assertTrue(description.contains("releases"));
+            assertTrue(description.contains("artifacts=1"));
+        }
     }
 
     @Test
-    void testAddArtifactAfterCreation() {
+    void testAddArtifactAfterCreation() throws Exception {
         MavenArtifact artifact = new MavenArtifact("org.example", "my-lib", "1.0.0");
-        MavenNexusClassSource source = new MavenNexusClassSource(
+        try (MavenNexusClassSource source = new MavenNexusClassSource(
             "https://nexus.example.com",
             "releases",
             Arrays.asList(artifact)
-        );
+        )) {
 
-        assertEquals(1, source.getArtifacts().size());
+            assertEquals(1, source.getArtifacts().size());
 
-        source.addArtifact("org.example:another-lib:2.0.0");
-        assertEquals(2, source.getArtifacts().size());
+            source.addArtifact("org.example:another-lib:2.0.0");
+            assertEquals(2, source.getArtifacts().size());
+        }
     }
 }
