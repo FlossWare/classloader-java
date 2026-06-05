@@ -416,6 +416,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
                 }
             }
             jarPathCache.clear();
+            perArtifactLocks.clear();
 
             // Throw aggregated exception if any occurred
             if (!exceptions.isEmpty()) {
