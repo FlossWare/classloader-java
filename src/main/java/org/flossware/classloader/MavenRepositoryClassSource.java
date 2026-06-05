@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -29,8 +30,9 @@ import java.util.jar.JarFile;
  * <p><b>Caching Strategy:</b> JAR files are downloaded once per artifact and cached in temporary files.
  * Multiple class requests from the same artifact reuse the cached JAR without re-downloading.</p>
  *
- * <p><b>Thread Safety:</b> This class is thread-safe. The internal caches use ConcurrentHashMap
- * to support concurrent class loading operations.</p>
+ * <p><b>Thread Safety:</b> This class is thread-safe. The internal caches use ConcurrentHashMap,
+ * and the artifacts collection uses CopyOnWriteArrayList to support safe concurrent modification
+ * and iteration during class loading operations.</p>
  */
 public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_JAR_SIZE = 100 * 1024 * 1024; // 100MB default max JAR size
@@ -76,7 +78,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         }
 
         this.repositoryUrl = repositoryUrl.endsWith("/") ? repositoryUrl : repositoryUrl + "/";
-        this.artifacts = new ArrayList<>(artifacts);
+        this.artifacts = new CopyOnWriteArrayList<>(artifacts);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
         this.classCache = new ConcurrentHashMap<>();
         this.jarFileCache = new ConcurrentHashMap<>();
@@ -112,8 +114,10 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      * <p>Searches through all configured Maven artifacts in order, downloading JARs
      * and extracting the requested class file. Results are cached in memory.</p>
      *
-     * <p><b>Thread Safety:</b> Uses fine-grained per-artifact synchronization to allow
-     * concurrent downloads of different artifacts while maintaining cache consistency.</p>
+     * <p><b>Thread Safety:</b> Uses CopyOnWriteArrayList for the artifacts collection to ensure
+     * thread-safe iteration even when artifacts are added via addArtifact(). Uses fine-grained
+     * per-artifact synchronization to allow concurrent downloads of different artifacts while
+     * maintaining cache consistency.</p>
      */
     @Override
     public byte[] loadClassData(String className) throws IOException {
@@ -133,6 +137,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         String classFileName = ClassNameUtil.toClassFilePath(className);
         List<String> errorMessages = new ArrayList<>();
 
+        // artifacts is CopyOnWriteArrayList - thread-safe for iteration during mutation
         for (MavenArtifact artifact : artifacts) {
             try {
                 String jarUrl = buildJarUrl(artifact);
@@ -200,6 +205,12 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         Object artifactLock = perArtifactLocks.computeIfAbsent(artifactKey, k -> new Object());
 
         synchronized (artifactLock) {
+            // Re-check closed flag after acquiring lock - close() may have run
+            // while this thread was waiting, cleaning up all cached resources.
+            if (closed) {
+                throw new IllegalStateException("MavenRepositoryClassSource is closed");
+            }
+
             // Double-check pattern: another thread may have cached it while waiting for lock
             existing = jarFileCache.get(artifactKey);
             if (existing != null) {
@@ -304,7 +315,10 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                return;
+                throw new IOException(
+                    "Unexpected end of stream: expected " + size +
+                    " bytes but only read " + totalRead
+                );
             }
             totalRead += n;
         }
@@ -416,7 +430,13 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
                 }
             }
             jarPathCache.clear();
-            perArtifactLocks.clear();
+            // Note: perArtifactLocks is intentionally NOT cleared. The lock objects
+            // are plain Object instances that hold no resources. Clearing them while
+            // other threads may still be synchronized on them creates a race condition:
+            // a new computeIfAbsent call would create a different lock object for the
+            // same artifact key, allowing two threads into the critical section in
+            // ensureJarCached() concurrently. The locks will be garbage-collected when
+            // this MavenRepositoryClassSource instance is collected.
 
             // Throw aggregated exception if any occurred
             if (!exceptions.isEmpty()) {

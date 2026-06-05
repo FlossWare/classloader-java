@@ -21,6 +21,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -52,6 +53,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private final int connectTimeout;
     private final int readTimeout;
     private volatile boolean closed = false;
+    private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock();
 
     /**
      * Creates a Maven Nexus class source with full configuration including timeouts.
@@ -122,43 +124,58 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
      */
     @Override
     public byte[] loadClassData(String className) throws IOException {
-        if (closed) {
-            throw new IllegalStateException("MavenNexusClassSource is closed");
-        }
-
         Objects.requireNonNull(className, "className cannot be null");
+
+        // Check cache first without locking (optimization for cache hits)
         String cacheKey = className;
-        // Atomic get() - avoids TOCTOU race condition with contains() + get()
         byte[] cachedData = classCache.get(cacheKey);
         if (cachedData != null) {
             return cachedData;
         }
 
-        String classFileName = ClassNameUtil.toClassFilePath(className);
-        List<String> errorMessages = new ArrayList<>();
-
-        for (MavenArtifact artifact : artifacts) {
-            try {
-                String jarUrl = buildJarUrl(artifact);
-                String artifactKey = artifact.toString();
-                JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
-                byte[] classData = extractClassFromCachedJar(jarFile, classFileName, jarUrl);
-                classCache.put(cacheKey, classData);
-                return classData;
-            } catch (IOException e) {
-                // Accumulate errors instead of silently swallowing
-                String errorMsg = String.format("Artifact %s - %s",
-                    artifact.toString(), e.getMessage());
-                errorMessages.add(errorMsg);
+        // Acquire read lock to prevent close() from running while we create resources.
+        // Multiple loadClassData() calls can proceed concurrently (read lock is shared),
+        // but close() acquires the write lock (exclusive) and must wait for all loads to finish.
+        closeLock.readLock().lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("MavenNexusClassSource is closed");
             }
-        }
 
-        // Throw with ALL error details
-        String allErrors = String.join("\n  - ", errorMessages);
-        throw new IOException(
-            "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
-            className + "\nAttempted artifacts:\n  - " + allErrors
-        );
+            // Double-check cache (another thread may have loaded it while we waited for lock)
+            cachedData = classCache.get(cacheKey);
+            if (cachedData != null) {
+                return cachedData;
+            }
+
+            String classFileName = ClassNameUtil.toClassFilePath(className);
+            List<String> errorMessages = new ArrayList<>();
+
+            for (MavenArtifact artifact : artifacts) {
+                try {
+                    String jarUrl = buildJarUrl(artifact);
+                    String artifactKey = artifact.toString();
+                    JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
+                    byte[] classData = extractClassFromCachedJar(jarFile, classFileName, jarUrl);
+                    classCache.put(cacheKey, classData);
+                    return classData;
+                } catch (IOException e) {
+                    // Accumulate errors instead of silently swallowing
+                    String errorMsg = String.format("Artifact %s - %s",
+                        artifact.toString(), e.getMessage());
+                    errorMessages.add(errorMsg);
+                }
+            }
+
+            // Throw with ALL error details
+            String allErrors = String.join("\n  - ", errorMessages);
+            throw new IOException(
+                "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
+                className + "\nAttempted artifacts:\n  - " + allErrors
+            );
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     /** {@inheritDoc} */
@@ -176,8 +193,13 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     /** {@inheritDoc} */
     @Override
     public String getDescription() {
-        return "MavenNexusClassSource[" + nexusUrl + ", repo=" + repository +
-               ", artifacts=" + artifacts.size() + ", auth=" + authConfig.getAuthType() + "]";
+        closeLock.readLock().lock();
+        try {
+            return "MavenNexusClassSource[" + nexusUrl + ", repo=" + repository +
+                   ", artifacts=" + artifacts.size() + ", auth=" + authConfig.getAuthType() + "]";
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     private String buildJarUrl(MavenArtifact artifact) {
@@ -375,13 +397,23 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
 
     /**
      * Adds a Maven artifact to load classes from.
+     * Thread-safe: synchronizes with {@link #loadClassData(String)} to prevent ConcurrentModificationException.
      *
      * @param artifact The Maven artifact to add
      * @throws NullPointerException if artifact is null
+     * @throws IllegalStateException if this class source is closed
      */
     public void addArtifact(MavenArtifact artifact) {
         Objects.requireNonNull(artifact, "artifact cannot be null");
-        artifacts.add(artifact);
+        closeLock.writeLock().lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("MavenNexusClassSource is closed");
+            }
+            artifacts.add(artifact);
+        } finally {
+            closeLock.writeLock().unlock();
+        }
     }
 
     /**
@@ -396,11 +428,17 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
 
     /**
      * Gets the list of configured Maven artifacts.
+     * Thread-safe: returns a copy of the artifacts list under synchronization.
      *
      * @return a copy of the artifacts list
      */
     public List<MavenArtifact> getArtifacts() {
-        return new ArrayList<>(artifacts);
+        closeLock.readLock().lock();
+        try {
+            return new ArrayList<>(artifacts);
+        } finally {
+            closeLock.readLock().unlock();
+        }
     }
 
     /**
@@ -441,7 +479,11 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             return;
         }
 
-        synchronized (this) {
+        // Acquire write lock exclusively -- this waits for all in-progress loadClassData()
+        // calls (which hold the read lock) to complete before proceeding, ensuring no new
+        // resources are created after close() sets the closed flag.
+        closeLock.writeLock().lock();
+        try {
             if (closed) {
                 return;
             }
@@ -482,6 +524,8 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
                 exceptions.forEach(ex::addSuppressed);
                 throw ex;
             }
+        } finally {
+            closeLock.writeLock().unlock();
         }
     }
 

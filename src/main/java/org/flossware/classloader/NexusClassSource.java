@@ -24,6 +24,8 @@ import java.util.jar.JarInputStream;
  * ConcurrentHashMap to support concurrent class loading operations.</p>
  */
 public class NexusClassSource implements ClassSource {
+    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default max class size
+
     private final String nexusUrl;
     private final String repository;
     private final AuthConfig authConfig;
@@ -180,7 +182,14 @@ public class NexusClassSource implements ClassSource {
 
                 byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                 int bytesRead;
+                long totalBytes = 0;
+
                 while ((bytesRead = in.read(buffer)) != -1) {
+                    totalBytes += bytesRead;
+                    if (totalBytes > MAX_CLASS_SIZE) {
+                        throw new IOException("Class file too large: " + totalBytes +
+                                            " bytes (max: " + MAX_CLASS_SIZE + " bytes) for URL: " + urlString);
+                    }
                     out.write(buffer, 0, bytesRead);
                 }
 
@@ -219,7 +228,14 @@ public class NexusClassSource implements ClassSource {
                         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                             byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                             int bytesRead;
+                            long totalBytes = 0;
+
                             while ((bytesRead = jarIn.read(buffer)) != -1) {
+                                totalBytes += bytesRead;
+                                if (totalBytes > MAX_CLASS_SIZE) {
+                                    throw new IOException("Class file too large: " + totalBytes +
+                                                        " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + classFileName);
+                                }
                                 out.write(buffer, 0, bytesRead);
                             }
                             return out.toByteArray();

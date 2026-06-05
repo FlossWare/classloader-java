@@ -113,4 +113,54 @@ class MavenNexusClassSourceTest {
             assertEquals(2, source.getArtifacts().size());
         }
     }
+
+    @Test
+    void testConcurrentModificationPrevention() throws Exception {
+        MavenArtifact artifact = new MavenArtifact("org.example", "my-lib", "1.0.0");
+        try (MavenNexusClassSource source = new MavenNexusClassSource(
+            "https://nexus.example.com",
+            "releases",
+            Arrays.asList(artifact)
+        )) {
+
+            // Test that concurrent mutations and reads don't cause ConcurrentModificationException
+            Thread mutatorThread = new Thread(() -> {
+                for (int i = 0; i < 100; i++) {
+                    source.addArtifact("org.example:lib-" + i + ":1.0.0");
+                }
+            });
+
+            Thread readerThread = new Thread(() -> {
+                for (int i = 0; i < 100; i++) {
+                    source.getArtifacts();
+                    source.getDescription();
+                }
+            });
+
+            mutatorThread.start();
+            readerThread.start();
+
+            mutatorThread.join();
+            readerThread.join();
+
+            // Verify final count (1 original + 100 added)
+            assertEquals(101, source.getArtifacts().size());
+        }
+    }
+
+    @Test
+    void testAddArtifactThrowsWhenClosed() throws Exception {
+        MavenArtifact artifact = new MavenArtifact("org.example", "my-lib", "1.0.0");
+        MavenNexusClassSource source = new MavenNexusClassSource(
+            "https://nexus.example.com",
+            "releases",
+            Arrays.asList(artifact)
+        );
+
+        source.close();
+
+        assertThrows(IllegalStateException.class, () -> {
+            source.addArtifact("org.example:another-lib:2.0.0");
+        });
+    }
 }
