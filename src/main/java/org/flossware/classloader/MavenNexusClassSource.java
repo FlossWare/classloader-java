@@ -3,7 +3,6 @@ package org.flossware.classloader;
 import org.flossware.classloader.util.ClassNameUtil;
 
 import java.io.ByteArrayOutputStream;
-
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
@@ -188,7 +187,11 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     /**
      * Ensures a JAR file is cached for the given artifact.
      * Downloads the JAR once and reuses it for subsequent class extractions.
-     * Uses per-artifact locking to allow concurrent downloads of different artifacts.
+     *
+     * <p>Uses a FutureTask-based per-artifact locking pattern so that downloads of different
+     * artifacts proceed fully in parallel (no shared lock or ConcurrentHashMap bin-lock held
+     * during I/O), while duplicate downloads of the same artifact are coalesced -- only the
+     * first thread downloads, and subsequent threads wait on the same Future.</p>
      *
      * @param artifactKey The artifact identifier
      * @param jarUrl The URL to download the JAR from
@@ -196,9 +199,10 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
      * @throws IOException if download or JAR opening fails
      */
     private JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
-        return jarFileCache.computeIfAbsent(artifactKey, key -> {
-            try {
-                // Download JAR to temp file
+        // Create a FutureTask that encapsulates the download work
+        FutureTask<JarFile> newTask = new FutureTask<>(new Callable<JarFile>() {
+            @Override
+            public JarFile call() throws IOException {
                 Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
                 try {
                     downloadJarFile(jarUrl, tempJarPath);
@@ -214,12 +218,35 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
                     }
                     throw e;
                 }
-            } catch (IOException e) {
-                // Wrap IOException in RuntimeException for computeIfAbsent compatibility
-                // This will be caught and re-thrown as IOException by the caller
-                throw new UncheckedIOException(e);
             }
         });
+
+        // Atomically insert the task -- only the winner actually runs the download.
+        // putIfAbsent returns null if this thread won, or the existing task otherwise.
+        FutureTask<JarFile> existingTask = jarFileCache.putIfAbsent(artifactKey, newTask);
+        if (existingTask == null) {
+            // This thread won the race -- run the download (outside any CHM lock)
+            newTask.run();
+            existingTask = newTask;
+        }
+
+        try {
+            return existingTask.get();
+        } catch (ExecutionException e) {
+            // Download failed -- remove the poisoned future so retries can try again
+            jarFileCache.remove(artifactKey, existingTask);
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            }
+            throw new IOException("Failed to download artifact: " + artifactKey, cause);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for artifact download: " + artifactKey, e);
+        } catch (CancellationException e) {
+            jarFileCache.remove(artifactKey, existingTask);
+            throw new IOException("Artifact download was cancelled: " + artifactKey, e);
+        }
     }
 
     private void downloadJarFile(String jarUrl, Path tempJarPath) throws IOException {
@@ -412,9 +439,16 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             List<IOException> exceptions = new ArrayList<>();
 
             // Close all cached JAR files
-            for (JarFile jarFile : jarFileCache.values()) {
+            for (FutureTask<JarFile> task : jarFileCache.values()) {
                 try {
-                    jarFile.close();
+                    if (task.isDone() && !task.isCancelled()) {
+                        task.get().close();
+                    }
+                } catch (ExecutionException e) {
+                    // Task failed during download -- nothing to close
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    exceptions.add(new IOException("Interrupted during close", e));
                 } catch (IOException e) {
                     exceptions.add(e);
                 }
