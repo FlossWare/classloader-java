@@ -392,4 +392,37 @@ class RemoteJarClassSourceTest {
             source.close();
         }
     }
+
+    @Test
+    void testIncompleteReadThrowsIOException(@TempDir Path tempDir) throws Exception {
+        // Create a JAR file with class bytecode that has declared size larger than actual content
+        Path jarPath = tempDir.resolve("truncated.jar");
+
+        try (FileOutputStream fos = new FileOutputStream(jarPath.toFile());
+             JarOutputStream jos = new JarOutputStream(fos)) {
+
+            // Create an entry with a size that claims to have more bytes than we write
+            JarEntry entry = new JarEntry("com/example/TestClass.class");
+            entry.setSize(16);  // Claim size is 16 bytes
+            jos.putNextEntry(entry);
+            jos.write(SIMPLE_CLASS_BYTECODE);  // But only write 8 bytes
+            jos.closeEntry();
+        }
+
+        String jarUrl = jarPath.toUri().toString();
+        RemoteJarClassSource source = new RemoteJarClassSource(jarUrl);
+
+        try {
+            IOException thrown = assertThrows(IOException.class, () -> {
+                source.loadClassData("com.example.TestClass");
+            });
+
+            assertTrue(thrown.getMessage().contains("Incomplete read"),
+                "Error message should indicate incomplete read, but got: " + thrown.getMessage());
+            assertTrue(thrown.getMessage().contains("16") || thrown.getMessage().contains("expected"),
+                "Error message should mention expected size");
+        } finally {
+            source.close();
+        }
+    }
 }

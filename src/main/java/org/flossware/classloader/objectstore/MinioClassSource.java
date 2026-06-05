@@ -118,7 +118,10 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         while (totalRead < size) {
             int n = stream.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                return totalRead;
+                throw new IOException(
+                    "Incomplete read from MinIO stream: expected " + size
+                    + " bytes, got " + totalRead
+                    + ". Possible network timeout or S3 error.");
             }
             totalRead += n;
         }

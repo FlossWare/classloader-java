@@ -89,6 +89,9 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             if (n != -1) {
                 totalRead += n;
             } else {
+                if (totalRead < size) {
+                    throw new IOException("Incomplete read: expected " + size + " bytes, got " + totalRead);
+                }
                 return totalRead;
             }
         }

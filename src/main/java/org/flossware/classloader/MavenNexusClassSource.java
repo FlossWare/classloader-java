@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -16,17 +19,21 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
-import java.util.jar.JarInputStream;
+import java.util.jar.JarFile;
 
 /**
  * ClassSource implementation for loading classes from Maven artifacts stored in Nexus.
  * Downloads JARs from Nexus and extracts class files from them.
- * Includes in-memory caching of loaded classes for performance.
+ * Caches downloaded JAR files for efficient multi-class extraction.
+ * Implements AutoCloseable - call close() to release resources and delete cached JAR files.
  *
- * <p><b>Thread Safety:</b> This class is thread-safe. The internal class cache uses
- * ConcurrentHashMap to support concurrent class loading operations.</p>
+ * <p><b>Caching Strategy:</b> JAR files are downloaded once per artifact and cached in temporary files.
+ * Multiple class requests from the same artifact reuse the cached JAR without re-downloading.</p>
+ *
+ * <p><b>Thread Safety:</b> This class is thread-safe. The internal caches use ConcurrentHashMap
+ * to support concurrent class loading operations.</p>
  */
-public class MavenNexusClassSource implements ClassSource {
+public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_JAR_SIZE = 100 * 1024 * 1024; // 100MB default max JAR size
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default max class size
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
@@ -37,8 +44,11 @@ public class MavenNexusClassSource implements ClassSource {
     private final List<MavenArtifact> artifacts;
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
+    private final Map<String, JarFile> jarFileCache;
+    private final Map<String, Path> jarPathCache;
     private final int connectTimeout;
     private final int readTimeout;
+    private volatile boolean closed = false;
 
     /**
      * Creates a Maven Nexus class source with full configuration including timeouts.
@@ -72,6 +82,8 @@ public class MavenNexusClassSource implements ClassSource {
         this.artifacts = new ArrayList<>(artifacts);
         this.authConfig = authConfig != null ? authConfig : AuthConfig.none();
         this.classCache = new ConcurrentHashMap<>();
+        this.jarFileCache = new ConcurrentHashMap<>();
+        this.jarPathCache = new ConcurrentHashMap<>();
         this.connectTimeout = connectTimeout;
         this.readTimeout = readTimeout;
     }
@@ -107,6 +119,10 @@ public class MavenNexusClassSource implements ClassSource {
      */
     @Override
     public byte[] loadClassData(String className) throws IOException {
+        if (closed) {
+            throw new IllegalStateException("MavenNexusClassSource is closed");
+        }
+
         Objects.requireNonNull(className, "className cannot be null");
         String cacheKey = className;
         // Atomic get() - avoids TOCTOU race condition with contains() + get()
@@ -121,7 +137,9 @@ public class MavenNexusClassSource implements ClassSource {
         for (MavenArtifact artifact : artifacts) {
             try {
                 String jarUrl = buildJarUrl(artifact);
-                byte[] classData = extractClassFromJar(jarUrl, classFileName);
+                String artifactKey = artifact.toString();
+                JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
+                byte[] classData = extractClassFromCachedJar(jarFile, classFileName, jarUrl);
                 classCache.put(cacheKey, classData);
                 return classData;
             } catch (IOException e) {
@@ -163,7 +181,41 @@ public class MavenNexusClassSource implements ClassSource {
         return nexusUrl + "repository/" + repository + "/" + artifact.toPath();
     }
 
-    private byte[] extractClassFromJar(String jarUrl, String classFileName) throws IOException {
+    /**
+     * Ensures a JAR file is cached for the given artifact.
+     * Downloads the JAR once and reuses it for subsequent class extractions.
+     *
+     * @param artifactKey The artifact identifier
+     * @param jarUrl The URL to download the JAR from
+     * @return A JarFile instance opened on the cached JAR
+     * @throws IOException if download or JAR opening fails
+     */
+    private synchronized JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
+        JarFile existing = jarFileCache.get(artifactKey);
+        if (existing != null) {
+            return existing;
+        }
+
+        // Download JAR to temp file
+        Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
+        try {
+            downloadJarFile(jarUrl, tempJarPath);
+            JarFile jarFile = new JarFile(tempJarPath.toFile());
+            jarFileCache.put(artifactKey, jarFile);
+            jarPathCache.put(artifactKey, tempJarPath);
+            return jarFile;
+        } catch (IOException e) {
+            // Clean up temp file on failure
+            try {
+                Files.deleteIfExists(tempJarPath);
+            } catch (IOException ignored) {
+                // Ignore cleanup errors
+            }
+            throw e;
+        }
+    }
+
+    private void downloadJarFile(String jarUrl, Path tempJarPath) throws IOException {
         URL url = new URL(jarUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
@@ -185,49 +237,89 @@ public class MavenNexusClassSource implements ClassSource {
                 );
             }
 
-            try (InputStream in = connection.getInputStream();
-                 JarInputStream jarIn = new JarInputStream(in)) {
+            try (InputStream in = connection.getInputStream()) {
+                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            safelyDisconnect(connection);
+        }
+    }
 
-                JarEntry entry;
-                while ((entry = jarIn.getNextJarEntry()) != null) {
-                    if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
-                        long size = entry.getSize();
+    private byte[] extractClassFromCachedJar(JarFile jarFile, String classFileName, String jarUrl) throws IOException {
+        JarEntry entry = jarFile.getJarEntry(classFileName);
+        if (entry == null) {
+            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+        }
 
-                        if (size > MAX_CLASS_SIZE) {
-                            throw new IOException(
-                                "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
-                            );
-                        }
+        long size = entry.getSize();
+        return extractClassDataFromEntry(jarFile, entry, size);
+    }
 
-                        // Read with size enforcement
-                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                            long totalRead = 0;
-                            int bytesRead;
+    private byte[] extractClassDataFromEntry(JarFile jarFile, JarEntry entry, long size) throws IOException {
+        if (size < 0) {
+            // Unknown size - read with limit
+            return readWithSizeLimit(jarFile.getInputStream(entry), MAX_CLASS_SIZE);
+        }
 
-                            while ((bytesRead = jarIn.read(buffer)) != -1) {
-                                totalRead += bytesRead;
-                                if (totalRead > MAX_CLASS_SIZE) {
-                                    throw new IOException("Class exceeded size limit: " + totalRead);
-                                }
-                                out.write(buffer, 0, bytesRead);
-                            }
+        validateClassSize(size);
+        return readClassDataWithKnownSize(jarFile, entry, size);
+    }
 
-                            return out.toByteArray();
-                        }
-                    }
+    private void validateClassSize(long size) throws IOException {
+        if (size > MAX_CLASS_SIZE) {
+            throw new IOException(
+                "Class file too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
+            );
+        }
+
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException("Class file exceeds Java array limit: " + size);
+        }
+    }
+
+    private byte[] readClassDataWithKnownSize(JarFile jarFile, JarEntry entry, long size) throws IOException {
+        try (InputStream in = jarFile.getInputStream(entry)) {
+            byte[] data = new byte[(int)size];
+            readFully(in, data, (int)size);
+            return data;
+        }
+    }
+
+    private void readFully(InputStream in, byte[] data, int size) throws IOException {
+        int totalRead = 0;
+        while (totalRead < size) {
+            int n = in.read(data, totalRead, size - totalRead);
+            if (n == -1) {
+                return;
+            }
+            totalRead += n;
+        }
+    }
+
+    private byte[] readWithSizeLimit(InputStream in, long maxSize) throws IOException {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+            long totalRead = 0;
+            int bytesRead;
+
+            while ((bytesRead = in.read(buffer)) != -1) {
+                totalRead += bytesRead;
+                if (totalRead > maxSize) {
+                    throw new IOException("Entry exceeds maximum size: " + totalRead);
                 }
+                out.write(buffer, 0, bytesRead);
             }
 
-            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
-        } finally {
-            // Ensure connection is properly closed
-            if (connection != null) {
-                try {
-                    connection.disconnect();
-                } catch (RuntimeException e) {
-                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
-                }
+            return out.toByteArray();
+        }
+    }
+
+    private void safelyDisconnect(HttpURLConnection connection) {
+        if (connection != null) {
+            try {
+                connection.disconnect();
+            } catch (RuntimeException e) {
+                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
             }
         }
     }
@@ -291,6 +383,63 @@ public class MavenNexusClassSource implements ClassSource {
      */
     public AuthConfig getAuthConfig() {
         return authConfig;
+    }
+
+    /**
+     * Closes all cached JAR files and deletes their temporary files.
+     *
+     * @throws IOException if an error occurs during cleanup
+     */
+    @Override
+    public void close() throws IOException {
+        if (closed) {
+            return;
+        }
+
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+
+            List<IOException> exceptions = new ArrayList<>();
+
+            // Close all cached JAR files
+            for (JarFile jarFile : jarFileCache.values()) {
+                try {
+                    jarFile.close();
+                } catch (IOException e) {
+                    exceptions.add(e);
+                }
+            }
+            jarFileCache.clear();
+
+            // Delete all temp JAR files
+            for (Path tempPath : jarPathCache.values()) {
+                try {
+                    Files.deleteIfExists(tempPath);
+                } catch (IOException e) {
+                    exceptions.add(e);
+                }
+            }
+            jarPathCache.clear();
+
+            // Throw aggregated exception if any occurred
+            if (!exceptions.isEmpty()) {
+                IOException ex = new IOException("Failed to close MavenNexusClassSource");
+                exceptions.forEach(ex::addSuppressed);
+                throw ex;
+            }
+        }
+    }
+
+    /**
+     * Checks if this class source is closed.
+     *
+     * @return true if closed, false otherwise
+     */
+    public boolean isClosed() {
+        return closed;
     }
 
     /**

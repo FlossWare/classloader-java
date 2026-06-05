@@ -223,7 +223,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                return;
+                throw new IOException("Incomplete read: expected " + size + " bytes, but got " + totalRead);
             }
             totalRead += n;
         }

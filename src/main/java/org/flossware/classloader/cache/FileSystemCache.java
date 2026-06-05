@@ -168,7 +168,9 @@ public class FileSystemCache implements ClassCache {
         // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
         try (Stream<Path> paths = Files.walk(path)) {
             // Sort by depth (deepest first) to delete files before directories
-            paths.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
+            // Filter out the root cache directory itself - only delete its contents
+            paths.filter(p -> !p.equals(path))
+                 .sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
                  .forEach(p -> deletePathSafely(p, errors));
         } catch (IOException e) {
             errors.add(e);

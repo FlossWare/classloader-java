@@ -101,6 +101,11 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
 
     ApplicationClassLoader(ApplicationClassLoaderBuilder builder) {
         super(builder.getParent() != null ? builder.getParent() : getSystemClassLoader());
+
+        if (builder.getClassSources().isEmpty()) {
+            throw new IllegalStateException("At least one class source must be configured");
+        }
+
         this.classSources = new ArrayList<>(builder.getClassSources());
         this.cache = builder.getCache();
         this.useCache = builder.isUseCache() && cache != null;

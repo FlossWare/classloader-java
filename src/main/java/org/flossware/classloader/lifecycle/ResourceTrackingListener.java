@@ -100,6 +100,10 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
             } catch (Exception e) {
                 // Other checked exceptions (rare but possible from custom AutoCloseable implementations)
                 // are suppressed to ensure we continue closing remaining resources
+            } catch (Error e) {
+                // Error subclasses (e.g., OutOfMemoryError, StackOverflowError, AssertionError)
+                // must also be caught to prevent breaking the cleanup loop and leaking
+                // remaining unclosed resources
             }
         }
         openResources.clear();
