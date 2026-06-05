@@ -171,89 +171,122 @@ public class NexusClassSource implements ClassSource {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
             configureAuthentication(connection);
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error code: " + responseCode + " for URL: " + urlString);
-            }
-
-            try (InputStream in = connection.getInputStream();
-                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                int bytesRead;
-                long totalBytes = 0;
-
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    totalBytes += bytesRead;
-                    if (totalBytes > MAX_CLASS_SIZE) {
-                        throw new IOException("Class file too large: " + totalBytes +
-                                            " bytes (max: " + MAX_CLASS_SIZE + " bytes) for URL: " + urlString);
-                    }
-                    out.write(buffer, 0, bytesRead);
-                }
-
-                return out.toByteArray();
-            }
+            validateHttpResponse(connection, urlString);
+            return readClassDataWithSizeLimit(connection.getInputStream(), urlString);
         } finally {
-            // Ensure connection is properly closed
-            if (connection != null) {
-                try {
-                    connection.disconnect();
-                } catch (RuntimeException e) {
-                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
-                }
+            safelyDisconnect(connection);
+        }
+    }
+
+    private void validateHttpResponse(HttpURLConnection connection, String urlString) throws IOException {
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP error code: " + responseCode + " for URL: " + urlString);
+        }
+    }
+
+    private byte[] readClassDataWithSizeLimit(InputStream inputStream, String sourceIdentifier) throws IOException {
+        try (InputStream in = inputStream;
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+            int bytesRead;
+            long totalBytes = 0;
+
+            while ((bytesRead = in.read(buffer)) != -1) {
+                totalBytes += bytesRead;
+                validateClassDataSize(totalBytes, sourceIdentifier);
+                out.write(buffer, 0, bytesRead);
+            }
+
+            return out.toByteArray();
+        }
+    }
+
+    private void validateClassDataSize(long totalBytes, String sourceIdentifier) throws IOException {
+        if (totalBytes > MAX_CLASS_SIZE) {
+            throw new IOException("Class file too large: " + totalBytes +
+                                " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + sourceIdentifier);
+        }
+    }
+
+    private void safelyDisconnect(HttpURLConnection connection) {
+        if (connection != null) {
+            try {
+                connection.disconnect();
+            } catch (RuntimeException e) {
+                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
             }
         }
     }
 
+    /**
+     * Downloads a JAR from the given URL and extracts the specified class file entry.
+     *
+     * <p>Opens an HTTP connection to {@code jarUrl}, streams the response into a
+     * {@link java.util.jar.JarInputStream}, and searches for an entry whose name
+     * matches {@code classFileName}. Returns the raw bytecode of the matching
+     * entry, or throws an {@link IOException} if the entry is not found or the
+     * download fails.</p>
+     *
+     * @param jarUrl        the URL of the JAR file to download
+     * @param classFileName the JAR entry name of the class file (e.g.
+     *                      {@code "com/example/MyClass.class"})
+     * @return the class bytecode extracted from the JAR
+     * @throws IOException if the download fails, the HTTP response is not 200,
+     *                     or the class entry is not found in the JAR
+     */
     protected byte[] loadClassFromJar(String jarUrl, String classFileName) throws IOException {
         URL url = new URL(jarUrl);
         // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
             configureAuthentication(connection);
-
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error code: " + responseCode + " for JAR URL: " + jarUrl);
-            }
-
-            try (InputStream in = connection.getInputStream();
-                 JarInputStream jarIn = new JarInputStream(in)) {
-
-                JarEntry entry;
-                while ((entry = jarIn.getNextJarEntry()) != null) {
-                    if (entry.getName().equals(classFileName)) {
-                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                            int bytesRead;
-                            long totalBytes = 0;
-
-                            while ((bytesRead = jarIn.read(buffer)) != -1) {
-                                totalBytes += bytesRead;
-                                if (totalBytes > MAX_CLASS_SIZE) {
-                                    throw new IOException("Class file too large: " + totalBytes +
-                                                        " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + classFileName);
-                                }
-                                out.write(buffer, 0, bytesRead);
-                            }
-                            return out.toByteArray();
-                        }
-                    }
-                }
-            }
-
-            throw new IOException("Class file not found in JAR: " + classFileName);
+            validateHttpResponse(connection, jarUrl);
+            return extractClassFromJarStream(connection.getInputStream(), classFileName);
         } finally {
-            // Ensure connection is properly closed
-            if (connection != null) {
-                try {
-                    connection.disconnect();
-                } catch (RuntimeException e) {
-                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
-                }
+            safelyDisconnect(connection);
+        }
+    }
+
+    private byte[] extractClassFromJarStream(InputStream inputStream, String classFileName) throws IOException {
+        try (InputStream in = inputStream;
+             JarInputStream jarIn = new JarInputStream(in)) {
+
+            byte[] classData = findAndExtractClassFromJar(jarIn, classFileName);
+            if (classData != null) {
+                return classData;
             }
+        }
+
+        throw new IOException("Class file not found in JAR: " + classFileName);
+    }
+
+    private byte[] findAndExtractClassFromJar(JarInputStream jarIn, String classFileName) throws IOException {
+        JarEntry entry;
+        while ((entry = jarIn.getNextJarEntry()) != null) {
+            if (entry.getName().equals(classFileName)) {
+                return extractClassDataFromJarEntry(jarIn);
+            }
+        }
+        return null;
+    }
+
+    private byte[] extractClassDataFromJarEntry(JarInputStream jarIn) throws IOException {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+            int bytesRead;
+            long totalBytes = 0;
+
+            while ((bytesRead = jarIn.read(buffer)) != -1) {
+                totalBytes += bytesRead;
+                if (totalBytes > MAX_CLASS_SIZE) {
+                    throw new IOException("Class file too large: " + totalBytes +
+                                        " bytes (max: " + MAX_CLASS_SIZE + " bytes)");
+                }
+                out.write(buffer, 0, bytesRead);
+            }
+            return out.toByteArray();
         }
     }
 

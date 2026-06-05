@@ -25,6 +25,36 @@ public final class RetryPolicy {
      */
     private static final int JITTER_PERCENTAGE_DIVISOR = 4;
 
+    /** Minimum backoff multiplier: must be at least 1.0 to avoid zero or negative multipliers. */
+    private static final double MIN_BACKOFF_MULTIPLIER = 1.0;
+
+    /** Minimum delay value: delays cannot be negative. */
+    private static final long MIN_DELAY_MS = 0;
+
+    /** Jitter range increment: added to upper bound in nextLong() to make it inclusive. */
+    private static final int JITTER_RANGE_INCREMENT = 1;
+
+    /** Default maximum retry attempts for standard retry policy. */
+    private static final int DEFAULT_MAX_RETRIES = 3;
+
+    /** Default initial delay in milliseconds before the first retry (100ms). */
+    private static final long DEFAULT_INITIAL_DELAY_MS = 100;
+
+    /** Default maximum delay in milliseconds between retries (10 seconds). */
+    private static final long DEFAULT_MAX_DELAY_MS = 10000;
+
+    /** Default exponential backoff multiplier. */
+    private static final double DEFAULT_BACKOFF_MULTIPLIER = 2.0;
+
+    /** Maximum retry attempts for aggressive retry policy. */
+    private static final int AGGRESSIVE_MAX_RETRIES = 5;
+
+    /** Initial delay in milliseconds for aggressive retry policy (200ms). */
+    private static final long AGGRESSIVE_INITIAL_DELAY_MS = 200;
+
+    /** Maximum delay in milliseconds for aggressive retry policy (30 seconds). */
+    private static final long AGGRESSIVE_MAX_DELAY_MS = 30000;
+
     private final int maxRetries;
     private final long initialDelayMs;
     private final long maxDelayMs;
@@ -51,8 +81,8 @@ public final class RetryPolicy {
         if (maxDelayMs < initialDelayMs) {
             throw new IllegalArgumentException("maxDelayMs must be >= initialDelayMs");
         }
-        if (backoffMultiplier < 1.0) {
-            throw new IllegalArgumentException("backoffMultiplier must be >= 1.0");
+        if (backoffMultiplier < MIN_BACKOFF_MULTIPLIER) {
+            throw new IllegalArgumentException("backoffMultiplier must be >= " + MIN_BACKOFF_MULTIPLIER);
         }
 
         this.maxRetries = maxRetries;
@@ -68,7 +98,8 @@ public final class RetryPolicy {
      * @return Default retry policy
      */
     public static RetryPolicy defaultPolicy() {
-        return new RetryPolicy(3, 100, 10000, 2.0, true);
+        return new RetryPolicy(DEFAULT_MAX_RETRIES, DEFAULT_INITIAL_DELAY_MS,
+                               DEFAULT_MAX_DELAY_MS, DEFAULT_BACKOFF_MULTIPLIER, true);
     }
 
     /**
@@ -77,7 +108,7 @@ public final class RetryPolicy {
      * @return No-retry policy
      */
     public static RetryPolicy noRetry() {
-        return new RetryPolicy(0, 0, 0, 1.0, false);
+        return new RetryPolicy(0, 0, 0, MIN_BACKOFF_MULTIPLIER, false);
     }
 
     /**
@@ -86,7 +117,8 @@ public final class RetryPolicy {
      * @return Aggressive retry policy
      */
     public static RetryPolicy aggressive() {
-        return new RetryPolicy(5, 200, 30000, 2.0, true);
+        return new RetryPolicy(AGGRESSIVE_MAX_RETRIES, AGGRESSIVE_INITIAL_DELAY_MS,
+                               AGGRESSIVE_MAX_DELAY_MS, DEFAULT_BACKOFF_MULTIPLIER, true);
     }
 
     /**
@@ -106,19 +138,25 @@ public final class RetryPolicy {
             } catch (IOException e) {
                 lastException = e;
 
-                if (attempt < maxRetries) {
-                    long delay = calculateDelay(attempt);
-                    try {
-                        Thread.sleep(delay);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new IOException("Retry interrupted", ie);
-                    }
+                if (attempt >= maxRetries) {
+                    continue;
                 }
+
+                performBackoffDelay(attempt);
             }
         }
 
         throw new IOException("Failed after " + (maxRetries + 1) + " attempts", lastException);
+    }
+
+    private void performBackoffDelay(int attemptNumber) throws IOException {
+        long delay = calculateDelay(attemptNumber);
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Retry interrupted", ie);
+        }
     }
 
     /**
@@ -146,12 +184,12 @@ public final class RetryPolicy {
         delay = Math.min(delay, maxDelayMs);
 
         // Add proper jitter (±25% random variation) to prevent thundering herd
-        if (jitter && delay > 0) {
+        if (jitter && delay > MIN_DELAY_MS) {
             long maxJitter = delay / JITTER_PERCENTAGE_DIVISOR;  // 25% of delay
             // ThreadLocalRandom is thread-safe with zero contention (vs synchronized Math.random())
             // Range: [-maxJitter, +maxJitter] for proper jitter distribution
-            long jitterAmount = ThreadLocalRandom.current().nextLong(-maxJitter, maxJitter + 1);
-            delay = Math.max(0, delay + jitterAmount);  // Ensure non-negative
+            long jitterAmount = ThreadLocalRandom.current().nextLong(-maxJitter, maxJitter + JITTER_RANGE_INCREMENT);
+            delay = Math.max(MIN_DELAY_MS, delay + jitterAmount);  // Ensure non-negative
         }
 
         return delay;
@@ -241,10 +279,10 @@ public final class RetryPolicy {
      * }</pre>
      */
     public static class Builder {
-        private int maxRetries = 3;
-        private long initialDelayMs = 100;
-        private long maxDelayMs = 10000;
-        private double backoffMultiplier = 2.0;
+        private int maxRetries = DEFAULT_MAX_RETRIES;
+        private long initialDelayMs = DEFAULT_INITIAL_DELAY_MS;
+        private long maxDelayMs = DEFAULT_MAX_DELAY_MS;
+        private double backoffMultiplier = DEFAULT_BACKOFF_MULTIPLIER;
         private boolean jitter = true;
 
         /**
@@ -318,9 +356,9 @@ public final class RetryPolicy {
          * @throws IllegalArgumentException if backoffMultiplier < 1.0
          */
         public Builder backoffMultiplier(double backoffMultiplier) {
-            if (backoffMultiplier < 1.0) {
+            if (backoffMultiplier < MIN_BACKOFF_MULTIPLIER) {
                 throw new IllegalArgumentException(
-                    "backoffMultiplier must be >= 1.0, got: " + backoffMultiplier);
+                    "backoffMultiplier must be >= " + MIN_BACKOFF_MULTIPLIER + ", got: " + backoffMultiplier);
             }
             this.backoffMultiplier = backoffMultiplier;
             return this;

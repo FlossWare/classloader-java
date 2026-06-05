@@ -24,25 +24,33 @@ public class AuthHelper {
 
         switch (authConfig.getAuthType()) {
             case BASIC:
-                String username = authConfig.getUsername();
-                String password = authConfig.getPassword();
-                if (username == null || password == null) {
-                    throw new IllegalArgumentException("Username and password must not be null for BASIC authentication");
-                }
-                String credentials = username + ":" + password;
-                String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
-                connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
+                configureBasicAuth(connection, authConfig);
                 break;
             case BEARER:
-                String token = authConfig.getToken();
-                if (token == null) {
-                    throw new IllegalArgumentException("Token must not be null for BEARER authentication");
-                }
-                connection.setRequestProperty("Authorization", "Bearer " + token);
+                configureBearerAuth(connection, authConfig);
                 break;
             case NONE:
             default:
                 break;
         }
+    }
+
+    private static void configureBasicAuth(HttpURLConnection connection, AuthConfig authConfig) {
+        String username = authConfig.getUsername();
+        String password = authConfig.getPassword();
+        if (username == null || password == null) {
+            throw new IllegalArgumentException("Username and password must not be null for BASIC authentication");
+        }
+        String credentials = username + ":" + password;
+        String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+        connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
+    }
+
+    private static void configureBearerAuth(HttpURLConnection connection, AuthConfig authConfig) {
+        String token = authConfig.getToken();
+        if (token == null) {
+            throw new IllegalArgumentException("Token must not be null for BEARER authentication");
+        }
+        connection.setRequestProperty("Authorization", "Bearer " + token);
     }
 }

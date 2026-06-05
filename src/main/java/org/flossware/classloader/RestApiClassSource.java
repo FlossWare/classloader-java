@@ -77,8 +77,9 @@ public class RestApiClassSource implements ClassSource {
         Objects.requireNonNull(className, "className cannot be null");
         String url = buildUrl(className);
         // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection connection = null;
         try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
             connection.setConnectTimeout(connectTimeout);
             connection.setReadTimeout(readTimeout);
             connection.setRequestMethod("GET");
@@ -167,6 +168,9 @@ public class RestApiClassSource implements ClassSource {
         try {
             String url = buildUrl(className);
             connection = (HttpURLConnection) new URL(url).openConnection();
+            if (connection == null) {
+                return false;
+            }
             connection.setConnectTimeout(connectTimeout);
             connection.setReadTimeout(readTimeout);
             connection.setRequestMethod("HEAD");

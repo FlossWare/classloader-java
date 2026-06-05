@@ -101,11 +101,10 @@ public class DatabaseClassSource implements ClassSource {
             stmt.setString(1, className);
 
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getBytes(1);
-                } else {
+                if (!rs.next()) {
                     throw new IOException("Class not found in database: " + className);
                 }
+                return rs.getBytes(1);
             }
 
         } catch (SQLException e) {

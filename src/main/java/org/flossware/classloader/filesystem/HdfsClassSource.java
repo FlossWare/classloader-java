@@ -23,6 +23,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
     private static final int DEFAULT_SOCKET_TIMEOUT = 30000; // 30 seconds
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
+    private static final int DEFAULT_IPC_PING_INTERVAL = 10000; // 10 seconds
 
     private final FileSystem hdfs;
     private final String basePath;
@@ -328,7 +329,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             // Configure timeouts to prevent hanging
             conf.setInt("ipc.client.connect.timeout", connectTimeout);
             conf.setInt("ipc.client.connect.max.retries", 3);
-            conf.setInt("ipc.ping.interval", 10000);
+            conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL);
             conf.setInt("dfs.client.socket-timeout", socketTimeout);
 
             FileSystem hdfs = FileSystem.get(conf);

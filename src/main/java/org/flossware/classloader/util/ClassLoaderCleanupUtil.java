@@ -86,21 +86,25 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupThreadLocals() {
         try {
-            int cleaned = 0;
             Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
-
-            for (Thread thread : threads.keySet()) {
-                if (thread.getName().contains(applicationId)) {
-                    if (clearThreadLocals(thread)) {
-                        cleaned++;
-                    }
-                }
-            }
-
+            int cleaned = cleanupThreadLocalsForMatchingThreads(threads);
             logger.info("[{}] Cleaned ThreadLocals from {} threads", applicationId, cleaned);
         } catch (SecurityException e) {
             logger.warn("[{}] Failed to clean ThreadLocals (security): {}", applicationId, e.getMessage());
         }
+    }
+
+    private int cleanupThreadLocalsForMatchingThreads(Map<Thread, StackTraceElement[]> threads) {
+        int cleaned = 0;
+        for (Thread thread : threads.keySet()) {
+            if (!thread.getName().contains(applicationId)) {
+                continue;
+            }
+            if (clearThreadLocals(thread)) {
+                cleaned++;
+            }
+        }
+        return cleaned;
     }
 
     /**
@@ -111,47 +115,69 @@ public class ClassLoaderCleanupUtil {
      */
     private boolean clearThreadLocals(Thread thread) {
         try {
-            // Access Thread.threadLocals field
-            Field threadLocalsField = Thread.class.getDeclaredField("threadLocals");
-            threadLocalsField.setAccessible(true);
-            Object threadLocalMap = threadLocalsField.get(thread);
-
-            if (threadLocalMap != null) {
-                // Access ThreadLocalMap.table field
-                Class<?> threadLocalMapClass = threadLocalMap.getClass();
-                Field tableField = threadLocalMapClass.getDeclaredField("table");
-                tableField.setAccessible(true);
-                Object[] table = (Object[]) tableField.get(threadLocalMap);
-
-                if (table != null) {
-                    // Clear entries loaded by our ClassLoader
-                    for (int i = 0; i < table.length; i++) {
-                        Object entry = table[i];
-                        if (entry != null) {
-                            // Check if entry's value was loaded by our ClassLoader
-                            Field valueField = entry.getClass().getDeclaredField("value");
-                            valueField.setAccessible(true);
-                            Object value = valueField.get(entry);
-
-                            if (value != null && value.getClass().getClassLoader() == classLoader) {
-                                table[i] = null; // Clear the entry
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Also clean inheritableThreadLocals
-            Field inheritableThreadLocalsField = Thread.class.getDeclaredField("inheritableThreadLocals");
-            inheritableThreadLocalsField.setAccessible(true);
-            inheritableThreadLocalsField.set(thread, null);
-
+            clearThreadLocalTable(thread);
+            clearInheritableThreadLocals(thread);
             return true;
         } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
             logger.debug("[{}] Could not clear ThreadLocals for thread {}: {}",
                     applicationId, thread.getName(), e.getMessage());
             return false;
         }
+    }
+
+    private void clearThreadLocalTable(Thread thread) throws NoSuchFieldException, IllegalAccessException {
+        // Access Thread.threadLocals field
+        Field threadLocalsField = Thread.class.getDeclaredField("threadLocals");
+        threadLocalsField.setAccessible(true);
+        Object threadLocalMap = threadLocalsField.get(thread);
+
+        if (threadLocalMap == null) {
+            return;
+        }
+
+        // Access ThreadLocalMap.table field
+        Class<?> threadLocalMapClass = threadLocalMap.getClass();
+        Field tableField = threadLocalMapClass.getDeclaredField("table");
+        tableField.setAccessible(true);
+        Object[] table = (Object[]) tableField.get(threadLocalMap);
+
+        if (table == null) {
+            return;
+        }
+
+        // Clear entries loaded by our ClassLoader
+        clearThreadLocalTableEntries(table);
+    }
+
+    private void clearThreadLocalTableEntries(Object[] table) throws NoSuchFieldException, IllegalAccessException {
+        for (int i = 0; i < table.length; i++) {
+            Object entry = table[i];
+            if (entry == null) {
+                continue;
+            }
+
+            // Check if entry's value was loaded by our ClassLoader
+            clearThreadLocalEntryIfNeeded(entry, table, i);
+        }
+    }
+
+    private void clearThreadLocalEntryIfNeeded(Object entry, Object[] table, int index)
+            throws NoSuchFieldException, IllegalAccessException {
+        Field valueField = entry.getClass().getDeclaredField("value");
+        valueField.setAccessible(true);
+        Object value = valueField.get(entry);
+
+        if (value != null && value.getClass().getClassLoader() == classLoader) {
+            table[index] = null; // Clear the entry
+        }
+    }
+
+    private void clearInheritableThreadLocals(Thread thread)
+            throws NoSuchFieldException, IllegalAccessException {
+        // Also clean inheritableThreadLocals
+        Field inheritableThreadLocalsField = Thread.class.getDeclaredField("inheritableThreadLocals");
+        inheritableThreadLocalsField.setAccessible(true);
+        inheritableThreadLocalsField.set(thread, null);
     }
 
     /**
@@ -163,26 +189,35 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupJdbcDrivers() {
         try {
-            List<Driver> driversToDeregister = new ArrayList<>();
-            Enumeration<Driver> drivers = DriverManager.getDrivers();
-
-            while (drivers.hasMoreElements()) {
-                Driver driver = drivers.nextElement();
-                if (driver.getClass().getClassLoader() == classLoader) {
-                    driversToDeregister.add(driver);
-                }
-            }
-
-            for (Driver driver : driversToDeregister) {
-                DriverManager.deregisterDriver(driver);
-                logger.info("[{}] Deregistered JDBC driver: {}", applicationId, driver.getClass().getName());
-            }
-
-            if (!driversToDeregister.isEmpty()) {
-                logger.info("[{}] Deregistered {} JDBC drivers", applicationId, driversToDeregister.size());
-            }
+            List<Driver> driversToDeregister = findDriversLoadedByClassLoader();
+            deregisterDrivers(driversToDeregister);
         } catch (SQLException e) {
             logger.warn("[{}] Failed to cleanup JDBC drivers: {}", applicationId, e.getMessage());
+        }
+    }
+
+    private List<Driver> findDriversLoadedByClassLoader() {
+        List<Driver> driversToDeregister = new ArrayList<>();
+        Enumeration<Driver> drivers = DriverManager.getDrivers();
+
+        while (drivers.hasMoreElements()) {
+            Driver driver = drivers.nextElement();
+            if (driver.getClass().getClassLoader() == classLoader) {
+                driversToDeregister.add(driver);
+            }
+        }
+
+        return driversToDeregister;
+    }
+
+    private void deregisterDrivers(List<Driver> drivers) throws SQLException {
+        for (Driver driver : drivers) {
+            DriverManager.deregisterDriver(driver);
+            logger.info("[{}] Deregistered JDBC driver: {}", applicationId, driver.getClass().getName());
+        }
+
+        if (!drivers.isEmpty()) {
+            logger.info("[{}] Deregistered {} JDBC drivers", applicationId, drivers.size());
         }
     }
 
@@ -196,27 +231,40 @@ public class ClassLoaderCleanupUtil {
         try {
             MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
             Set<ObjectName> allMBeans = mbs.queryNames(null, null);
-            int unregistered = 0;
-
-            for (ObjectName name : allMBeans) {
-                // Unregister MBeans that match our application ID
-                if (name.toString().contains(applicationId)) {
-                    try {
-                        mbs.unregisterMBean(name);
-                        unregistered++;
-                        logger.debug("[{}] Unregistered MBean: {}", applicationId, name);
-                    } catch (javax.management.InstanceNotFoundException | javax.management.MBeanRegistrationException e) {
-                        logger.warn("[{}] Failed to unregister MBean {}: {}",
-                                applicationId, name, e.getMessage());
-                    }
-                }
-            }
+            int unregistered = unregisterMatchingMBeans(mbs, allMBeans);
 
             if (unregistered > 0) {
                 logger.info("[{}] Unregistered {} MBeans", applicationId, unregistered);
             }
         } catch (javax.management.MalformedObjectNameException | javax.management.ReflectionException e) {
             logger.warn("[{}] Failed to cleanup MBeans: {}", applicationId, e.getMessage());
+        }
+    }
+
+    private int unregisterMatchingMBeans(MBeanServer mbs, Set<ObjectName> allMBeans) {
+        int unregistered = 0;
+
+        for (ObjectName name : allMBeans) {
+            if (!name.toString().contains(applicationId)) {
+                continue;
+            }
+            if (tryUnregisterMBean(mbs, name)) {
+                unregistered++;
+            }
+        }
+
+        return unregistered;
+    }
+
+    private boolean tryUnregisterMBean(MBeanServer mbs, ObjectName name) {
+        try {
+            mbs.unregisterMBean(name);
+            logger.debug("[{}] Unregistered MBean: {}", applicationId, name);
+            return true;
+        } catch (javax.management.InstanceNotFoundException | javax.management.MBeanRegistrationException e) {
+            logger.warn("[{}] Failed to unregister MBean {}: {}",
+                    applicationId, name, e.getMessage());
+            return false;
         }
     }
 
