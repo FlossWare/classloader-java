@@ -48,7 +48,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private final AuthConfig authConfig;
     private final Map<String, byte[]> classCache;
     private final ConcurrentHashMap<String, FutureTask<JarFile>> jarFileCache;
-    private final Map<String, Path> jarPathCache;
+    private final ConcurrentHashMap<String, Path> jarPathCache;
     private final int connectTimeout;
     private final int readTimeout;
     private volatile boolean closed = false;
@@ -204,13 +204,15 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             @Override
             public JarFile call() throws IOException {
                 Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
+                // Register temp file immediately so it can be cleaned up on cancellation or close()
+                jarPathCache.put(artifactKey, tempJarPath);
                 try {
                     downloadJarFile(jarUrl, tempJarPath);
                     JarFile jarFile = new JarFile(tempJarPath.toFile());
-                    jarPathCache.put(artifactKey, tempJarPath);
                     return jarFile;
                 } catch (IOException e) {
                     // Clean up temp file on failure
+                    jarPathCache.remove(artifactKey);
                     try {
                         Files.deleteIfExists(tempJarPath);
                     } catch (IOException ignored) {
@@ -245,6 +247,15 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             throw new IOException("Interrupted while waiting for artifact download: " + artifactKey, e);
         } catch (CancellationException e) {
             jarFileCache.remove(artifactKey, existingTask);
+            // Clean up temp file if it was created before cancellation
+            Path tempPath = jarPathCache.remove(artifactKey);
+            if (tempPath != null) {
+                try {
+                    Files.deleteIfExists(tempPath);
+                } catch (IOException ignored) {
+                    // Ignore cleanup errors
+                }
+            }
             throw new IOException("Artifact download was cancelled: " + artifactKey, e);
         }
     }
