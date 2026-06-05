@@ -56,6 +56,7 @@ public class CloudStorageClassSource implements ClassSource, AutoCloseable {
         this.client = Objects.requireNonNull(client, "client cannot be null");
     }
 
+    /** {@inheritDoc} */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -63,6 +64,7 @@ public class CloudStorageClassSource implements ClassSource, AutoCloseable {
         return client.readFile(path);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -74,11 +76,17 @@ public class CloudStorageClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "CloudStorageClassSource[" + client.getDescription() + "]";
     }
 
+    /**
+     * Closes the underlying cloud storage client and releases resources.
+     *
+     * @throws IOException if an I/O error occurs during closing
+     */
     @Override
     public void close() throws IOException {
         if (client != null) {

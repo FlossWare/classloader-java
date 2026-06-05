@@ -42,15 +42,41 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         this.maxClassSize = maxClassSize;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Downloads the class file from MinIO. Validates object size before
+     * downloading to prevent out-of-memory errors.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
         String objectName = buildObjectName(className);
 
         // Check size first to prevent OOM
-        StatObjectResponse stat;
+        long size = getAndValidateObjectSize(objectName);
+
+        // Safe to download - size is within limits
+        return downloadClassData(objectName, size);
+    }
+
+    private long getAndValidateObjectSize(String objectName) throws IOException {
+        StatObjectResponse stat = getObjectStats(objectName);
+        long size = stat.size();
+
+        if (size > maxClassSize) {
+            throw new IOException("Class file too large: " + size + " bytes (max " + maxClassSize + ")");
+        }
+        if (size > Integer.MAX_VALUE) {
+            throw new IOException("Class file exceeds Java array limit: " + size);
+        }
+
+        return size;
+    }
+
+    private StatObjectResponse getObjectStats(String objectName) throws IOException {
         try {
-            stat = minioClient.statObject(
+            return minioClient.statObject(
                 StatObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectName)
@@ -60,16 +86,9 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         } catch (IOException e) {
             throw new IOException("IO error getting object stats: " + objectName, e);
         }
+    }
 
-        long size = stat.size();
-        if (size > maxClassSize) {
-            throw new IOException("Class file too large: " + size + " bytes (max " + maxClassSize + ")");
-        }
-        if (size > Integer.MAX_VALUE) {
-            throw new IOException("Class file exceeds Java array limit: " + size);
-        }
-
-        // Safe to download - size is within limits
+    private byte[] downloadClassData(String objectName, long size) throws IOException {
         try (InputStream stream = minioClient.getObject(
                 GetObjectArgs.builder()
                     .bucket(bucketName)
@@ -90,17 +109,29 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     private void readFully(InputStream stream, byte[] data, int size) throws IOException {
         Objects.requireNonNull(stream, "stream cannot be null");
         Objects.requireNonNull(data, "data cannot be null");
-        int totalRead = 0;
+        int totalRead = readBytesFromStream(stream, data, size);
+        validateBytesRead(size, totalRead);
+    }
 
+    private int readBytesFromStream(InputStream stream, byte[] data, int size) throws IOException {
+        int totalRead = 0;
         while (totalRead < size) {
             int n = stream.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                break;
+                return totalRead;
             }
             totalRead += n;
         }
+        return totalRead;
     }
 
+    private void validateBytesRead(int expected, int actual) throws IOException {
+        if (actual != expected) {
+            throw new IOException("Expected " + expected + " bytes but read " + actual);
+        }
+    }
+
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -120,6 +151,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "MinioClassSource[bucket=" + bucketName + ", prefix=" + prefix + "]";

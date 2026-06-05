@@ -51,6 +51,13 @@ public class FileSystemCache implements ClassCache {
         this(Paths.get(cacheDirectory));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads the cached class file from disk. Returns {@code null} if the class
+     * is not cached, if the file exceeds the maximum allowed size, or if an I/O
+     * error occurs during reading.</p>
+     */
     @Override
     public byte[] get(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -59,7 +66,6 @@ public class FileSystemCache implements ClassCache {
             if (!Files.exists(classFile)) {
                 return null;
             }
-
             return loadClassFileIfValid(classFile);
         } catch (IOException e) {
             // Invalid class name, path traversal attempt, or I/O error
@@ -80,6 +86,13 @@ public class FileSystemCache implements ClassCache {
         return Files.readAllBytes(classFile);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Writes class bytecode to a file on disk using atomic file operations
+     * (write to temp file, then atomic move) to prevent corruption from
+     * concurrent writes. Thread-safe via an internal write lock.</p>
+     */
     @Override
     public void put(String className, byte[] classData) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -108,6 +121,11 @@ public class FileSystemCache implements ClassCache {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Checks whether the corresponding class file exists on disk.</p>
+     */
     @Override
     public boolean contains(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -118,6 +136,12 @@ public class FileSystemCache implements ClassCache {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Recursively deletes all files and subdirectories within the cache directory.
+     * Thread-safe via an internal write lock shared with {@link #put} and {@link #remove}.</p>
+     */
     @Override
     public void clear() throws IOException {
         // Use same lock as put() to prevent race conditions
@@ -136,15 +160,19 @@ public class FileSystemCache implements ClassCache {
 
     private List<IOException> deleteCacheFiles() throws IOException {
         List<IOException> errors = new ArrayList<>();
+        deletePathsRecursively(cacheDirectory, errors);
+        return errors;
+    }
 
+    private void deletePathsRecursively(Path path, List<IOException> errors) {
         // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
-        try (Stream<Path> paths = Files.walk(cacheDirectory)) {
+        try (Stream<Path> paths = Files.walk(path)) {
             // Sort by depth (deepest first) to delete files before directories
             paths.sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
-                 .forEach(path -> deletePathSafely(path, errors));
+                 .forEach(p -> deletePathSafely(p, errors));
+        } catch (IOException e) {
+            errors.add(e);
         }
-
-        return errors;
     }
 
     private void deletePathSafely(Path path, List<IOException> errors) {
@@ -163,14 +191,23 @@ public class FileSystemCache implements ClassCache {
         if (errors.isEmpty()) {
             return;
         }
+        throw createDeletionException(errors);
+    }
 
+    private IOException createDeletionException(List<IOException> errors) {
         IOException exception = new IOException(
             "Failed to clear cache: " + errors.size() + " file(s) could not be deleted"
         );
         errors.forEach(exception::addSuppressed);
-        throw exception;
+        return exception;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Deletes the class file from disk. Thread-safe via an internal write lock
+     * shared with {@link #put} and {@link #clear}.</p>
+     */
     @Override
     public void remove(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -185,12 +222,27 @@ public class FileSystemCache implements ClassCache {
     }
 
     private Path getClassFilePath(String className) throws IOException {
-        // Validate class name format (must be valid Java fully-qualified class name)
-        // Examples: "MyClass", "com.example.MyClass", "com.example.pkg.MyClass$Inner"
+        validateClassNameFormat(className);
+        validateNoPathTraversal(className);
+
+        // Convert class name to file path (e.g., "com.example.MyClass" → "com/example/MyClass.class")
+        String fileName = ClassNameUtil.toClassFilePath(className);
+        Path resolvedPath = cacheDirectory.resolve(fileName).normalize();
+
+        // Defense in depth: ensure the resolved path is within cacheDirectory
+        // This catches any path traversal attempts that made it through validation
+        validateResolvedPath(resolvedPath, className);
+
+        return resolvedPath;
+    }
+
+    private void validateClassNameFormat(String className) throws IOException {
         if (className == null || className.isEmpty()) {
             throw new IOException("Class name cannot be null or empty");
         }
+    }
 
+    private void validateNoPathTraversal(String className) throws IOException {
         // Check for obvious path traversal attempts before conversion
         // Valid class names use dots, not slashes or backslashes
         if (className.contains("..")) {
@@ -202,18 +254,12 @@ public class FileSystemCache implements ClassCache {
         if (className.contains("\\")) {
             throw new IOException("Invalid class name (contains '\\'): " + className);
         }
+    }
 
-        // Convert class name to file path (e.g., "com.example.MyClass" → "com/example/MyClass.class")
-        String fileName = ClassNameUtil.toClassFilePath(className);
-        Path resolvedPath = cacheDirectory.resolve(fileName).normalize();
-
-        // Defense in depth: ensure the resolved path is within cacheDirectory
-        // This catches any path traversal attempts that made it through validation
+    private void validateResolvedPath(Path resolvedPath, String className) throws IOException {
         if (!resolvedPath.normalize().startsWith(cacheDirectory.normalize())) {
             throw new IOException("Path traversal attempt detected: " + className);
         }
-
-        return resolvedPath;
     }
 
     /**

@@ -87,6 +87,11 @@ public class DatabaseClassSource implements ClassSource {
         return identifier;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Queries the database for the class bytecode using a prepared statement.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -108,6 +113,7 @@ public class DatabaseClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -125,6 +131,7 @@ public class DatabaseClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "DatabaseClassSource[table=" + tableName + ", classColumn=" +

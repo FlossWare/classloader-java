@@ -3,7 +3,6 @@ package org.flossware.classloader;
 import org.flossware.classloader.cache.ClassCache;
 import org.flossware.classloader.delegation.DelegationStrategy;
 import org.flossware.classloader.delegation.ParentFirstDelegation;
-import org.flossware.classloader.lifecycle.ClassLoadEvent;
 import org.flossware.classloader.lifecycle.ClassLoaderLifecycleListener;
 
 import java.io.IOException;
@@ -95,14 +94,27 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
     private final BytecodeVerifier bytecodeVerifier;
     private volatile boolean closed = false;
 
-    private ApplicationClassLoader(Builder builder) {
-        super(builder.parent != null ? builder.parent : getSystemClassLoader());
-        this.classSources = new ArrayList<>(builder.classSources);
-        this.cache = builder.cache;
-        this.useCache = builder.useCache && cache != null;
-        this.delegationStrategy = builder.delegationStrategy;
-        this.listeners = new CopyOnWriteArrayList<>(builder.listeners);
-        this.bytecodeVerifier = builder.bytecodeVerifier;
+    // Helper components
+    private final ClassLoaderEventDispatcher eventDispatcher;
+    private final ClassLoadingCoordinator loadingCoordinator;
+    private final ClassLoaderResourceManager resourceManager;
+
+    ApplicationClassLoader(ApplicationClassLoaderBuilder builder) {
+        super(builder.getParent() != null ? builder.getParent() : getSystemClassLoader());
+        this.classSources = new ArrayList<>(builder.getClassSources());
+        this.cache = builder.getCache();
+        this.useCache = builder.isUseCache() && cache != null;
+        this.delegationStrategy = builder.getDelegationStrategy();
+        this.listeners = new CopyOnWriteArrayList<>(builder.getListeners());
+        this.bytecodeVerifier = builder.getBytecodeVerifier();
+
+        // Initialize helper components
+        this.eventDispatcher = new ClassLoaderEventDispatcher(this.listeners);
+        this.loadingCoordinator = new ClassLoadingCoordinator(this.classSources, this.cache,
+                                                             this.useCache, this.bytecodeVerifier,
+                                                             this.eventDispatcher);
+        this.resourceManager = new ClassLoaderResourceManager(this.classSources, this.cache,
+                                                             this.eventDispatcher);
     }
 
     @Override
@@ -113,8 +125,8 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return c;
         }
 
-        // Use delegation strategy
-        c = delegationStrategy.loadClass(name, getParent(), this::findClassInternal);
+        // Use delegation strategy to load the class
+        c = delegationStrategy.loadClass(name, getParent(), this::findClass);
 
         if (resolve) {
             resolveClass(c);
@@ -125,214 +137,13 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
 
     @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
-        return findClassInternal(name);
-    }
-
-    private Class<?> findClassInternal(String name) throws ClassNotFoundException {
         if (closed) {
             throw new IllegalStateException("ApplicationClassLoader is closed");
         }
 
-        byte[] classData = null;
-        ClassSource usedSource = null;
-
-        // Try cache first (single operation to avoid TOCTOU race)
-        if (useCache && cache != null) {
-            classData = cache.get(name);
-            if (classData != null) {
-                fireClassCacheHit(name);
-                verifyBytecode(name, classData);
-                return defineClass(name, classData, 0, classData.length);
-            }
-        }
-
-        // Load from sources with fast-fail approach
-        List<String> attemptedSources = new ArrayList<>();
-        List<String> failureReasons = new ArrayList<>();
-
-        for (ClassSource source : classSources) {
-            // Fast path: check if source can load before attempting expensive network call
-            if (!source.canLoad(name)) {
-                continue;
-            }
-
-            attemptedSources.add(source.getDescription());
-
-            try {
-                long loadStartTime = System.nanoTime();
-                classData = source.loadClassData(name);
-
-                if (classData != null) {
-                    usedSource = source;
-                    long loadTime = System.nanoTime() - loadStartTime;
-
-                    // Validate class data
-                    validateClassData(name, classData);
-
-                    // Verify bytecode
-                    verifyBytecode(name, classData);
-
-                    // Cache successful load
-                    if (useCache && cache != null) {
-                        tryCacheClassData(name, classData);
-                    }
-
-                    // Define the class
-                    Class<?> clazz = defineClass(name, classData, 0, classData.length);
-
-                    // Fire event with accurate load time
-                    fireClassLoaded(new ClassLoadEvent(name, usedSource, loadTime, classData.length));
-
-                    return clazz;
-                }
-            } catch (IOException e) {
-                failureReasons.add(source.getDescription() + ": " + e.getMessage());
-                // Continue to next source
-            }
-        }
-
-        // Build detailed error message
-        String errorMsg = "Class not found: " + name +
-                         " (tried " + attemptedSources.size() + " sources";
-        if (!failureReasons.isEmpty()) {
-            errorMsg += ", failures: " + String.join("; ", failureReasons);
-        }
-        errorMsg += ")";
-
-        ClassNotFoundException ex = new ClassNotFoundException(errorMsg);
-        fireClassLoadFailed(name, ex);
-        throw ex;
-    }
-
-    /**
-     * Validates class bytecode data.
-     * Checks magic number and minimum size to prevent invalid class data from being loaded.
-     */
-    private void validateClassData(String name, byte[] classData) throws ClassNotFoundException {
-        if (classData.length < 4) {
-            throw new ClassNotFoundException(
-                name + ": Invalid class data (too small: " + classData.length + " bytes)");
-        }
-
-        // Check magic number (0xCAFEBABE)
-        if (classData[0] != (byte)0xCA || classData[1] != (byte)0xFE ||
-            classData[2] != (byte)0xBA || classData[3] != (byte)0xBE) {
-            throw new ClassNotFoundException(
-                name + ": Invalid class file magic number");
-        }
-    }
-
-    /**
-     * Verifies bytecode if verifier is configured.
-     * Extracted to avoid code duplication.
-     */
-    private void verifyBytecode(String name, byte[] classData) throws ClassNotFoundException {
-        if (bytecodeVerifier != null) {
-            try {
-                bytecodeVerifier.verify(name, classData);
-            } catch (SecurityException e) {
-                ClassNotFoundException ex = new ClassNotFoundException(
-                    "Bytecode verification failed: " + name, e);
-                fireClassLoadFailed(name, ex);
-                throw ex;
-            }
-        }
-    }
-
-    /**
-     * Attempts to cache class data, logging failures but not throwing exceptions.
-     * Cache failures should not prevent class loading from succeeding.
-     */
-    private void tryCacheClassData(String name, byte[] classData) {
-        try {
-            cache.put(name, classData);
-            fireClassCached(name, classData);
-        } catch (IOException e) {
-            logError("Failed to cache class " + name + ": " + e.getMessage());
-            fireClassCacheFailed(name, e);
-        } catch (Throwable e) {
-            // Catch all errors (including OutOfMemoryError) to prevent cache failures
-            // from breaking class loading
-            logError("Unexpected error caching class " + name + ": " + e.getMessage());
-            fireClassCacheFailed(name, e);
-        }
-    }
-
-    private void fireClassLoaded(ClassLoadEvent event) {
-        for (ClassLoaderLifecycleListener listener : listeners) {
-            try {
-                listener.onClassLoaded(event);
-            } catch (RuntimeException e) {
-                // Don't let listener exceptions break class loading, but log them
-                logError("Listener error in " + listener.getClass().getSimpleName() +
-                        ".onClassLoaded: " + e.getMessage());
-            }
-        }
-    }
-
-    private void fireClassCacheHit(String className) {
-        for (ClassLoaderLifecycleListener listener : listeners) {
-            try {
-                listener.onClassCacheHit(className);
-            } catch (RuntimeException e) {
-                // Don't let listener exceptions break class loading, but log them
-                logError("Listener error in " + listener.getClass().getSimpleName() +
-                        ".onClassCacheHit: " + e.getMessage());
-            }
-        }
-    }
-
-    private void fireClassCached(String className, byte[] classData) {
-        for (ClassLoaderLifecycleListener listener : listeners) {
-            try {
-                listener.onClassCached(className, classData);
-            } catch (RuntimeException e) {
-                // Don't let listener exceptions break class loading, but log them
-                logError("Listener error in " + listener.getClass().getSimpleName() +
-                        ".onClassCached: " + e.getMessage());
-            }
-        }
-    }
-
-    private void fireClassLoadFailed(String className, Throwable error) {
-        for (ClassLoaderLifecycleListener listener : listeners) {
-            try {
-                listener.onClassLoadFailed(className, error);
-            } catch (RuntimeException e) {
-                // Don't let listener exceptions break class loading, but log them
-                logError("Listener error in " + listener.getClass().getSimpleName() +
-                        ".onClassLoadFailed: " + e.getMessage());
-            }
-        }
-    }
-
-    private void fireClassCacheFailed(String className, Throwable error) {
-        for (ClassLoaderLifecycleListener listener : listeners) {
-            try {
-                listener.onClassCacheFailed(className, error);
-            } catch (RuntimeException e) {
-                // Don't let listener exceptions break class loading, but log them
-                logError("Listener error in " + listener.getClass().getSimpleName() +
-                        ".onClassCacheFailed: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Logs an error message. Uses SLF4J if available, otherwise falls back to System.err.
-     */
-    private static void logError(String message) {
-        try {
-            // Try SLF4J if available (optional dependency)
-            Class<?> loggerFactoryClass = Class.forName("org.slf4j.LoggerFactory");
-            Object logger = loggerFactoryClass.getMethod("getLogger", Class.class)
-                .invoke(null, ApplicationClassLoader.class);
-            logger.getClass().getMethod("error", String.class).invoke(logger, message);
-        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-                 java.lang.reflect.InvocationTargetException e) {
-            // SLF4J not available or error occurred, fall back to System.err
-            System.err.println("[ApplicationClassLoader ERROR] " + message);
-        }
+        // Use the loading coordinator to handle all class loading logic
+        byte[] classData = loadingCoordinator.loadClass(name);
+        return defineClass(name, classData, 0, classData.length);
     }
 
     /**
@@ -354,47 +165,8 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             }
             closed = true;
 
-            List<Exception> exceptions = new ArrayList<>();
-
-            // Close all closeable class sources
-            for (ClassSource source : classSources) {
-                if (source instanceof AutoCloseable) {
-                    try {
-                        ((AutoCloseable) source).close();
-                    } catch (IOException e) {
-                        exceptions.add(e);
-                    } catch (RuntimeException e) {
-                        exceptions.add(e);
-                    }
-                }
-            }
-
-            // Close cache if closeable
-            if (cache instanceof AutoCloseable) {
-                try {
-                    ((AutoCloseable) cache).close();
-                } catch (IOException e) {
-                    exceptions.add(e);
-                } catch (RuntimeException e) {
-                    exceptions.add(e);
-                }
-            }
-
-            // Notify listeners
-            for (ClassLoaderLifecycleListener listener : listeners) {
-                try {
-                    listener.onClassLoaderClosed();
-                } catch (RuntimeException e) {
-                    exceptions.add(e);
-                }
-            }
-
-            // Throw if any exceptions occurred
-            if (!exceptions.isEmpty()) {
-                IOException ex = new IOException("Failed to close ApplicationClassLoader");
-                exceptions.forEach(ex::addSuppressed);
-                throw ex;
-            }
+            // Use resource manager to handle all cleanup
+            resourceManager.closeResources();
         }
     }
 
@@ -462,353 +234,11 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
     }
 
     /**
-     * Creates a new Builder for constructing ApplicationClassLoader instances.
+     * Creates a new builder for constructing ApplicationClassLoader instances.
      *
-     * @return A new Builder with default configuration
+     * @return A new ApplicationClassLoaderBuilder with default configuration
      */
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /**
-     * Builder for constructing ApplicationClassLoader instances with fluent API.
-     *
-     * <p>Supports configuration of:</p>
-     * <ul>
-     *   <li>Multiple class sources (local, HTTP, cloud storage, databases, Maven, etc.)</li>
-     *   <li>Class caching (in-memory or filesystem-based)</li>
-     *   <li>Delegation strategy (parent-first, parent-last, custom)</li>
-     *   <li>Lifecycle listeners (logging, resource tracking, metrics)</li>
-     *   <li>Bytecode verification (checksum validation)</li>
-     * </ul>
-     *
-     * <p><b>Basic Example:</b></p>
-     * <pre>{@code
-     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
-     *     .addLocalSource("/path/to/classes")
-     *     .addRemoteSource("https://example.com/classes")
-     *     .addMavenCentral("com.example:my-lib:1.0")
-     *     .parentLast()  // Load from sources before parent
-     *     .build();
-     * }</pre>
-     *
-     * <p><b>Advanced Example with Caching and Listeners:</b></p>
-     * <pre>{@code
-     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
-     *     .addRemoteJar("https://cdn.example.com/lib.jar")
-     *     .cache(new FileSystemCache(Paths.get("/tmp/class-cache")))
-     *     .addLoggingListener(true)  // Verbose logging
-     *     .trackResources()          // Track loaded resources
-     *     .bytecodeVerifier(new ChecksumValidator(checksumMap))
-     *     .build();
-     * }</pre>
-     *
-     * <p><b>Defaults:</b></p>
-     * <ul>
-     *   <li>parent: Thread.currentThread().getContextClassLoader()</li>
-     *   <li>delegation: ParentFirstDelegation (standard Java behavior)</li>
-     *   <li>cache: In-memory cache (if useCache=true)</li>
-     *   <li>bytecodeVerifier: null (no verification)</li>
-     * </ul>
-     */
-    public static class Builder {
-        private static final int MAX_CLASS_SOURCES = 100;
-
-        private ClassLoader parent;
-        private final List<ClassSource> classSources = new ArrayList<>();
-        private ClassCache cache;
-        private boolean useCache = true;
-        private DelegationStrategy delegationStrategy = new ParentFirstDelegation();
-        private final List<ClassLoaderLifecycleListener> listeners = new ArrayList<>();
-        private BytecodeVerifier bytecodeVerifier;
-
-        /**
-         * Sets the parent ClassLoader for delegation.
-         *
-         * <p>If not set, defaults to {@code Thread.currentThread().getContextClassLoader()}.</p>
-         *
-         * @param parent The parent ClassLoader (null to use bootstrap classloader as parent)
-         * @return this builder
-         */
-        public Builder parent(ClassLoader parent) {
-            this.parent = parent;
-            return this;
-        }
-
-        /**
-         * Adds a custom ClassSource to the loading chain.
-         *
-         * <p>Sources are tried in the order they're added. Maximum 100 sources.</p>
-         *
-         * @param source The ClassSource to add
-         * @return this builder
-         * @throws NullPointerException if source is null
-         * @throws IllegalStateException if MAX_CLASS_SOURCES (100) is exceeded
-         */
-        public Builder addClassSource(ClassSource source) {
-            Objects.requireNonNull(source, "source cannot be null");
-            if (classSources.size() >= MAX_CLASS_SOURCES) {
-                throw new IllegalStateException(
-                    "Too many class sources (max " + MAX_CLASS_SOURCES + ")");
-            }
-            this.classSources.add(source);
-            return this;
-        }
-
-        /**
-         * Adds a local filesystem directory as a class source.
-         *
-         * <p>Classes are loaded from {@code path + "/" + className.replace('.', '/') + ".class"}</p>
-         *
-         * @param path Base directory path (e.g., "/opt/app/classes" or "target/classes")
-         * @return this builder
-         */
-        public Builder addLocalSource(String path) {
-            return addClassSource(new LocalClassSource(path));
-        }
-
-        /**
-         * Adds an HTTP/HTTPS URL as a class source (no authentication).
-         *
-         * <p>Classes are loaded from {@code baseUrl + "/" + className.replace('.', '/') + ".class"}</p>
-         *
-         * @param baseUrl Base URL (e.g., "https://cdn.example.com/classes")
-         * @return this builder
-         */
-        public Builder addRemoteSource(String baseUrl) {
-            return addClassSource(new RemoteClassSource(baseUrl));
-        }
-
-        /**
-         * Adds an HTTP/HTTPS URL as a class source with authentication.
-         *
-         * @param baseUrl Base URL
-         * @param authConfig Authentication configuration (basic auth, bearer token, API key, etc.)
-         * @return this builder
-         */
-        public Builder addRemoteSource(String baseUrl, AuthConfig authConfig) {
-            return addClassSource(new RemoteClassSource(baseUrl, authConfig));
-        }
-
-        /**
-         * Adds a remote JAR file as a class source (no authentication).
-         *
-         * <p>Downloads and caches the entire JAR, then loads classes from it.</p>
-         *
-         * @param jarUrl URL to JAR file (e.g., "https://cdn.example.com/lib-1.0.jar")
-         * @return this builder
-         */
-        public Builder addRemoteJar(String jarUrl) {
-            return addClassSource(new RemoteJarClassSource(jarUrl));
-        }
-
-        /**
-         * Adds a remote JAR file as a class source with authentication.
-         *
-         * @param jarUrl URL to JAR file
-         * @param authConfig Authentication configuration
-         * @return this builder
-         */
-        public Builder addRemoteJar(String jarUrl, AuthConfig authConfig) {
-            return addClassSource(new RemoteJarClassSource(jarUrl, authConfig));
-        }
-
-        /**
-         * Adds a Nexus RAW repository as a class source without authentication.
-         *
-         * @param nexusUrl The Nexus server URL
-         * @param repository The repository name
-         * @return this builder
-         */
-        public Builder addNexusRawSource(String nexusUrl, String repository) {
-            return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW));
-        }
-
-        /**
-         * Adds a Nexus RAW repository as a class source with authentication.
-         *
-         * @param nexusUrl The Nexus server URL
-         * @param repository The repository name
-         * @param authConfig Authentication configuration
-         * @return this builder
-         */
-        public Builder addNexusRawSource(String nexusUrl, String repository, AuthConfig authConfig) {
-            return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW, authConfig));
-        }
-
-        /**
-         * Adds a pre-configured MavenNexusClassSource as a class source.
-         *
-         * @param source The MavenNexusClassSource to add
-         * @return this builder
-         */
-        public Builder addNexusMavenSource(MavenNexusClassSource source) {
-            return addClassSource(source);
-        }
-
-        /**
-         * Adds Maven Central as a class source for specified artifacts.
-         *
-         * <p>Coordinates format: {@code "groupId:artifactId:version"}</p>
-         *
-         * <p>Example:</p>
-         * <pre>{@code
-         * builder.addMavenCentral(
-         *     "com.google.guava:guava:32.1.0-jre",
-         *     "org.apache.commons:commons-lang3:3.12.0"
-         * )
-         * }</pre>
-         *
-         * @param artifactCoordinates Maven coordinates (groupId:artifactId:version)
-         * @return this builder
-         */
-        public Builder addMavenCentral(String... artifactCoordinates) {
-            MavenRepositoryClassSource.Builder builder = MavenRepositoryClassSource.builder()
-                .mavenCentral();
-            for (String coords : artifactCoordinates) {
-                builder.addArtifact(coords);
-            }
-            return addClassSource(builder.build());
-        }
-
-        public Builder addMavenRepository(String repositoryUrl, String... artifactCoordinates) {
-            MavenRepositoryClassSource.Builder builder = MavenRepositoryClassSource.builder()
-                .repositoryUrl(repositoryUrl);
-            for (String coords : artifactCoordinates) {
-                builder.addArtifact(coords);
-            }
-            return addClassSource(builder.build());
-        }
-
-        public Builder addDatabaseSource(javax.sql.DataSource dataSource, String tableName,
-                                        String classNameColumn, String classBytesColumn) {
-            return addClassSource(new DatabaseClassSource(dataSource, tableName,
-                                                         classNameColumn, classBytesColumn));
-        }
-
-        public Builder addRestApiSource(RestApiClassSource source) {
-            return addClassSource(source);
-        }
-
-        public Builder addCloudStorage(org.flossware.cloud.storage.CloudStorageClient client) {
-            return addClassSource(new CloudStorageClassSource(client));
-        }
-
-        public Builder cache(ClassCache cache) {
-            this.cache = cache;
-            return this;
-        }
-
-        public Builder useCache(boolean useCache) {
-            this.useCache = useCache;
-            return this;
-        }
-
-        /**
-         * Sets a custom delegation strategy.
-         *
-         * <p>Determines whether to check parent ClassLoader before or after custom sources.</p>
-         *
-         * @param strategy The delegation strategy
-         * @return this builder
-         * @throws NullPointerException if strategy is null
-         */
-        public Builder delegationStrategy(DelegationStrategy strategy) {
-            this.delegationStrategy = Objects.requireNonNull(strategy, "delegationStrategy cannot be null");
-            return this;
-        }
-
-        /**
-         * Uses parent-first delegation (standard Java ClassLoader behavior).
-         *
-         * <p>Checks parent ClassLoader first, then custom sources. This is the default.</p>
-         *
-         * @return this builder
-         */
-        public Builder parentFirst() {
-            return delegationStrategy(new ParentFirstDelegation());
-        }
-
-        /**
-         * Uses parent-last delegation (checks custom sources before parent).
-         *
-         * <p>Allows overriding classes from parent ClassLoader, except for specified prefixes
-         * which are always loaded from parent (e.g., JDK classes).</p>
-         *
-         * <p>Default always-parent prefixes include:</p>
-         * <ul>
-         *   <li>java. (Java platform classes)</li>
-         *   <li>javax. (Java extensions)</li>
-         *   <li>sun. (Sun/Oracle internal classes)</li>
-         *   <li>jdk. (JDK internal classes)</li>
-         * </ul>
-         *
-         * <p>Example:</p>
-         * <pre>{@code
-         * builder.parentLast("com.example.core.")  // Always load com.example.core.* from parent
-         * }</pre>
-         *
-         * @param alwaysParentPrefixes Additional prefixes to always load from parent
-         * @return this builder
-         */
-        public Builder parentLast(String... alwaysParentPrefixes) {
-            return delegationStrategy(new org.flossware.classloader.delegation.ParentLastDelegation(alwaysParentPrefixes));
-        }
-
-        public Builder customDelegation(java.util.function.Predicate<String> parentFirstPredicate) {
-            return delegationStrategy(new org.flossware.classloader.delegation.CustomDelegation(parentFirstPredicate));
-        }
-
-        public Builder addListener(ClassLoaderLifecycleListener listener) {
-            this.listeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
-            return this;
-        }
-
-        public Builder addLoggingListener() {
-            return addListener(new org.flossware.classloader.lifecycle.LoggingListener());
-        }
-
-        public Builder addLoggingListener(boolean verbose) {
-            return addListener(new org.flossware.classloader.lifecycle.LoggingListener(verbose));
-        }
-
-        public Builder trackResources() {
-            return addListener(new org.flossware.classloader.lifecycle.ResourceTrackingListener());
-        }
-
-        /**
-         * Sets a bytecode verifier for security validation.
-         *
-         * <p>Verifies loaded bytecode before defining classes (e.g., checksum validation).</p>
-         *
-         * <p>Example:</p>
-         * <pre>{@code
-         * Map<String, String> checksums = new HashMap<>();
-         * checksums.put("com.example.MyClass", "sha256:abc123...");
-         *
-         * builder.bytecodeVerifier(new ChecksumValidator(checksums));
-         * }</pre>
-         *
-         * @param verifier The bytecode verifier (null to disable verification)
-         * @return this builder
-         */
-        public Builder bytecodeVerifier(BytecodeVerifier verifier) {
-            this.bytecodeVerifier = verifier;
-            return this;
-        }
-
-        /**
-         * Builds the ApplicationClassLoader with configured settings.
-         *
-         * @return A new ApplicationClassLoader instance
-         * @throws IllegalStateException if no class sources are configured
-         */
-        public ApplicationClassLoader build() {
-            if (classSources.isEmpty()) {
-                throw new IllegalStateException("At least one class source must be configured");
-            }
-
-            return new ApplicationClassLoader(this);
-        }
+    public static ApplicationClassLoaderBuilder builder() {
+        return ApplicationClassLoaderBuilder.create();
     }
 }

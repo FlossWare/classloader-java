@@ -55,6 +55,7 @@ public class MessageClientClassSource implements ClassSource, AutoCloseable {
         this.client = Objects.requireNonNull(client, "client cannot be null");
     }
 
+    /** {@inheritDoc} */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -62,6 +63,7 @@ public class MessageClientClassSource implements ClassSource, AutoCloseable {
         return client.read(key);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -73,11 +75,17 @@ public class MessageClientClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "MessageClientClassSource[" + client.getDescription() + "]";
     }
 
+    /**
+     * Closes the underlying message client and releases resources.
+     *
+     * @throws IOException if an I/O error occurs during closing
+     */
     @Override
     public void close() throws IOException {
         if (client != null) {

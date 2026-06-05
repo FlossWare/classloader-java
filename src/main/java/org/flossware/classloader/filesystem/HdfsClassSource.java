@@ -34,12 +34,29 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         this.maxClassSize = maxClassSize;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reads class bytecode from HDFS. Validates file size before downloading
+     * to prevent out-of-memory errors.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
         Path classPath = getClassPath(className);
 
         // Check size BEFORE downloading to prevent OOM
+        long size = getAndValidateFileSize(classPath);
+
+        // Safe to download - size is within limits
+        try (InputStream in = hdfs.open(classPath)) {
+            byte[] data = new byte[(int)size];
+            readFully(in, data, (int)size);
+            return data;
+        }
+    }
+
+    private long getAndValidateFileSize(Path classPath) throws IOException {
         FileStatus status = hdfs.getFileStatus(classPath);
         long size = status.getLen();
 
@@ -55,34 +72,36 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             );
         }
 
-        // Safe to download - size is within limits
-        try (InputStream in = hdfs.open(classPath)) {
-            byte[] data = new byte[(int)size];
-            readFully(in, data, (int)size);
-            return data;
-        }
+        return size;
     }
 
     private void readFully(InputStream in, byte[] data, int size) throws IOException {
         Objects.requireNonNull(in, "in cannot be null");
         Objects.requireNonNull(data, "data cannot be null");
-        int totalRead = 0;
+        int totalRead = readBytesFromStream(in, data, size);
+        validateBytesRead(size, totalRead);
+    }
 
+    private int readBytesFromStream(InputStream in, byte[] data, int size) throws IOException {
+        int totalRead = 0;
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
-            if (n == -1) {
-                break;
+            if (n != -1) {
+                totalRead += n;
+            } else {
+                return totalRead;
             }
-            totalRead += n;
         }
+        return totalRead;
+    }
 
-        if (totalRead != size) {
-            throw new IOException(
-                "Expected " + size + " bytes but read " + totalRead
-            );
+    private void validateBytesRead(int expected, int actual) throws IOException {
+        if (actual != expected) {
+            throw new IOException("Expected " + expected + " bytes but read " + actual);
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -94,6 +113,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "HdfsClassSource[basePath=" + basePath + "]";
@@ -107,6 +127,11 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         return new Path(fullPath);
     }
 
+    /**
+     * Closes the underlying HDFS FileSystem and releases resources.
+     *
+     * @throws IOException if an I/O error occurs during closing
+     */
     @Override
     public void close() throws IOException {
         if (hdfs != null) {

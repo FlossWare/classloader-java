@@ -30,7 +30,12 @@ class ClassLoaderResourceManager {
     /**
      * Closes all resources and notifies listeners.
      *
-     * @throws IOException if any resource closure fails
+     * <p>Collects all exceptions from resource closure and listener notification,
+     * then throws an aggregated IOException if any failures occurred. This ensures
+     * all resources are attempted to be closed even if some fail.</p>
+     *
+     * @throws IOException if any resource closure fails, with suppressed exceptions
+     *                     from other closure attempts
      */
     void closeResources() throws IOException {
         List<Exception> exceptions = new ArrayList<>();
@@ -44,6 +49,9 @@ class ClassLoaderResourceManager {
                     exceptions.add(e);
                 } catch (RuntimeException e) {
                     exceptions.add(e);
+                } catch (Exception e) {
+                    // Other checked exceptions from custom AutoCloseable implementations
+                    exceptions.add(e);
                 }
             }
         }
@@ -55,6 +63,9 @@ class ClassLoaderResourceManager {
             } catch (IOException e) {
                 exceptions.add(e);
             } catch (RuntimeException e) {
+                exceptions.add(e);
+            } catch (Exception e) {
+                // Other checked exceptions from custom AutoCloseable implementations
                 exceptions.add(e);
             }
         }

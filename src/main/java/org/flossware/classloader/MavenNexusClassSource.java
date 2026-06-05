@@ -99,6 +99,12 @@ public class MavenNexusClassSource implements ClassSource {
         this(nexusUrl, repository, artifacts, AuthConfig.none());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Searches through all configured Maven artifacts in order, downloading JARs
+     * from Nexus and extracting the requested class file. Results are cached in memory.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -134,6 +140,7 @@ public class MavenNexusClassSource implements ClassSource {
         );
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -145,6 +152,7 @@ public class MavenNexusClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "MavenNexusClassSource[" + nexusUrl + ", repo=" + repository +
@@ -213,7 +221,14 @@ public class MavenNexusClassSource implements ClassSource {
 
             throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
         } finally {
-            connection.disconnect();
+            // Ensure connection is properly closed
+            if (connection != null) {
+                try {
+                    connection.disconnect();
+                } catch (RuntimeException e) {
+                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+                }
+            }
         }
     }
 

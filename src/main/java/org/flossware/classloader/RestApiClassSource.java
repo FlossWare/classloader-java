@@ -23,6 +23,9 @@ public class RestApiClassSource implements ClassSource {
     private static final long MAX_RESPONSE_SIZE = 10 * 1024 * 1024; // 10MB default
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
     private static final int DEFAULT_READ_TIMEOUT = 30000; // 30 seconds
+    private static final String JSON_DATA_FIELD = "\"data\":\"";
+    private static final String JSON_CONTENT_FIELD = "\"content\":\"";
+    private static final int JSON_FIELD_PREFIX_LENGTH = "\"".length() + ":\"".length();
 
     private final String baseUrl;
     private final String classPathTemplate;
@@ -62,6 +65,13 @@ public class RestApiClassSource implements ClassSource {
         this.enableCanLoadCheck = enableCanLoadCheck;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Sends an HTTP GET request to the REST API using the configured URL template,
+     * headers, query parameters, and authentication. The response is processed
+     * according to the configured response format.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -73,43 +83,65 @@ public class RestApiClassSource implements ClassSource {
             connection.setReadTimeout(readTimeout);
             connection.setRequestMethod("GET");
             configureConnection(connection);
+            return fetchAndProcessResponse(connection, url);
+        } finally {
+            safelyDisconnect(connection);
+        }
+    }
 
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP " + responseCode + " for URL: " + url);
-            }
+    private byte[] fetchAndProcessResponse(HttpURLConnection connection, String url) throws IOException {
+        validateResponseCode(connection, url);
+        validateContentLength(connection);
+        return downloadResponseData(connection);
+    }
 
-            // Check response size before downloading
-            long contentLength = connection.getContentLengthLong();
-            if (contentLength > MAX_RESPONSE_SIZE) {
+    private void validateResponseCode(HttpURLConnection connection, String url) throws IOException {
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP " + responseCode + " for URL: " + url);
+        }
+    }
+
+    private void validateContentLength(HttpURLConnection connection) throws IOException {
+        long contentLength = connection.getContentLengthLong();
+        if (contentLength > MAX_RESPONSE_SIZE) {
+            throw new IOException(
+                "Response too large: " + contentLength + " bytes (max " + MAX_RESPONSE_SIZE + ")"
+            );
+        }
+    }
+
+    private byte[] downloadResponseData(HttpURLConnection connection) throws IOException {
+        try (InputStream in = connection.getInputStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            readWithSizeLimit(in, out);
+            return processResponse(out.toByteArray());
+        }
+    }
+
+    private void readWithSizeLimit(InputStream in, ByteArrayOutputStream out) throws IOException {
+        long totalRead = 0;
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        int bytesRead;
+
+        while ((bytesRead = in.read(buffer)) != -1) {
+            totalRead += bytesRead;
+            if (totalRead > MAX_RESPONSE_SIZE) {
                 throw new IOException(
-                    "Response too large: " + contentLength + " bytes (max " + MAX_RESPONSE_SIZE + ")"
+                    "Response exceeded maximum size: " + totalRead + " bytes"
                 );
             }
+            out.write(buffer, 0, bytesRead);
+        }
+    }
 
-            try (InputStream in = connection.getInputStream();
-                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-                // Download with size limit enforcement
-                long totalRead = 0;
-                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                int bytesRead;
-
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    totalRead += bytesRead;
-                    if (totalRead > MAX_RESPONSE_SIZE) {
-                        throw new IOException(
-                            "Response exceeded maximum size: " + totalRead + " bytes"
-                        );
-                    }
-                    out.write(buffer, 0, bytesRead);
-                }
-
-                byte[] responseData = out.toByteArray();
-                return processResponse(responseData);
+    private void safelyDisconnect(HttpURLConnection connection) {
+        if (connection != null) {
+            try {
+                connection.disconnect();
+            } catch (RuntimeException e) {
+                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
             }
-        } finally {
-            connection.disconnect();
         }
     }
 
@@ -139,18 +171,20 @@ public class RestApiClassSource implements ClassSource {
             connection.setReadTimeout(readTimeout);
             connection.setRequestMethod("HEAD");
             configureConnection(connection);
-
-            int responseCode = connection.getResponseCode();
-            return responseCode == HttpURLConnection.HTTP_OK;
+            return checkClassExists(connection);
         } catch (IOException e) {
             return false;
         } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
+            safelyDisconnect(connection);
         }
     }
 
+    private boolean checkClassExists(HttpURLConnection connection) throws IOException {
+        int responseCode = connection.getResponseCode();
+        return responseCode == HttpURLConnection.HTTP_OK;
+    }
+
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "RestApiClassSource[" + baseUrl + ", format=" + responseFormat + ", auth=" + authConfig.getAuthType() + "]";
@@ -209,15 +243,17 @@ public class RestApiClassSource implements ClassSource {
     }
 
     private String extractBase64FromJson(String json) throws IOException {
-        int start = json.indexOf("\"data\":\"");
+        int start = json.indexOf(JSON_DATA_FIELD);
         if (start == -1) {
-            start = json.indexOf("\"content\":\"");
-        }
-        if (start == -1) {
-            throw new IOException("Cannot find data field in JSON response");
+            start = json.indexOf(JSON_CONTENT_FIELD);
+            if (start == -1) {
+                throw new IOException("Cannot find data field in JSON response");
+            }
+            start += JSON_CONTENT_FIELD.length();
+        } else {
+            start += JSON_DATA_FIELD.length();
         }
 
-        start += 8;
         int end = json.indexOf("\"", start);
         if (end == -1) {
             throw new IOException("Malformed JSON response");

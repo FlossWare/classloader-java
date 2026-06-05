@@ -138,6 +138,12 @@ public final class MavenArtifact {
         return packaging;
     }
 
+    /**
+     * Returns a string representation of this artifact in Maven coordinates format.
+     * Format: "groupId:artifactId:version[:classifier][:packaging]"
+     *
+     * @return the Maven coordinates string
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -151,6 +157,14 @@ public final class MavenArtifact {
         return sb.toString();
     }
 
+    /**
+     * Compares this artifact with another object for equality.
+     * Two MavenArtifact instances are equal if they have the same groupId, artifactId,
+     * version, classifier, and packaging.
+     *
+     * @param o the object to compare with
+     * @return true if the objects are equal, false otherwise
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -163,6 +177,11 @@ public final class MavenArtifact {
                Objects.equals(packaging, that.packaging);
     }
 
+    /**
+     * Returns a hash code value for this artifact based on all coordinate fields.
+     *
+     * @return a hash code value for this object
+     */
     @Override
     public int hashCode() {
         return Objects.hash(groupId, artifactId, version, classifier, packaging);

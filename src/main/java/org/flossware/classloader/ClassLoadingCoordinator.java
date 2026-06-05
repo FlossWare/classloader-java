@@ -155,8 +155,8 @@ class ClassLoadingCoordinator {
         } catch (IOException e) {
             ClassLoaderLogger.logError("Failed to cache class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
-        } catch (Throwable e) {
-            ClassLoaderLogger.logError("Unexpected error caching class " + name + ": " + e.getMessage());
+        } catch (RuntimeException e) {
+            ClassLoaderLogger.logError("Unexpected runtime error caching class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
         }
     }

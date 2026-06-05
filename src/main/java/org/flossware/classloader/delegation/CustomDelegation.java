@@ -23,6 +23,13 @@ public class CustomDelegation implements DelegationStrategy {
             "parentFirstPredicate cannot be null");
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Uses the configured predicate to decide per-class whether to use parent-first
+     * or parent-last delegation. If the predicate returns {@code true} for a class name,
+     * parent-first delegation is used; otherwise parent-last is used.</p>
+     */
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
@@ -47,6 +54,7 @@ public class CustomDelegation implements DelegationStrategy {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "CustomDelegation{predicate=" + parentFirstPredicate + "}";

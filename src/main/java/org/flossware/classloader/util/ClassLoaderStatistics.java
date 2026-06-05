@@ -83,6 +83,12 @@ public class ClassLoaderStatistics {
         return classesLoaded > 0 ? (double) cacheHits / classesLoaded : 0.0;
     }
 
+    /**
+     * Returns a human-readable string representation of these statistics
+     * including class count, bytes loaded, cache hits, and cache hit rate.
+     *
+     * @return a formatted string describing these statistics
+     */
     @Override
     public String toString() {
         return String.format("ClassLoaderStatistics{name=%s, classes=%d, bytes=%d, cacheHits=%d, hitRate=%.2f%%}",

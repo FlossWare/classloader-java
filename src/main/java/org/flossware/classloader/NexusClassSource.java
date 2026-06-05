@@ -87,6 +87,11 @@ public class NexusClassSource implements ClassSource {
         this(nexusUrl, repository, NexusMode.MAVEN, AuthConfig.none());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Loads class data from Nexus using the configured mode (RAW or MAVEN).</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -97,6 +102,7 @@ public class NexusClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -108,6 +114,7 @@ public class NexusClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "NexusClassSource[" + nexusUrl + ", repo=" + repository + ", mode=" + mode + ", auth=" + authConfig.getAuthType() + "]";
@@ -180,7 +187,14 @@ public class NexusClassSource implements ClassSource {
                 return out.toByteArray();
             }
         } finally {
-            connection.disconnect();
+            // Ensure connection is properly closed
+            if (connection != null) {
+                try {
+                    connection.disconnect();
+                } catch (RuntimeException e) {
+                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+                }
+            }
         }
     }
 
@@ -216,7 +230,14 @@ public class NexusClassSource implements ClassSource {
 
             throw new IOException("Class file not found in JAR: " + classFileName);
         } finally {
-            connection.disconnect();
+            // Ensure connection is properly closed
+            if (connection != null) {
+                try {
+                    connection.disconnect();
+                } catch (RuntimeException e) {
+                    // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+                }
+            }
         }
     }
 
@@ -237,18 +258,38 @@ public class NexusClassSource implements ClassSource {
         return lastDot > 0 ? className.substring(lastDot + 1) : className;
     }
 
+    /**
+     * Gets the Nexus server URL.
+     *
+     * @return the Nexus URL
+     */
     public String getNexusUrl() {
         return nexusUrl;
     }
 
+    /**
+     * Gets the repository name.
+     *
+     * @return the repository name
+     */
     public String getRepository() {
         return repository;
     }
 
+    /**
+     * Gets the repository mode (RAW or MAVEN).
+     *
+     * @return the Nexus repository mode
+     */
     public NexusMode getMode() {
         return mode;
     }
 
+    /**
+     * Gets the authentication configuration.
+     *
+     * @return the authentication configuration
+     */
     public AuthConfig getAuthConfig() {
         return authConfig;
     }

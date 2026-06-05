@@ -110,10 +110,15 @@ class ClassLoaderCleanupUtilTest {
             cleanup.cleanupMBeans();
 
             assertFalse(mbs.isRegistered(testName));
-        } catch (Exception e) {
+        } catch (javax.management.MBeanRegistrationException | javax.management.InstanceAlreadyExistsException e) {
             // Cleanup if test fails
-            if (mbs.isRegistered(testName)) {
-                mbs.unregisterMBean(testName);
+            try {
+                if (mbs.isRegistered(testName)) {
+                    mbs.unregisterMBean(testName);
+                }
+            } catch (javax.management.MBeanRegistrationException | javax.management.InstanceNotFoundException ex) {
+                // Unable to cleanup, test must fail
+                fail("Failed to cleanup MBean: " + ex.getMessage());
             }
         }
     }
@@ -139,7 +144,7 @@ class ClassLoaderCleanupUtilTest {
         try {
             testClassLoader.close();
             testClassLoader = null; // Release reference
-        } catch (Exception e) {
+        } catch (IOException e) {
             fail("Failed to close classloader: " + e.getMessage());
         }
 

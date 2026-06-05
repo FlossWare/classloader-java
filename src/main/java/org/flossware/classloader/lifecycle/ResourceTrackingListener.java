@@ -21,6 +21,7 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
     private final AtomicLong totalBytesLoaded = new AtomicLong();
     private final AtomicLong cacheHits = new AtomicLong();
 
+    /** {@inheritDoc} */
     @Override
     public void onClassLoaded(ClassLoadEvent event) {
         Objects.requireNonNull(event, "event cannot be null");
@@ -29,12 +30,14 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
         totalBytesLoaded.addAndGet(event.getClassSizeBytes());
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassCacheHit(String className) {
         Objects.requireNonNull(className, "className cannot be null");
         cacheHits.incrementAndGet();
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onResourceOpened(String resourceName, AutoCloseable resource) {
         Objects.requireNonNull(resourceName, "resourceName cannot be null");
@@ -80,13 +83,23 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
 
     /**
      * Closes all tracked resources and clears all tracking data.
+     *
+     * <p>Errors during resource closure are suppressed to ensure all resources
+     * are closed. This is appropriate for cleanup operations where partial
+     * success is acceptable.</p>
      */
     public void closeAllResources() {
         for (AutoCloseable resource : openResources) {
             try {
                 resource.close();
+            } catch (IOException e) {
+                // IO errors during resource closure are suppressed
+                // to ensure we continue closing remaining resources
+            } catch (RuntimeException e) {
+                // Programming errors are suppressed to allow cleanup to continue
             } catch (Exception e) {
-                // Log but don't propagate errors (covers both checked and runtime exceptions)
+                // Other checked exceptions (rare but possible from custom AutoCloseable implementations)
+                // are suppressed to ensure we continue closing remaining resources
             }
         }
         openResources.clear();
@@ -104,12 +117,14 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
         cacheHits.set(0);
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return String.format("ResourceTracker{classes=%d, bytes=%d, cacheHits=%d, resources=%d}",
                 totalClassesLoaded.get(), totalBytesLoaded.get(), cacheHits.get(), openResources.size());
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassLoaderClosed() {
         closeAllResources();

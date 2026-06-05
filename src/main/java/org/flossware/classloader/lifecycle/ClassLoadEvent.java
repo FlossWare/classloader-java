@@ -84,6 +84,12 @@ public class ClassLoadEvent {
         return timestamp;
     }
 
+    /**
+     * Returns a human-readable string representation of this event
+     * including class name, source description, load time, and size.
+     *
+     * @return a formatted string describing this event
+     */
     @Override
     public String toString() {
         return String.format("ClassLoadEvent{class=%s, source=%s, time=%dms, size=%dB}",

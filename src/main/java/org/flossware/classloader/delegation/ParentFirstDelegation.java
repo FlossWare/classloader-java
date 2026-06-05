@@ -8,6 +8,12 @@ import java.util.Objects;
  */
 public class ParentFirstDelegation implements DelegationStrategy {
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Attempts to load the class from the parent ClassLoader first. If the parent
+     * does not have the class, falls back to the configured sources.</p>
+     */
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
@@ -22,6 +28,7 @@ public class ParentFirstDelegation implements DelegationStrategy {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "ParentFirstDelegation";

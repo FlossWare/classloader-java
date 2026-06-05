@@ -41,6 +41,13 @@ public class ParentLastDelegation implements DelegationStrategy {
         );
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Attempts to load the class from configured sources first, unless the class
+     * name matches one of the always-parent prefixes (e.g., java.*, javax.*). Falls
+     * back to the parent ClassLoader if the class is not found in sources.</p>
+     */
     @Override
     public Class<?> loadClass(String name, ClassLoader parent, ClassFinder findInSources)
             throws ClassNotFoundException {
@@ -74,6 +81,7 @@ public class ParentLastDelegation implements DelegationStrategy {
         return alwaysParentPrefixes.clone();
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "ParentLastDelegation{alwaysParent=" + Arrays.toString(alwaysParentPrefixes) + "}";

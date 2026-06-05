@@ -99,52 +99,79 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
         // Download JAR to temp file
         tempJarPath = Files.createTempFile("jclassloader-jar-", ".jar");
+        downloadJarFile();
+        jarFile = new JarFile(tempJarPath.toFile());
+    }
 
+    private void downloadJarFile() throws IOException {
         retryPolicy.execute(() -> {
             URL url = new URL(jarUrl);
             URLConnection connection = url.openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
 
-            if (connection instanceof HttpURLConnection) {
-                HttpURLConnection httpConnection = (HttpURLConnection) connection;
-                configureSSL(httpConnection);
-                configureAuthentication(httpConnection);
-
-                int responseCode = httpConnection.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+            HttpURLConnection httpConnection = null;
+            try {
+                if (connection instanceof HttpURLConnection) {
+                    validateHttpJarResponse((HttpURLConnection) connection, url);
+                    httpConnection = (HttpURLConnection) connection;
                 }
 
-                // Check JAR size before downloading
-                long contentLength = httpConnection.getContentLengthLong();
-                if (contentLength > MAX_JAR_SIZE) {
-                    throw new IOException(
-                        "JAR file too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
-                    );
+                try (InputStream in = connection.getInputStream()) {
+                    Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
                 }
-            }
 
-            try (InputStream in = connection.getInputStream()) {
-                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+                validateDownloadedJarSize();
+                return null;
+            } finally {
+                safelyDisconnectHttpConnection(httpConnection);
             }
-
-            // Validate downloaded file size
-            long actualSize = Files.size(tempJarPath);
-            if (actualSize > MAX_JAR_SIZE) {
-                Files.deleteIfExists(tempJarPath);
-                throw new IOException(
-                    "Downloaded JAR exceeds size limit: " + actualSize + " bytes"
-                );
-            }
-
-            return null;
         });
-
-        // Open the JAR file
-        jarFile = new JarFile(tempJarPath.toFile());
     }
 
+    private void validateHttpJarResponse(HttpURLConnection httpConnection, URL url) throws IOException {
+        configureSSL(httpConnection);
+        configureAuthentication(httpConnection);
+
+        int responseCode = httpConnection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
+        }
+
+        long contentLength = httpConnection.getContentLengthLong();
+        if (contentLength > MAX_JAR_SIZE) {
+            throw new IOException(
+                "JAR file too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
+            );
+        }
+    }
+
+    private void validateDownloadedJarSize() throws IOException {
+        long actualSize = Files.size(tempJarPath);
+        if (actualSize > MAX_JAR_SIZE) {
+            Files.deleteIfExists(tempJarPath);
+            throw new IOException(
+                "Downloaded JAR exceeds size limit: " + actualSize + " bytes"
+            );
+        }
+    }
+
+    private void safelyDisconnectHttpConnection(HttpURLConnection httpConnection) {
+        if (httpConnection != null) {
+            try {
+                httpConnection.disconnect();
+            } catch (RuntimeException e) {
+                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Loads class data from the cached JAR file. The JAR is downloaded on
+     * first access and cached in a temporary file for subsequent requests.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -158,11 +185,20 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         }
 
         long size = entry.getSize();
+        return extractClassDataFromEntry(entry, size);
+    }
+
+    private byte[] extractClassDataFromEntry(JarEntry entry, long size) throws IOException {
         if (size < 0) {
             // Unknown size - read with limit
             return readWithSizeLimit(jarFile.getInputStream(entry), MAX_CLASS_SIZE);
         }
 
+        validateClassSize(size);
+        return readClassDataWithKnownSize(entry, size);
+    }
+
+    private void validateClassSize(long size) throws IOException {
         if (size > MAX_CLASS_SIZE) {
             throw new IOException(
                 "Class file too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
@@ -172,18 +208,24 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         if (size > Integer.MAX_VALUE) {
             throw new IOException("Class file exceeds Java array limit: " + size);
         }
+    }
 
+    private byte[] readClassDataWithKnownSize(JarEntry entry, long size) throws IOException {
         try (InputStream in = jarFile.getInputStream(entry)) {
             byte[] data = new byte[(int)size];
-            int totalRead = 0;
-
-            while (totalRead < size) {
-                int n = in.read(data, totalRead, (int)size - totalRead);
-                if (n == -1) break;
-                totalRead += n;
-            }
-
+            readFully(in, data, (int)size);
             return data;
+        }
+    }
+
+    private void readFully(InputStream in, byte[] data, int size) throws IOException {
+        int totalRead = 0;
+        while (totalRead < size) {
+            int n = in.read(data, totalRead, size - totalRead);
+            if (n == -1) {
+                return;
+            }
+            totalRead += n;
         }
     }
 
@@ -227,6 +269,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "RemoteJarClassSource[" + jarUrl + ", auth=" + authConfig.getAuthType() + "]";

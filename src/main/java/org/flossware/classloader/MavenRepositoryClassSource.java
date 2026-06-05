@@ -93,6 +93,12 @@ public class MavenRepositoryClassSource implements ClassSource {
         this(repositoryUrl, artifacts, AuthConfig.none());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Searches through all configured Maven artifacts in order, downloading JARs
+     * and extracting the requested class file. Results are cached in memory.</p>
+     */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -128,6 +134,7 @@ public class MavenRepositoryClassSource implements ClassSource {
         );
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -139,6 +146,7 @@ public class MavenRepositoryClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "MavenRepositoryClassSource[" + repositoryUrl + ", artifacts=" +
@@ -159,56 +167,84 @@ public class MavenRepositoryClassSource implements ClassSource {
             AuthHelper.configureAuth(connection, authConfig);
             connection.setRequestMethod("GET");
 
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
-            }
-
-            // Check JAR size before downloading
-            long contentLength = connection.getContentLengthLong();
-            if (contentLength > MAX_JAR_SIZE) {
-                throw new IOException(
-                    "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
-                );
-            }
-
-            try (InputStream in = connection.getInputStream();
-                 JarInputStream jarIn = new JarInputStream(in)) {
-
-                JarEntry entry;
-                while ((entry = jarIn.getNextJarEntry()) != null) {
-                    if (entry.getName().equals(classFileName) && !entry.isDirectory()) {
-                        long size = entry.getSize();
-
-                        if (size > MAX_CLASS_SIZE) {
-                            throw new IOException(
-                                "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
-                            );
-                        }
-
-                        // Read with size enforcement
-                        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-                            long totalRead = 0;
-                            int bytesRead;
-
-                            while ((bytesRead = jarIn.read(buffer)) != -1) {
-                                totalRead += bytesRead;
-                                if (totalRead > MAX_CLASS_SIZE) {
-                                    throw new IOException("Class exceeded size limit: " + totalRead);
-                                }
-                                out.write(buffer, 0, bytesRead);
-                            }
-
-                            return out.toByteArray();
-                        }
-                    }
-                }
-            }
-
-            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+            validateJarResponse(connection, jarUrl);
+            return downloadAndExtractClass(connection, classFileName, jarUrl);
         } finally {
-            connection.disconnect();
+            safelyDisconnect(connection);
+        }
+    }
+
+    private void validateJarResponse(HttpURLConnection connection, String jarUrl) throws IOException {
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
+        }
+
+        long contentLength = connection.getContentLengthLong();
+        if (contentLength > MAX_JAR_SIZE) {
+            throw new IOException(
+                "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
+            );
+        }
+    }
+
+    private byte[] downloadAndExtractClass(HttpURLConnection connection, String classFileName, String jarUrl) throws IOException {
+        try (InputStream in = connection.getInputStream();
+             JarInputStream jarIn = new JarInputStream(in)) {
+            return findAndExtractClassFromJar(jarIn, classFileName, jarUrl);
+        }
+    }
+
+    private byte[] findAndExtractClassFromJar(JarInputStream jarIn, String classFileName, String jarUrl) throws IOException {
+        JarEntry entry;
+        while ((entry = jarIn.getNextJarEntry()) != null) {
+            if (!isTargetEntry(entry, classFileName)) {
+                continue;
+            }
+            return extractClassData(jarIn, entry);
+        }
+        throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
+    }
+
+    private boolean isTargetEntry(JarEntry entry, String classFileName) {
+        return entry.getName().equals(classFileName) && !entry.isDirectory();
+    }
+
+    private byte[] extractClassData(JarInputStream jarIn, JarEntry entry) throws IOException {
+        long size = entry.getSize();
+        if (size > MAX_CLASS_SIZE) {
+            throw new IOException(
+                "Class too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
+            );
+        }
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            readClassWithSizeLimit(jarIn, out);
+            return out.toByteArray();
+        }
+    }
+
+    private void readClassWithSizeLimit(JarInputStream jarIn, ByteArrayOutputStream out) throws IOException {
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = jarIn.read(buffer)) != -1) {
+            totalRead += bytesRead;
+            if (totalRead > MAX_CLASS_SIZE) {
+                throw new IOException("Class exceeded size limit: " + totalRead);
+            }
+            out.write(buffer, 0, bytesRead);
+        }
+    }
+
+    private void safelyDisconnect(HttpURLConnection connection) {
+        if (connection != null) {
+            try {
+                connection.disconnect();
+            } catch (RuntimeException e) {
+                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+            }
         }
     }
 
@@ -455,7 +491,10 @@ public class MavenRepositoryClassSource implements ClassSource {
         }
     }
 
-    /** Maven Central repository URL. */
+    /**
+     * Maven Central repository URL.
+     * The primary public repository for open-source Maven artifacts.
+     */
     public static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
 
     /**
@@ -464,6 +503,9 @@ public class MavenRepositoryClassSource implements ClassSource {
      */
     public static final String JCENTER = "https://jcenter.bintray.com/";
 
-    /** Google Maven repository URL. */
+    /**
+     * Google Maven repository URL.
+     * Hosts Android libraries and Google-maintained dependencies.
+     */
     public static final String GOOGLE = "https://maven.google.com/";
 }

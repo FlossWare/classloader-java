@@ -57,6 +57,7 @@ public class VcsClientClassSource implements ClassSource, AutoCloseable {
         this.client = Objects.requireNonNull(client, "client cannot be null");
     }
 
+    /** {@inheritDoc} */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -64,6 +65,7 @@ public class VcsClientClassSource implements ClassSource, AutoCloseable {
         return client.readFile(path);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -75,11 +77,17 @@ public class VcsClientClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "VcsClientClassSource[" + client.getDescription() + "]";
     }
 
+    /**
+     * Closes the underlying VCS client and releases resources.
+     *
+     * @throws IOException if an I/O error occurs during closing
+     */
     @Override
     public void close() throws IOException {
         if (client != null) {

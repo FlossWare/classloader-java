@@ -12,6 +12,10 @@ import java.util.Objects;
  * Supports SHA-256 checksums for integrity verification.
  */
 public final class ChecksumValidator implements BytecodeVerifier {
+    private static final int BYTE_MASK = 0xff;
+    private static final int HEX_BYTES_PER_HASH_BYTE = 2;
+    private static final int EXPECTED_HEX_LENGTH = 1;
+
     private final Map<String, String> checksums;
     private final String algorithm;
 
@@ -38,6 +42,7 @@ public final class ChecksumValidator implements BytecodeVerifier {
         this(checksums, "SHA-256");
     }
 
+    /** {@inheritDoc} */
     @Override
     public void verify(String className, byte[] bytecode) throws SecurityException {
         String expected = checksums.get(className);
@@ -80,10 +85,10 @@ public final class ChecksumValidator implements BytecodeVerifier {
      * @return The hex string
      */
     private static String bytesToHex(byte[] bytes) {
-        StringBuilder hexString = new StringBuilder(2 * bytes.length);
+        StringBuilder hexString = new StringBuilder(HEX_BYTES_PER_HASH_BYTE * bytes.length);
         for (byte b : bytes) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) {
+            String hex = Integer.toHexString(BYTE_MASK & b);
+            if (hex.length() == EXPECTED_HEX_LENGTH) {
                 hexString.append('0');
             }
             hexString.append(hex);

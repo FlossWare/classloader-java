@@ -22,16 +22,19 @@ public class CustomProtocolClassSource implements ClassSource, AutoCloseable {
         this.handler = Objects.requireNonNull(handler, "handler cannot be null");
     }
 
+    /** {@inheritDoc} */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         return handler.fetchClass(className);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         return handler.canHandle(className);
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "CustomProtocolClassSource[protocol=" + handler.getProtocolName() + "]";

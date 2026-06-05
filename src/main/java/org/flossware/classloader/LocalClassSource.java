@@ -52,6 +52,7 @@ public class LocalClassSource implements ClassSource {
         this(Paths.get(basePath));
     }
 
+    /** {@inheritDoc} */
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
@@ -82,6 +83,7 @@ public class LocalClassSource implements ClassSource {
         return Files.readAllBytes(classFile);
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
         try {
@@ -92,6 +94,7 @@ public class LocalClassSource implements ClassSource {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public String getDescription() {
         return "LocalClassSource[" + basePath + "]";

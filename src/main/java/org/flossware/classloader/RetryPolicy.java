@@ -18,6 +18,13 @@ public final class RetryPolicy {
     public interface IOSupplier<T> {
         T get() throws IOException;
     }
+
+    /**
+     * Jitter percentage divisor: represents 25% jitter (1/4 of the base delay).
+     * Used to calculate maximum jitter amount in milliseconds.
+     */
+    private static final int JITTER_PERCENTAGE_DIVISOR = 4;
+
     private final int maxRetries;
     private final long initialDelayMs;
     private final long maxDelayMs;
@@ -140,7 +147,7 @@ public final class RetryPolicy {
 
         // Add proper jitter (±25% random variation) to prevent thundering herd
         if (jitter && delay > 0) {
-            long maxJitter = delay / 4;  // 25% of delay
+            long maxJitter = delay / JITTER_PERCENTAGE_DIVISOR;  // 25% of delay
             // ThreadLocalRandom is thread-safe with zero contention (vs synchronized Math.random())
             // Range: [-maxJitter, +maxJitter] for proper jitter distribution
             long jitterAmount = ThreadLocalRandom.current().nextLong(-maxJitter, maxJitter + 1);
@@ -195,6 +202,12 @@ public final class RetryPolicy {
         return jitter;
     }
 
+    /**
+     * Returns a human-readable string representation of this retry policy
+     * including all configuration parameters.
+     *
+     * @return a formatted string describing this policy
+     */
     @Override
     public String toString() {
         return "RetryPolicy[maxRetries=" + maxRetries +

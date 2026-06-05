@@ -26,6 +26,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
         this(false);
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassLoaded(ClassLoadEvent event) {
         Objects.requireNonNull(event, "event cannot be null");
@@ -36,6 +37,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
                 event.getClassSizeBytes());
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassCacheHit(String className) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -44,6 +46,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassCached(String className, byte[] classData) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -53,6 +56,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
         }
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onClassLoadFailed(String className, Throwable error) {
         Objects.requireNonNull(className, "className cannot be null");
@@ -60,6 +64,7 @@ public class LoggingListener implements ClassLoaderLifecycleListener {
         System.out.printf("[ApplicationClassLoader] Failed to load %s: %s%n", className, error.getMessage());
     }
 
+    /** {@inheritDoc} */
     @Override
     public void onResourceOpened(String resourceName, AutoCloseable resource) {
         Objects.requireNonNull(resourceName, "resourceName cannot be null");
