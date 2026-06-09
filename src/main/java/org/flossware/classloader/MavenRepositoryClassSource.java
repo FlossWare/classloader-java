@@ -128,12 +128,20 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         List<String> errorMessages = new ArrayList<>();
 
         for (MavenArtifact artifact : artifacts) {
+<<<<<<< Updated upstream
             byte[] classData = tryLoadFromArtifact(artifact, classFileName, className, errorMessages);
             if (classData != null) {
+=======
+            byte[] classData = tryLoadFromArtifact(
+                artifact, classFileName, errorMessages);
+            if (classData != null) {
+                classCache.put(cacheKey, classData);
+>>>>>>> Stashed changes
                 return classData;
             }
         }
 
+<<<<<<< Updated upstream
         throwClassNotFoundInArtifacts(className, errorMessages);
         return null; // unreachable
     }
@@ -160,6 +168,10 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
             className + "\nAttempted artifacts:\n  - " + allErrors
         );
+=======
+        // Throw with ALL error details
+        throw buildClassNotFoundException(className, errorMessages);
+>>>>>>> Stashed changes
     }
 
     /** {@inheritDoc} */
@@ -230,9 +242,13 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      *
      * @param artifact The Maven artifact to add
      * @throws NullPointerException if artifact is null
+     * @throws IllegalStateException if this class source is closed
      */
     public void addArtifact(MavenArtifact artifact) {
         Objects.requireNonNull(artifact, "artifact cannot be null");
+        if (closed) {
+            throw new IllegalStateException("MavenRepositoryClassSource is closed");
+        }
         artifacts.add(artifact);
     }
 
@@ -241,8 +257,11 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      * Parses the coordinates in the format "groupId:artifactId:version".
      *
      * @param coordinates Maven coordinates string
+     * @throws NullPointerException if coordinates is null
+     * @throws IllegalStateException if this class source is closed
      */
     public void addArtifact(String coordinates) {
+        Objects.requireNonNull(coordinates, "coordinates cannot be null");
         addArtifact(MavenArtifact.parse(coordinates));
     }
 

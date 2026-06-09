@@ -8,6 +8,14 @@ import java.util.Objects;
  * Immutable value object with proper equals/hashCode/toString implementations.
  */
 public final class MavenArtifact {
+    private static final int MIN_COORDINATE_PARTS = 3;
+    private static final int MAX_COORDINATE_PARTS = 5;
+    private static final int INDEX_GROUP_ID = 0;
+    private static final int INDEX_ARTIFACT_ID = 1;
+    private static final int INDEX_VERSION = 2;
+    private static final int INDEX_CLASSIFIER = 3;
+    private static final int INDEX_PACKAGING = 4;
+
     private final String groupId;
     private final String artifactId;
     private final String version;
@@ -38,6 +46,7 @@ public final class MavenArtifact {
      * @param groupId The Maven group ID
      * @param artifactId The Maven artifact ID
      * @param version The version
+     * @throws NullPointerException if groupId, artifactId, or version is null
      */
     public MavenArtifact(String groupId, String artifactId, String version) {
         this(groupId, artifactId, version, null, "jar");
@@ -56,16 +65,17 @@ public final class MavenArtifact {
         Objects.requireNonNull(coordinates, "coordinates cannot be null");
         String[] parts = coordinates.split(":");
 
-        if (parts.length < 3 || parts.length > 5) {
-            throw new IllegalArgumentException("Invalid Maven coordinates: " + coordinates +
-                ". Expected format: groupId:artifactId:version[:classifier][:packaging]");
+        if (parts.length < MIN_COORDINATE_PARTS || parts.length > MAX_COORDINATE_PARTS) {
+            throw new IllegalArgumentException(
+                "Invalid Maven coordinates: " + coordinates
+                + ". Expected: groupId:artifactId:version[:classifier][:packaging]");
         }
 
-        String groupId = parts[0];
-        String artifactId = parts[1];
-        String version = parts[2];
-        String classifier = parts.length > 3 ? parts[3] : null;
-        String packaging = parts.length > 4 ? parts[4] : "jar";
+        String groupId = parts[INDEX_GROUP_ID];
+        String artifactId = parts[INDEX_ARTIFACT_ID];
+        String version = parts[INDEX_VERSION];
+        String classifier = parts.length > INDEX_CLASSIFIER ? parts[INDEX_CLASSIFIER] : null;
+        String packaging = parts.length > INDEX_PACKAGING ? parts[INDEX_PACKAGING] : "jar";
 
         return new MavenArtifact(groupId, artifactId, version, classifier, packaging);
     }
@@ -170,11 +180,11 @@ public final class MavenArtifact {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MavenArtifact that = (MavenArtifact) o;
-        return Objects.equals(groupId, that.groupId) &&
-               Objects.equals(artifactId, that.artifactId) &&
-               Objects.equals(version, that.version) &&
-               Objects.equals(classifier, that.classifier) &&
-               Objects.equals(packaging, that.packaging);
+        return Objects.equals(groupId, that.groupId)
+            && Objects.equals(artifactId, that.artifactId)
+            && Objects.equals(version, that.version)
+            && Objects.equals(classifier, that.classifier)
+            && Objects.equals(packaging, that.packaging);
     }
 
     /**

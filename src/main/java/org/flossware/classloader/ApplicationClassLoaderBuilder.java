@@ -108,6 +108,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addLocalSource(String path) {
+        Objects.requireNonNull(path, "path cannot be null");
         return addClassSource(new LocalClassSource(path));
     }
 
@@ -119,6 +120,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addRemoteSource(String baseUrl) {
+        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
         return addClassSource(new RemoteClassSource(baseUrl));
     }
 
@@ -130,6 +132,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addRemoteSource(String baseUrl, AuthConfig authConfig) {
+        Objects.requireNonNull(baseUrl, "baseUrl cannot be null");
         return addClassSource(new RemoteClassSource(baseUrl, authConfig));
     }
 
@@ -141,6 +144,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addRemoteJar(String jarUrl) {
+        Objects.requireNonNull(jarUrl, "jarUrl cannot be null");
         return addClassSource(new RemoteJarClassSource(jarUrl));
     }
 
@@ -153,6 +157,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addRemoteJar(String jarUrl, AuthConfig authConfig) {
+        Objects.requireNonNull(jarUrl, "jarUrl cannot be null");
         return addClassSource(new RemoteJarClassSource(jarUrl, authConfig));
     }
 
@@ -165,6 +170,8 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addNexusRawSource(String nexusUrl, String repository) {
+        Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
+        Objects.requireNonNull(repository, "repository cannot be null");
         return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW));
     }
 
@@ -178,6 +185,8 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addNexusRawSource(String nexusUrl, String repository, AuthConfig authConfig) {
+        Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
+        Objects.requireNonNull(repository, "repository cannot be null");
         return addClassSource(new NexusClassSource(nexusUrl, repository, NexusClassSource.NexusMode.RAW, authConfig));
     }
 
@@ -187,8 +196,10 @@ public class ApplicationClassLoaderBuilder {
      *
      * @param source The MavenNexusClassSource to add
      * @return this builder
+     * @throws NullPointerException if source is null
      */
     public ApplicationClassLoaderBuilder addNexusMavenSource(MavenNexusClassSource source) {
+        Objects.requireNonNull(source, "source cannot be null");
         return addClassSource(source);
     }
 
@@ -208,6 +219,7 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addMavenCentral(String... artifactCoordinates) {
+        Objects.requireNonNull(artifactCoordinates, "artifactCoordinates cannot be null");
         MavenRepositoryClassSource.Builder builder = MavenRepositoryClassSource.builder()
             .mavenCentral();
         for (String coords : artifactCoordinates) {
@@ -225,6 +237,8 @@ public class ApplicationClassLoaderBuilder {
      * @return this builder
      */
     public ApplicationClassLoaderBuilder addMavenRepository(String repositoryUrl, String... artifactCoordinates) {
+        Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
+        Objects.requireNonNull(artifactCoordinates, "artifactCoordinates cannot be null");
         MavenRepositoryClassSource.Builder builder = MavenRepositoryClassSource.builder()
             .repositoryUrl(repositoryUrl);
         for (String coords : artifactCoordinates) {
@@ -245,6 +259,10 @@ public class ApplicationClassLoaderBuilder {
      */
     public ApplicationClassLoaderBuilder addDatabaseSource(javax.sql.DataSource dataSource, String tableName,
                                         String classNameColumn, String classBytesColumn) {
+        Objects.requireNonNull(dataSource, "dataSource cannot be null");
+        Objects.requireNonNull(tableName, "tableName cannot be null");
+        Objects.requireNonNull(classNameColumn, "classNameColumn cannot be null");
+        Objects.requireNonNull(classBytesColumn, "classBytesColumn cannot be null");
         return addClassSource(new DatabaseClassSource(dataSource, tableName,
                                                      classNameColumn, classBytesColumn));
     }
@@ -255,8 +273,10 @@ public class ApplicationClassLoaderBuilder {
      *
      * @param source The RestApiClassSource to add
      * @return this builder
+     * @throws NullPointerException if source is null
      */
     public ApplicationClassLoaderBuilder addRestApiSource(RestApiClassSource source) {
+        Objects.requireNonNull(source, "source cannot be null");
         return addClassSource(source);
     }
 
@@ -266,8 +286,10 @@ public class ApplicationClassLoaderBuilder {
      *
      * @param client The cloud storage client to use
      * @return this builder
+     * @throws NullPointerException if client is null
      */
     public ApplicationClassLoaderBuilder addCloudStorage(org.flossware.cloud.storage.CloudStorageClient client) {
+        Objects.requireNonNull(client, "client cannot be null");
         return addClassSource(new CloudStorageClassSource(client));
     }
 

@@ -4,6 +4,7 @@ import org.flossware.classloader.lifecycle.ClassLoadEvent;
 import org.flossware.classloader.lifecycle.ClassLoaderLifecycleListener;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Dispatches lifecycle events to all registered listeners.
@@ -13,19 +14,25 @@ import java.util.List;
  * - Firing cache hit/miss events
  * - Firing load failure events
  * - Error handling for listener exceptions
+ *
+ * <p><b>Exception Handling Strategy:</b> All event methods catch specific RuntimeException
+ * subtypes that commonly arise from listener callback implementations. Since listeners
+ * implement a callback interface outside our control, these catches prevent listener
+ * errors from affecting the main class loading flow.</p>
  */
 class ClassLoaderEventDispatcher {
     private final List<ClassLoaderLifecycleListener> listeners;
 
     ClassLoaderEventDispatcher(List<ClassLoaderLifecycleListener> listeners) {
-        this.listeners = listeners;
+        this.listeners = Objects.requireNonNull(listeners, "listeners cannot be null");
     }
 
     void fireClassLoaded(ClassLoadEvent event) {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassLoaded(event);
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoaded: " + e.getMessage());
             }
@@ -36,7 +43,8 @@ class ClassLoaderEventDispatcher {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCacheHit(className);
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCacheHit: " + e.getMessage());
             }
@@ -47,7 +55,8 @@ class ClassLoaderEventDispatcher {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCached(className, classData);
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCached: " + e.getMessage());
             }
@@ -58,7 +67,8 @@ class ClassLoaderEventDispatcher {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassLoadFailed(className, error);
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoadFailed: " + e.getMessage());
             }
@@ -69,7 +79,8 @@ class ClassLoaderEventDispatcher {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassCacheFailed(className, error);
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassCacheFailed: " + e.getMessage());
             }
@@ -80,7 +91,8 @@ class ClassLoaderEventDispatcher {
         for (ClassLoaderLifecycleListener listener : listeners) {
             try {
                 listener.onClassLoaderClosed();
-            } catch (RuntimeException e) {
+            } catch (NullPointerException | IllegalArgumentException | IllegalStateException
+                     | ClassCastException | UnsupportedOperationException e) {
                 ClassLoaderLogger.logError("Listener error in " + listener.getClass().getSimpleName() +
                         ".onClassLoaderClosed: " + e.getMessage());
             }

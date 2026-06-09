@@ -55,8 +55,10 @@ public class ProtocolHandlerRegistry {
      *
      * @param protocol The protocol name (case-insensitive)
      * @return The handler class, or null if not registered
+     * @throws NullPointerException if protocol is null
      */
     public Class<? extends ProtocolHandler> getHandler(String protocol) {
+        Objects.requireNonNull(protocol, "protocol cannot be null");
         return handlers.get(protocol.toLowerCase(Locale.ROOT));
     }
 

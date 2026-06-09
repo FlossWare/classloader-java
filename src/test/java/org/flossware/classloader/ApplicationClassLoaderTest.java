@@ -553,7 +553,7 @@ class ApplicationClassLoaderTest {
         Path classDir = tempDir.resolve("classes");
         Files.createDirectories(classDir);
 
-        ApplicationClassLoader.Builder builder = ApplicationClassLoader.builder();
+        ApplicationClassLoaderBuilder builder = ApplicationClassLoader.builder();
 
         // Add 100 sources (the MAX_CLASS_SOURCES limit)
         for (int i = 0; i < 100; i++) {

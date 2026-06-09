@@ -9,10 +9,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -165,15 +167,25 @@ public class FileSystemCache implements ClassCache {
     }
 
     private void deletePathsRecursively(Path path, List<IOException> errors) {
+        Objects.requireNonNull(path, "path cannot be null");
+        Objects.requireNonNull(errors, "errors cannot be null");
+        List<Path> sortedPaths = collectSortedPaths(path, errors);
+        for (Path p : sortedPaths) {
+            deletePathSafely(p, errors);
+        }
+    }
+
+    private List<Path> collectSortedPaths(Path root, List<IOException> errors) {
         // Files.walk() returns a Stream that MUST be closed to prevent resource leaks
-        try (Stream<Path> paths = Files.walk(path)) {
+        try (Stream<Path> paths = Files.walk(root)) {
             // Sort by depth (deepest first) to delete files before directories
             // Filter out the root cache directory itself - only delete its contents
-            paths.filter(p -> !p.equals(path))
-                 .sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
-                 .forEach(p -> deletePathSafely(p, errors));
+            return paths.filter(p -> !p.equals(root))
+                .sorted((a, b) -> Integer.compare(b.getNameCount(), a.getNameCount()))
+                .collect(Collectors.toList());
         } catch (IOException e) {
             errors.add(e);
+            return Collections.emptyList();
         }
     }
 
@@ -224,6 +236,7 @@ public class FileSystemCache implements ClassCache {
     }
 
     private Path getClassFilePath(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         validateClassNameFormat(className);
         validateNoPathTraversal(className);
 
@@ -239,12 +252,14 @@ public class FileSystemCache implements ClassCache {
     }
 
     private void validateClassNameFormat(String className) throws IOException {
-        if (className == null || className.isEmpty()) {
+        Objects.requireNonNull(className, "className cannot be null");
+        if (className.isEmpty()) {
             throw new IOException("Class name cannot be null or empty");
         }
     }
 
     private void validateNoPathTraversal(String className) throws IOException {
+        Objects.requireNonNull(className, "className cannot be null");
         // Check for obvious path traversal attempts before conversion
         // Valid class names use dots, not slashes or backslashes
         if (className.contains("..")) {
@@ -259,6 +274,8 @@ public class FileSystemCache implements ClassCache {
     }
 
     private void validateResolvedPath(Path resolvedPath, String className) throws IOException {
+        Objects.requireNonNull(resolvedPath, "resolvedPath cannot be null");
+        Objects.requireNonNull(className, "className cannot be null");
         if (!resolvedPath.normalize().startsWith(cacheDirectory.normalize())) {
             throw new IOException("Path traversal attempt detected: " + className);
         }

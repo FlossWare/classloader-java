@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -68,6 +69,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
      *
      * @param jarUrl The URL of the JAR file to download
      * @param authConfig The authentication configuration
+     * @throws NullPointerException if jarUrl is null
      */
     public RemoteJarClassSource(String jarUrl, AuthConfig authConfig) {
         this(jarUrl, authConfig, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
@@ -77,6 +79,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
      * Creates a JAR remote class source without authentication.
      *
      * @param jarUrl The URL of the JAR file to download
+     * @throws NullPointerException if jarUrl is null
      */
     public RemoteJarClassSource(String jarUrl) {
         this(jarUrl, null, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
@@ -119,8 +122,13 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         HttpURLConnection httpConnection = null;
         try {
             if (connection instanceof HttpURLConnection) {
+<<<<<<< Updated upstream
                 httpConnection = (HttpURLConnection) connection;
                 validateHttpJarResponse(httpConnection, url);
+=======
+                validateHttpJarResponse((HttpURLConnection) connection, url);
+                httpConnection = (HttpURLConnection) connection;
+>>>>>>> Stashed changes
             }
 
             try (InputStream in = connection.getInputStream()) {
@@ -129,7 +137,15 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
             validateDownloadedJarSize();
         } finally {
+<<<<<<< Updated upstream
             safelyDisconnectHttpConnection(httpConnection);
+=======
+            if (httpConnection != null) {
+                safelyDisconnectHttpConnection(httpConnection);
+            } else {
+                safelyCloseUrlConnection(connection);
+            }
+>>>>>>> Stashed changes
         }
     }
 
@@ -160,13 +176,47 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         }
     }
 
+    /**
+     * Safely disconnects an HTTP connection, suppressing specific exceptions.
+     *
+     * <p>This method is used in finally blocks during resource cleanup. Exception
+     * suppression is appropriate here because disconnect() is a cleanup operation
+     * and should not propagate errors that could mask the original exception from
+     * the JAR download.</p>
+     *
+     * @param httpConnection the HTTP connection to disconnect
+     */
     private void safelyDisconnectHttpConnection(HttpURLConnection httpConnection) {
         if (httpConnection != null) {
             try {
                 httpConnection.disconnect();
-            } catch (RuntimeException e) {
-                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+            } catch (IllegalStateException | UncheckedIOException e) {
+                // Suppress exceptions during resource cleanup to avoid masking original exception
             }
+        }
+    }
+
+    /**
+     * Safely closes a non-HTTP URLConnection by closing its input stream.
+     *
+     * <p>URLConnection does not have a disconnect() method, so the standard practice
+     * is to close its input stream to release the underlying socket/resources.
+     * This method is used in finally blocks for non-HTTP connections (e.g., FTP, file)
+     * that would otherwise leak their underlying resources.</p>
+     *
+     * @param connection the URLConnection to close (may be null)
+     */
+    private void safelyCloseUrlConnection(URLConnection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            InputStream in = connection.getInputStream();
+            if (in != null) {
+                in.close();
+            }
+        } catch (IOException | IllegalStateException | UncheckedIOException e) {
+            // Suppress exceptions during resource cleanup to avoid masking original exception
         }
     }
 
@@ -194,8 +244,11 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
     private byte[] extractClassDataFromEntry(JarEntry entry, long size) throws IOException {
         if (size < 0) {
-            // Unknown size - read with limit
-            return readWithSizeLimit(jarFile.getInputStream(entry), MAX_CLASS_SIZE);
+            // Unknown size - read with limit; wrap in try-with-resources to ensure the
+            // InputStream from jarFile.getInputStream() is closed even if readWithSizeLimit throws
+            try (InputStream entryIn = jarFile.getInputStream(entry)) {
+                return readWithSizeLimit(entryIn, MAX_CLASS_SIZE);
+            }
         }
 
         validateClassSize(size);
@@ -234,6 +287,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
     }
 
     private byte[] readWithSizeLimit(InputStream in, long maxSize) throws IOException {
+        Objects.requireNonNull(in, "in cannot be null");
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
             long totalRead = 0;
@@ -241,13 +295,17 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
             while ((bytesRead = in.read(buffer)) != -1) {
                 totalRead += bytesRead;
-                if (totalRead > maxSize) {
-                    throw new IOException("Entry exceeds maximum size: " + totalRead);
-                }
+                validateEntrySize(totalRead, maxSize);
                 out.write(buffer, 0, bytesRead);
             }
 
             return out.toByteArray();
+        }
+    }
+
+    private void validateEntrySize(long totalRead, long maxSize) throws IOException {
+        if (totalRead > maxSize) {
+            throw new IOException("Entry exceeds maximum size: " + totalRead);
         }
     }
 

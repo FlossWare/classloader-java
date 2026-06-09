@@ -293,4 +293,34 @@ class MavenRepositoryClassSourceTest {
             assertNotNull(source);
         }
     }
+
+    @Test
+    void testAddArtifactAfterCloseThrowsIllegalStateException() throws Exception {
+        MavenArtifact artifact = new MavenArtifact("org.example", "my-lib", "1.0.0");
+        MavenRepositoryClassSource source = new MavenRepositoryClassSource(
+                "https://repo.example.com/maven2",
+                new ArrayList<>(Arrays.asList(artifact))
+        );
+
+        source.close();
+
+        assertThrows(IllegalStateException.class, () -> {
+            source.addArtifact("org.example:another-lib:2.0.0");
+        });
+    }
+
+    @Test
+    void testAddArtifactWithCoordinatesAfterCloseThrowsIllegalStateException() throws Exception {
+        MavenArtifact artifact = new MavenArtifact("org.example", "my-lib", "1.0.0");
+        MavenRepositoryClassSource source = new MavenRepositoryClassSource(
+                "https://repo.example.com/maven2",
+                new ArrayList<>(Arrays.asList(artifact))
+        );
+
+        source.close();
+
+        assertThrows(IllegalStateException.class, () -> {
+            source.addArtifact(new MavenArtifact("org.example", "another-lib", "2.0.0"));
+        });
+    }
 }

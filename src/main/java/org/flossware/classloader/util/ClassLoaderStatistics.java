@@ -1,5 +1,7 @@
 package org.flossware.classloader.util;
 
+import java.util.Objects;
+
 /**
  * Statistics about class loading activity.
  * Tracks classes loaded, bytes loaded, and cache hits for monitoring purposes.
@@ -35,7 +37,7 @@ public class ClassLoaderStatistics {
      */
     public ClassLoaderStatistics(String name, int classesLoaded,
                                 long totalBytesLoaded, long cacheHits) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name cannot be null");
         this.classesLoaded = classesLoaded;
         this.totalBytesLoaded = totalBytesLoaded;
         this.cacheHits = cacheHits;

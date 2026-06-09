@@ -29,6 +29,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class MinioClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
+    /** Default HTTPS port number. */
+    private static final int DEFAULT_HTTPS_PORT = 443;
+    /** Default MinIO HTTP port number. */
+    private static final int DEFAULT_MINIO_HTTP_PORT = 9000;
+    /** Minimum valid port number. */
+    private static final int MIN_PORT = 1;
+    /** Maximum valid port number. */
+    private static final int MAX_PORT = 65535;
 
     /** Default HTTPS port number. */
     private static final int DEFAULT_HTTPS_PORT = 443;
@@ -73,6 +81,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private long getAndValidateObjectSize(String objectName) throws IOException {
+        Objects.requireNonNull(objectName, "objectName cannot be null");
         StatObjectResponse stat = getObjectStats(objectName);
         long size = stat.size();
 
@@ -87,6 +96,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private StatObjectResponse getObjectStats(String objectName) throws IOException {
+        Objects.requireNonNull(objectName, "objectName cannot be null");
         try {
             return minioClient.statObject(
                 StatObjectArgs.builder()
@@ -101,6 +111,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private byte[] downloadClassData(String objectName, long size) throws IOException {
+        Objects.requireNonNull(objectName, "objectName cannot be null");
         try (InputStream stream = minioClient.getObject(
                 GetObjectArgs.builder()
                     .bucket(bucketName)
@@ -126,18 +137,24 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private int readBytesFromStream(InputStream stream, byte[] data, int size) throws IOException {
+        Objects.requireNonNull(stream, "stream cannot be null");
+        Objects.requireNonNull(data, "data cannot be null");
         int totalRead = 0;
         while (totalRead < size) {
             int n = stream.read(data, totalRead, size - totalRead);
             if (n == -1) {
-                throw new IOException(
-                    "Incomplete read from MinIO stream: expected " + size
-                    + " bytes, got " + totalRead
-                    + ". Possible network timeout or S3 error.");
+                throwIncompleteReadError(size, totalRead);
             }
             totalRead += n;
         }
         return totalRead;
+    }
+
+    private void throwIncompleteReadError(int expected, int actual) throws IOException {
+        throw new IOException(
+            "Incomplete read from MinIO stream: expected " + expected
+            + " bytes, got " + actual
+            + ". Possible network timeout or S3 error.");
     }
 
     private void validateBytesRead(int expected, int actual) throws IOException {
@@ -188,6 +205,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     }
 
     private String buildObjectName(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         String classPath = ClassNameUtil.toClassFilePath(className);
 
         if (prefix.isEmpty()) {

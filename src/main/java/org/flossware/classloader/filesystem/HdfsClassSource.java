@@ -23,8 +23,15 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
     private static final int DEFAULT_SOCKET_TIMEOUT = 30000; // 30 seconds
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
+<<<<<<< Updated upstream
     private static final int DEFAULT_IPC_PING_INTERVAL = 10000; // 10 seconds
     private static final int DEFAULT_IPC_CONNECT_MAX_RETRIES = 3;
+=======
+    /** Default maximum IPC connection retries before failing. */
+    private static final int DEFAULT_IPC_CONNECT_MAX_RETRIES = 3;
+    /** Default IPC ping interval in milliseconds (10 seconds). */
+    private static final int DEFAULT_IPC_PING_INTERVAL_MS = 10000;
+>>>>>>> Stashed changes
 
     private final FileSystem hdfs;
     private final String basePath;
@@ -59,6 +66,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     }
 
     private long getAndValidateFileSize(Path classPath) throws IOException {
+        Objects.requireNonNull(classPath, "classPath cannot be null");
         FileStatus status = hdfs.getFileStatus(classPath);
         long size = status.getLen();
 
@@ -85,15 +93,28 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     }
 
     private int readBytesFromStream(InputStream in, byte[] data, int size) throws IOException {
+        Objects.requireNonNull(in, "in cannot be null");
+        Objects.requireNonNull(data, "data cannot be null");
         int totalRead = 0;
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
             if (n == -1) {
+<<<<<<< Updated upstream
                 throw new IOException("Incomplete read: expected " + size + " bytes, got " + totalRead);
+=======
+                validateCompleteRead(totalRead, size);
+                return totalRead;
+>>>>>>> Stashed changes
             }
             totalRead += n;
         }
         return totalRead;
+    }
+
+    private void validateCompleteRead(int totalRead, int expected) throws IOException {
+        if (totalRead < expected) {
+            throw new IOException("Incomplete read: expected " + expected + " bytes, got " + totalRead);
+        }
     }
 
     private void validateBytesRead(int expected, int actual) throws IOException {
@@ -121,6 +142,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     }
 
     private Path getClassPath(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         String classFile = ClassNameUtil.toClassFilePath(className);
         String fullPath = basePath.endsWith("/") ?
             basePath + classFile :
@@ -220,6 +242,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
          * @return this builder
          */
         public Builder nameNodeUri(String nameNodeUri) {
+            // nameNodeUri can be null to use configuration defaults - don't require non-null
             this.nameNodeUri = nameNodeUri;
             return this;
         }
@@ -326,7 +349,11 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             // Configure timeouts to prevent hanging
             conf.setInt("ipc.client.connect.timeout", connectTimeout);
             conf.setInt("ipc.client.connect.max.retries", DEFAULT_IPC_CONNECT_MAX_RETRIES);
+<<<<<<< Updated upstream
             conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL);
+=======
+            conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL_MS);
+>>>>>>> Stashed changes
             conf.setInt("dfs.client.socket-timeout", socketTimeout);
 
             FileSystem hdfs = FileSystem.get(conf);

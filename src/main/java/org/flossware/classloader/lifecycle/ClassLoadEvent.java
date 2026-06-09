@@ -7,6 +7,9 @@ import java.util.Objects;
  * Event containing details about a loaded class.
  */
 public class ClassLoadEvent {
+    /** Number of nanoseconds per millisecond, used for time unit conversion. */
+    private static final long NANOS_PER_MILLISECOND = 1_000_000L;
+
     private final String className;
     private final ClassSource source;
     private final long loadTimeNanos;
@@ -63,7 +66,7 @@ public class ClassLoadEvent {
      * @return the load time in milliseconds
      */
     public long getLoadTimeMillis() {
-        return loadTimeNanos / 1_000_000;
+        return loadTimeNanos / NANOS_PER_MILLISECOND;
     }
 
     /**

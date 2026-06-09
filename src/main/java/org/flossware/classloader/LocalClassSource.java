@@ -47,9 +47,10 @@ public class LocalClassSource implements ClassSource {
      * Creates a local class source with the specified base path string and default max size (10MB).
      *
      * @param basePath The base directory path string containing class files
+     * @throws NullPointerException if basePath is null
      */
     public LocalClassSource(String basePath) {
-        this(Paths.get(basePath));
+        this(Paths.get(Objects.requireNonNull(basePath, "basePath cannot be null")));
     }
 
     /** {@inheritDoc} */
@@ -86,6 +87,7 @@ public class LocalClassSource implements ClassSource {
     /** {@inheritDoc} */
     @Override
     public boolean canLoad(String className) {
+        Objects.requireNonNull(className, "className cannot be null");
         try {
             Path classFile = getClassFilePath(className);
             return Files.exists(classFile) && Files.isRegularFile(classFile);

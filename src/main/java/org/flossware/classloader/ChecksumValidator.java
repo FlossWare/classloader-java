@@ -15,6 +15,8 @@ public final class ChecksumValidator implements BytecodeVerifier {
     private static final int BYTE_MASK = 0xff;
     private static final int HEX_BYTES_PER_HASH_BYTE = 2;
     private static final int EXPECTED_HEX_LENGTH = 1;
+    /** Default hash algorithm for checksum verification. */
+    private static final String DEFAULT_ALGORITHM = "SHA-256";
 
     private final Map<String, String> checksums;
     private final String algorithm;
@@ -39,12 +41,14 @@ public final class ChecksumValidator implements BytecodeVerifier {
      * @param checksums Map of class names to expected SHA-256 checksums (hex strings)
      */
     public ChecksumValidator(Map<String, String> checksums) {
-        this(checksums, "SHA-256");
+        this(checksums, DEFAULT_ALGORITHM);
     }
 
     /** {@inheritDoc} */
     @Override
     public void verify(String className, byte[] bytecode) throws SecurityException {
+        Objects.requireNonNull(className, "className cannot be null");
+        Objects.requireNonNull(bytecode, "bytecode cannot be null");
         String expected = checksums.get(className);
         if (expected == null) {
             throw new SecurityException("No checksum found for class: " + className);
@@ -58,11 +62,14 @@ public final class ChecksumValidator implements BytecodeVerifier {
         }
 
         if (!expected.equalsIgnoreCase(actual)) {
-            throw new SecurityException(
-                String.format("Checksum mismatch for %s: expected %s, got %s",
-                    className, expected, actual)
-            );
+            throw new SecurityException(buildMismatchMessage(
+                className, expected, actual));
         }
+    }
+
+    private String buildMismatchMessage(String className, String expected, String actual) {
+        return String.format("Checksum mismatch: %s expected=%s got=%s",
+            className, expected, actual);
     }
 
     /**

@@ -84,19 +84,26 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
     /**
      * Closes all tracked resources and clears all tracking data.
      *
-     * <p>Errors during resource closure are suppressed to ensure all resources
+     * <p>Exceptions during resource closure are suppressed to ensure all resources
      * are closed. This is appropriate for cleanup operations where partial
-     * success is acceptable.</p>
+     * success is acceptable. Errors (e.g., OutOfMemoryError) are allowed to
+     * propagate after attempting to clear resource tracking state, since they
+     * indicate unrecoverable JVM-level problems.</p>
      */
     public void closeAllResources() {
         for (AutoCloseable resource : openResources) {
+<<<<<<< Updated upstream
             closeResourceSuppressingErrors(resource);
+=======
+            closeQuietly(resource);
+>>>>>>> Stashed changes
         }
         openResources.clear();
         loadedClasses.clear();
     }
 
     /**
+<<<<<<< Updated upstream
      * Closes a single resource, suppressing all exceptions to ensure cleanup continues.
      *
      * <p>This is appropriate for cleanup operations where we want to close all resources
@@ -105,11 +112,31 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
      * @param resource the AutoCloseable resource to close
      */
     private void closeResourceSuppressingErrors(AutoCloseable resource) {
+=======
+     * Closes a resource, suppressing checked exceptions and runtime exceptions.
+     *
+     * <p>AutoCloseable.close() declares {@code throws Exception}, so after handling
+     * IOException, RuntimeException, and InterruptedException specifically, any remaining
+     * checked exceptions (e.g., SQLException, NamingException from custom implementations)
+     * are caught as Exception. This is the narrowest practical catch for AutoCloseable
+     * since the method signature is intentionally broad. Errors are allowed to propagate.</p>
+     *
+     * <p><b>Justification for broad Exception catch:</b> The AutoCloseable contract
+     * intentionally declares a broad {@code throws Exception} to accommodate diverse
+     * implementations. After handling the specific exception types above, a catch-all
+     * Exception block is appropriate and necessary to handle unchecked/custom exceptions
+     * from implementations outside our control.</p>
+     *
+     * @param resource the resource to close
+     */
+    private static void closeQuietly(AutoCloseable resource) {
+>>>>>>> Stashed changes
         try {
             resource.close();
         } catch (IOException e) {
             // IO errors during resource closure are suppressed
             // to ensure we continue closing remaining resources
+<<<<<<< Updated upstream
         } catch (RuntimeException e) {
             // Programming errors are suppressed to allow cleanup to continue
         } catch (Exception e) {
@@ -119,6 +146,23 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
             // Error subclasses (e.g., OutOfMemoryError, StackOverflowError, AssertionError)
             // must also be caught to prevent breaking the cleanup loop and leaking
             // remaining unclosed resources
+=======
+        } catch (InterruptedException e) {
+            // Restore the interrupt flag so callers can detect the interruption
+            Thread.currentThread().interrupt();
+        } catch (IllegalStateException e) {
+            // Resource already closed or in invalid state - safe to suppress during cleanup
+        } catch (UnsupportedOperationException e) {
+            // Close not supported by this resource implementation - safe to suppress
+        } catch (java.sql.SQLException e) {
+            // SQL errors during resource closure are suppressed during cleanup
+        } catch (Exception e) {
+            // AutoCloseable.close() declares 'throws Exception'. The specific catch blocks
+            // above handle the most common exception types. This final catch handles any
+            // remaining domain-specific checked exceptions from implementations outside
+            // our control (e.g., javax.naming.NamingException, javax.jms.JMSException).
+            // This is the narrowest practical approach for AutoCloseable compliance.
+>>>>>>> Stashed changes
         }
     }
 

@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -27,11 +28,19 @@ public class RemoteClassSource implements ClassSource {
     /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError from malicious sources */
     private static final int MAX_CLASS_SIZE = 100 * 1024 * 1024;
 
+<<<<<<< Updated upstream
     /** Start of the HTTP 2xx success status code range (inclusive). */
     private static final int HTTP_SUCCESS_MIN = 200;
 
     /** End of the HTTP 2xx success status code range (exclusive). */
     private static final int HTTP_SUCCESS_MAX = 300;
+=======
+    /** HTTP success response code range start (2xx class) */
+    private static final int HTTP_SUCCESS_START = 200;
+
+    /** HTTP success response code range end (exclusive, upper bound of 2xx class) */
+    private static final int HTTP_SUCCESS_END = 300;
+>>>>>>> Stashed changes
 
     private final String baseUrl;
     private final AuthConfig authConfig;
@@ -92,6 +101,7 @@ public class RemoteClassSource implements ClassSource {
      * Creates a remote class source with the specified base URL and no authentication.
      *
      * @param baseUrl The base URL for class files
+     * @throws NullPointerException if baseUrl is null
      */
     public RemoteClassSource(String baseUrl) {
         this(baseUrl, AuthConfig.none(), DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_READ_TIMEOUT_MS, null);
@@ -106,28 +116,35 @@ public class RemoteClassSource implements ClassSource {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
-        return retryPolicy.execute(() -> {
-            String classPath = ClassNameUtil.toClassFilePath(className);
-            // Use URL(URL, String) constructor for proper path joining
-            URL baseURL = new URL(baseUrl);
-            URL url = new URL(baseURL, classPath);
+        return retryPolicy.execute(() -> downloadClass(className));
+    }
 
-            HttpURLConnection httpConnection = null;
-            try {
-                URLConnection connection = url.openConnection();
-                connection.setConnectTimeout(connectTimeoutMs);
-                connection.setReadTimeout(readTimeoutMs);
+    private byte[] downloadClass(String className) throws IOException {
+        String classPath = ClassNameUtil.toClassFilePath(className);
+        // Use URL(URL, String) constructor for proper path joining
+        URL baseURL = new URL(baseUrl);
+        URL url = new URL(baseURL, classPath);
 
-                if (connection instanceof HttpURLConnection) {
-                    httpConnection = (HttpURLConnection) connection;
-                    return downloadFromHttpConnection(httpConnection, connection, className, url);
-                }
+        HttpURLConnection httpConnection = null;
+        URLConnection connection = null;
+        try {
+            connection = url.openConnection();
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
 
-                return downloadFromUrlConnection(connection, className);
-            } finally {
-                safelyDisconnectHttpConnection(httpConnection);
+            if (connection instanceof HttpURLConnection) {
+                httpConnection = (HttpURLConnection) connection;
+                return downloadFromHttpConnection(httpConnection, connection, className, url);
             }
-        });
+
+            return downloadFromUrlConnection(connection, className);
+        } finally {
+            if (httpConnection != null) {
+                safelyDisconnectHttpConnection(httpConnection);
+            } else {
+                safelyCloseUrlConnection(connection);
+            }
+        }
     }
 
     private byte[] downloadFromHttpConnection(HttpURLConnection httpConnection, URLConnection connection, String className, URL url) throws IOException {
@@ -144,7 +161,11 @@ public class RemoteClassSource implements ClassSource {
     private void validateHttpResponse(HttpURLConnection httpConnection, URL url) throws IOException {
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code
+<<<<<<< Updated upstream
         if (responseCode < HTTP_SUCCESS_MIN || responseCode >= HTTP_SUCCESS_MAX) {
+=======
+        if (responseCode < HTTP_SUCCESS_START || responseCode >= HTTP_SUCCESS_END) {
+>>>>>>> Stashed changes
             throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
         }
     }
@@ -169,21 +190,59 @@ public class RemoteClassSource implements ClassSource {
 
         while ((bytesRead = in.read(buffer)) != -1) {
             totalBytes += bytesRead;
-            if (totalBytes > MAX_CLASS_SIZE) {
-                throw new IOException("Class file too large: " + totalBytes +
-                                    " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + className);
-            }
+            validateResponseSize(totalBytes, className);
             out.write(buffer, 0, bytesRead);
         }
     }
 
+    private void validateResponseSize(int totalBytes, String className) throws IOException {
+        if (totalBytes > MAX_CLASS_SIZE) {
+            throw new IOException("Class file too large: " + totalBytes
+                + " bytes (max: " + MAX_CLASS_SIZE + " bytes) - " + className);
+        }
+    }
+
+    /**
+     * Safely disconnects an HTTP connection, suppressing specific exceptions.
+     *
+     * <p>This method is used in finally blocks during resource cleanup. Exception
+     * suppression is appropriate here because disconnect() is a cleanup operation
+     * and should not propagate errors that could mask the original exception from
+     * the network request.</p>
+     *
+     * @param httpConnection the HTTP connection to disconnect
+     */
     private void safelyDisconnectHttpConnection(HttpURLConnection httpConnection) {
         if (httpConnection != null) {
             try {
                 httpConnection.disconnect();
-            } catch (RuntimeException e) {
-                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+            } catch (IllegalStateException | UncheckedIOException e) {
+                // Suppress exceptions during resource cleanup to avoid masking original exception
             }
+        }
+    }
+
+    /**
+     * Safely closes a non-HTTP URLConnection by closing its input stream.
+     *
+     * <p>URLConnection does not have a disconnect() method, so the standard practice
+     * is to close its input stream to release the underlying socket/resources.
+     * This method is used in finally blocks for non-HTTP connections (e.g., FTP, file)
+     * that would otherwise leak their underlying resources.</p>
+     *
+     * @param connection the URLConnection to close (may be null)
+     */
+    private void safelyCloseUrlConnection(URLConnection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            InputStream in = connection.getInputStream();
+            if (in != null) {
+                in.close();
+            }
+        } catch (IOException | IllegalStateException | UncheckedIOException e) {
+            // Suppress exceptions during resource cleanup to avoid masking original exception
         }
     }
 
@@ -196,13 +255,14 @@ public class RemoteClassSource implements ClassSource {
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
         HttpURLConnection httpConnection = null;
+        URLConnection connection = null;
         try {
             String classPath = ClassNameUtil.toClassFilePath(className);
             // Use URL(URL, String) constructor for proper path joining
             URL baseURL = new URL(baseUrl);
             URL url = new URL(baseURL, classPath);
 
-            URLConnection connection = url.openConnection();
+            connection = url.openConnection();
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
 
@@ -219,7 +279,11 @@ public class RemoteClassSource implements ClassSource {
             return false;
         } finally {
             // Ensure connection is properly closed
-            safelyDisconnectHttpConnection(httpConnection);
+            if (httpConnection != null) {
+                safelyDisconnectHttpConnection(httpConnection);
+            } else {
+                safelyCloseUrlConnection(connection);
+            }
         }
     }
 
@@ -230,7 +294,11 @@ public class RemoteClassSource implements ClassSource {
 
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code or 304 Not Modified
+<<<<<<< Updated upstream
         return (responseCode >= HTTP_SUCCESS_MIN && responseCode < HTTP_SUCCESS_MAX) ||
+=======
+        return (responseCode >= HTTP_SUCCESS_START && responseCode < HTTP_SUCCESS_END) ||
+>>>>>>> Stashed changes
                responseCode == HttpURLConnection.HTTP_NOT_MODIFIED;
     }
 

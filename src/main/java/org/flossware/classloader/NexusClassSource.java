@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
@@ -74,6 +75,7 @@ public class NexusClassSource implements ClassSource {
      * @param nexusUrl The Nexus server URL
      * @param repository The repository name
      * @param mode The repository mode
+     * @throws NullPointerException if nexusUrl or repository is null
      */
     public NexusClassSource(String nexusUrl, String repository, NexusMode mode) {
         this(nexusUrl, repository, mode, AuthConfig.none());
@@ -84,6 +86,7 @@ public class NexusClassSource implements ClassSource {
      *
      * @param nexusUrl The Nexus server URL
      * @param repository The repository name
+     * @throws NullPointerException if nexusUrl or repository is null
      */
     public NexusClassSource(String nexusUrl, String repository) {
         this(nexusUrl, repository, NexusMode.MAVEN, AuthConfig.none());
@@ -165,6 +168,18 @@ public class NexusClassSource implements ClassSource {
         );
     }
 
+    /**
+     * Fetches a URL and returns its contents as a byte array.
+     *
+     * <p><b>Exception Handling:</b> RuntimeException suppression in the finally block is
+     * appropriate here because disconnect() is a cleanup operation in a finally block.
+     * Suppressing cleanup exceptions prevents them from masking the original IOException
+     * thrown during the download attempt.</p>
+     *
+     * @param urlString the URL to fetch
+     * @return the response body as bytes
+     * @throws IOException if the HTTP request fails or the response is too large
+     */
     private byte[] fetchUrl(String urlString) throws IOException {
         URL url = new URL(urlString);
         // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
@@ -172,7 +187,11 @@ public class NexusClassSource implements ClassSource {
         try {
             configureAuthentication(connection);
             validateHttpResponse(connection, urlString);
+<<<<<<< Updated upstream
             return readClassDataWithSizeLimit(connection.getInputStream(), urlString);
+=======
+            return readResponseBody(connection, urlString);
+>>>>>>> Stashed changes
         } finally {
             safelyDisconnect(connection);
         }
@@ -185,6 +204,7 @@ public class NexusClassSource implements ClassSource {
         }
     }
 
+<<<<<<< Updated upstream
     private byte[] readClassDataWithSizeLimit(InputStream inputStream, String sourceIdentifier) throws IOException {
         try (InputStream in = inputStream;
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -199,14 +219,33 @@ public class NexusClassSource implements ClassSource {
                 out.write(buffer, 0, bytesRead);
             }
 
+=======
+    private byte[] readResponseBody(HttpURLConnection connection, String urlString) throws IOException {
+        try (InputStream in = connection.getInputStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            readWithSizeLimit(in, out, MAX_CLASS_SIZE, urlString);
+>>>>>>> Stashed changes
             return out.toByteArray();
         }
     }
 
+<<<<<<< Updated upstream
     private void validateClassDataSize(long totalBytes, String sourceIdentifier) throws IOException {
         if (totalBytes > MAX_CLASS_SIZE) {
             throw new IOException("Class file too large: " + totalBytes +
                                 " bytes (max: " + MAX_CLASS_SIZE + " bytes) for " + sourceIdentifier);
+=======
+    private void readWithSizeLimit(InputStream in, ByteArrayOutputStream out,
+                                   long maxSize, String urlString) throws IOException {
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        int bytesRead;
+        long totalBytes = 0;
+
+        while ((bytesRead = in.read(buffer)) != -1) {
+            totalBytes += bytesRead;
+            validateClassSize(totalBytes, maxSize, urlString);
+            out.write(buffer, 0, bytesRead);
+>>>>>>> Stashed changes
         }
     }
 
@@ -214,8 +253,13 @@ public class NexusClassSource implements ClassSource {
         if (connection != null) {
             try {
                 connection.disconnect();
+<<<<<<< Updated upstream
             } catch (RuntimeException e) {
                 // Suppress runtime exceptions during resource cleanup to avoid masking original exception
+=======
+            } catch (IllegalStateException | UncheckedIOException e) {
+                // Suppress exceptions during resource cleanup to avoid masking original exception
+>>>>>>> Stashed changes
             }
         }
     }
@@ -225,7 +269,11 @@ public class NexusClassSource implements ClassSource {
      *
      * <p>Opens an HTTP connection to {@code jarUrl}, streams the response into a
      * {@link java.util.jar.JarInputStream}, and searches for an entry whose name
+<<<<<<< Updated upstream
      * matches {@code classFileName}. Returns the raw bytecode of the matching
+=======
+     * matches {@code classFileName}.  Returns the raw bytecode of the matching
+>>>>>>> Stashed changes
      * entry, or throws an {@link IOException} if the entry is not found or the
      * download fails.</p>
      *
@@ -236,19 +284,42 @@ public class NexusClassSource implements ClassSource {
      * @throws IOException if the download fails, the HTTP response is not 200,
      *                     or the class entry is not found in the JAR
      */
+<<<<<<< Updated upstream
+=======
+    /**
+     * Loads a class file from a JAR downloaded from a URL.
+     *
+     * <p><b>Exception Handling:</b> RuntimeException suppression in the finally block is
+     * appropriate here because disconnect() is a cleanup operation. Suppressing cleanup
+     * exceptions prevents them from masking the original IOException thrown during loading.</p>
+     *
+     * @param jarUrl the URL of the JAR file
+     * @param classFileName the name of the class file within the JAR
+     * @return the class bytecode
+     * @throws IOException if the download fails or the class is not found in the JAR
+     */
+>>>>>>> Stashed changes
     protected byte[] loadClassFromJar(String jarUrl, String classFileName) throws IOException {
+        Objects.requireNonNull(jarUrl, "jarUrl cannot be null");
+        Objects.requireNonNull(classFileName, "classFileName cannot be null");
         URL url = new URL(jarUrl);
         // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
             configureAuthentication(connection);
+<<<<<<< Updated upstream
             validateHttpResponse(connection, jarUrl);
             return extractClassFromJarStream(connection.getInputStream(), classFileName);
+=======
+            validateJarHttpResponse(connection, jarUrl);
+            return downloadAndExtractClass(connection, classFileName);
+>>>>>>> Stashed changes
         } finally {
             safelyDisconnect(connection);
         }
     }
 
+<<<<<<< Updated upstream
     private byte[] extractClassFromJarStream(InputStream inputStream, String classFileName) throws IOException {
         try (InputStream in = inputStream;
              JarInputStream jarIn = new JarInputStream(in)) {
@@ -257,6 +328,18 @@ public class NexusClassSource implements ClassSource {
             if (classData != null) {
                 return classData;
             }
+=======
+    private void validateJarHttpResponse(HttpURLConnection connection, String jarUrl) throws IOException {
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP error code: " + responseCode + " for JAR URL: " + jarUrl);
+        }
+    }
+
+    private byte[] downloadAndExtractClass(HttpURLConnection connection, String classFileName) throws IOException {
+        try (InputStream in = connection.getInputStream()) {
+            return extractClassFromJarStream(in, classFileName);
+>>>>>>> Stashed changes
         }
 
         throw new IOException("Class file not found in JAR: " + classFileName);
@@ -292,6 +375,59 @@ public class NexusClassSource implements ClassSource {
 
     private void configureAuthentication(HttpURLConnection connection) {
         AuthHelper.configureAuth(connection, authConfig);
+    }
+
+    private void validateClassSize(long totalBytes, long maxSize,
+            String urlString) throws IOException {
+        if (totalBytes > maxSize) {
+            throw new IOException("Class file too large: " + totalBytes
+                + " bytes (max: " + maxSize + " bytes) at " + urlString);
+        }
+    }
+
+    private byte[] extractClassFromJarStream(InputStream in, String classFileName) throws IOException {
+        try (JarInputStream jarIn = new JarInputStream(in)) {
+            byte[] result = findAndExtractEntry(jarIn, classFileName);
+            if (result != null) {
+                return result;
+            }
+        }
+        throw new IOException("Class file not found in JAR: " + classFileName);
+    }
+
+    private byte[] findAndExtractEntry(JarInputStream jarIn, String classFileName) throws IOException {
+        JarEntry entry;
+        while ((entry = jarIn.getNextJarEntry()) != null) {
+            if (entry.getName().equals(classFileName)) {
+                return extractJarEntryData(jarIn, classFileName);
+            }
+        }
+        return null;
+    }
+
+    private byte[] extractJarEntryData(JarInputStream jarIn, String classFileName) throws IOException {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+            int bytesRead;
+            long totalBytes = 0;
+
+            while ((bytesRead = jarIn.read(buffer)) != -1) {
+                totalBytes += bytesRead;
+                validateJarEntrySize(totalBytes, classFileName);
+                out.write(buffer, 0, bytesRead);
+            }
+            return out.toByteArray();
+        }
+    }
+
+    private void validateJarEntrySize(long totalBytes, String classFileName)
+            throws IOException {
+        if (totalBytes > MAX_CLASS_SIZE) {
+            throw new IOException(
+                "Class file too large: " + totalBytes
+                + " bytes (max: " + MAX_CLASS_SIZE
+                + " bytes): " + classFileName);
+        }
     }
 
     private String getPackagePath(String className) {

@@ -99,6 +99,7 @@ public class DatabaseClassSource implements ClassSource {
              PreparedStatement stmt = conn.prepareStatement(selectQuery)) {
 
             stmt.setString(1, className);
+<<<<<<< Updated upstream
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (!rs.next()) {
@@ -106,9 +107,22 @@ public class DatabaseClassSource implements ClassSource {
                 }
                 return rs.getBytes(1);
             }
+=======
+            return executeAndExtractBytes(stmt, className);
+>>>>>>> Stashed changes
 
         } catch (SQLException e) {
             throw new IOException("Database error loading class: " + className, e);
+        }
+    }
+
+    private byte[] executeAndExtractBytes(PreparedStatement stmt, String className)
+            throws SQLException, IOException {
+        try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getBytes(1);
+            }
+            throw new IOException("Class not found in database: " + className);
         }
     }
 

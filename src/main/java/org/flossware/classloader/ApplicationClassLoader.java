@@ -124,6 +124,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        Objects.requireNonNull(name, "name cannot be null");
         // Check if already loaded
         Class<?> c = findLoadedClass(name);
         if (c != null) {
@@ -142,6 +143,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
 
     @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
+        Objects.requireNonNull(name, "name cannot be null");
         if (closed) {
             throw new IllegalStateException("ApplicationClassLoader is closed");
         }

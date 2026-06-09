@@ -7,6 +7,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
+import java.util.Objects;
 import java.lang.reflect.Field;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -44,7 +45,11 @@ public class ClassLoaderCleanupUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(ClassLoaderCleanupUtil.class);
 
+<<<<<<< Updated upstream
     /** Delay in milliseconds after triggering GC to allow garbage collection to complete. */
+=======
+    /** Delay in milliseconds to allow garbage collection to complete during leak detection. */
+>>>>>>> Stashed changes
     private static final long GC_SETTLE_DELAY_MS = 100;
 
     private final String applicationId;
@@ -58,8 +63,8 @@ public class ClassLoaderCleanupUtil {
      * @param classLoader the ClassLoader to clean up
      */
     public ClassLoaderCleanupUtil(String applicationId, ClassLoader classLoader) {
-        this.applicationId = applicationId;
-        this.classLoader = classLoader;
+        this.applicationId = Objects.requireNonNull(applicationId, "applicationId cannot be null");
+        this.classLoader = Objects.requireNonNull(classLoader, "classLoader cannot be null");
         this.leakDetector = new WeakReference<>(classLoader);
     }
 
@@ -90,13 +95,18 @@ public class ClassLoaderCleanupUtil {
     public void cleanupThreadLocals() {
         try {
             Map<Thread, StackTraceElement[]> threads = Thread.getAllStackTraces();
+<<<<<<< Updated upstream
             int cleaned = cleanupThreadLocalsForMatchingThreads(threads);
+=======
+            int cleaned = cleanMatchingThreadLocals(threads);
+>>>>>>> Stashed changes
             logger.info("[{}] Cleaned ThreadLocals from {} threads", applicationId, cleaned);
         } catch (SecurityException e) {
             logger.warn("[{}] Failed to clean ThreadLocals (security): {}", applicationId, e.getMessage());
         }
     }
 
+<<<<<<< Updated upstream
     private int cleanupThreadLocalsForMatchingThreads(Map<Thread, StackTraceElement[]> threads) {
         int cleaned = 0;
         for (Thread thread : threads.keySet()) {
@@ -104,6 +114,12 @@ public class ClassLoaderCleanupUtil {
                 continue;
             }
             if (clearThreadLocals(thread)) {
+=======
+    private int cleanMatchingThreadLocals(Map<Thread, StackTraceElement[]> threads) {
+        int cleaned = 0;
+        for (Thread thread : threads.keySet()) {
+            if (thread.getName().contains(applicationId) && clearThreadLocals(thread)) {
+>>>>>>> Stashed changes
                 cleaned++;
             }
         }
@@ -118,7 +134,11 @@ public class ClassLoaderCleanupUtil {
      */
     private boolean clearThreadLocals(Thread thread) {
         try {
+<<<<<<< Updated upstream
             clearThreadLocalTable(thread);
+=======
+            clearThreadLocalMap(thread);
+>>>>>>> Stashed changes
             clearInheritableThreadLocals(thread);
             return true;
         } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
@@ -128,22 +148,38 @@ public class ClassLoaderCleanupUtil {
         }
     }
 
+<<<<<<< Updated upstream
     private void clearThreadLocalTable(Thread thread) throws NoSuchFieldException, IllegalAccessException {
         // Access Thread.threadLocals field
+=======
+    private void clearThreadLocalMap(Thread thread) throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(thread, "thread cannot be null");
+>>>>>>> Stashed changes
         Field threadLocalsField = Thread.class.getDeclaredField("threadLocals");
         threadLocalsField.setAccessible(true);
         Object threadLocalMap = threadLocalsField.get(thread);
 
+<<<<<<< Updated upstream
         if (threadLocalMap == null) {
             return;
         }
 
         // Access ThreadLocalMap.table field
+=======
+        if (threadLocalMap != null) {
+            clearThreadLocalMapEntries(threadLocalMap);
+        }
+    }
+
+    private void clearThreadLocalMapEntries(Object threadLocalMap) throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(threadLocalMap, "threadLocalMap cannot be null");
+>>>>>>> Stashed changes
         Class<?> threadLocalMapClass = threadLocalMap.getClass();
         Field tableField = threadLocalMapClass.getDeclaredField("table");
         tableField.setAccessible(true);
         Object[] table = (Object[]) tableField.get(threadLocalMap);
 
+<<<<<<< Updated upstream
         if (table == null) {
             return;
         }
@@ -166,10 +202,28 @@ public class ClassLoaderCleanupUtil {
 
     private void clearThreadLocalEntryIfNeeded(Object entry, Object[] table, int index)
             throws NoSuchFieldException, IllegalAccessException {
+=======
+        if (table != null) {
+            for (int i = 0; i < table.length; i++) {
+                clearThreadLocalEntry(table, i);
+            }
+        }
+    }
+
+    private void clearThreadLocalEntry(Object[] table, int index) throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(table, "table cannot be null");
+        Object entry = table[index];
+
+        if (entry == null) {
+            return;
+        }
+
+>>>>>>> Stashed changes
         Field valueField = entry.getClass().getDeclaredField("value");
         valueField.setAccessible(true);
         Object value = valueField.get(entry);
 
+<<<<<<< Updated upstream
         if (value != null && value.getClass().getClassLoader() == classLoader) {
             table[index] = null; // Clear the entry
         }
@@ -178,6 +232,19 @@ public class ClassLoaderCleanupUtil {
     private void clearInheritableThreadLocals(Thread thread)
             throws NoSuchFieldException, IllegalAccessException {
         // Also clean inheritableThreadLocals
+=======
+        if (shouldClearValue(value)) {
+            table[index] = null;
+        }
+    }
+
+    private boolean shouldClearValue(Object value) {
+        return value != null && value.getClass().getClassLoader() == classLoader;
+    }
+
+    private void clearInheritableThreadLocals(Thread thread) throws NoSuchFieldException, IllegalAccessException {
+        Objects.requireNonNull(thread, "thread cannot be null");
+>>>>>>> Stashed changes
         Field inheritableThreadLocalsField = Thread.class.getDeclaredField("inheritableThreadLocals");
         inheritableThreadLocalsField.setAccessible(true);
         inheritableThreadLocalsField.set(thread, null);
@@ -192,13 +259,18 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupJdbcDrivers() {
         try {
+<<<<<<< Updated upstream
             List<Driver> driversToDeregister = findDriversLoadedByClassLoader();
+=======
+            List<Driver> driversToDeregister = findDriversForClassLoader();
+>>>>>>> Stashed changes
             deregisterDrivers(driversToDeregister);
         } catch (SQLException e) {
             logger.warn("[{}] Failed to cleanup JDBC drivers: {}", applicationId, e.getMessage());
         }
     }
 
+<<<<<<< Updated upstream
     private List<Driver> findDriversLoadedByClassLoader() {
         List<Driver> driversToDeregister = new ArrayList<>();
         Enumeration<Driver> drivers = DriverManager.getDrivers();
@@ -211,6 +283,18 @@ public class ClassLoaderCleanupUtil {
         }
 
         return driversToDeregister;
+=======
+    private List<Driver> findDriversForClassLoader() {
+        List<Driver> result = new ArrayList<>();
+        Enumeration<Driver> drivers = DriverManager.getDrivers();
+        while (drivers.hasMoreElements()) {
+            Driver driver = drivers.nextElement();
+            if (driver.getClass().getClassLoader() == classLoader) {
+                result.add(driver);
+            }
+        }
+        return result;
+>>>>>>> Stashed changes
     }
 
     private void deregisterDrivers(List<Driver> drivers) throws SQLException {
@@ -218,7 +302,10 @@ public class ClassLoaderCleanupUtil {
             DriverManager.deregisterDriver(driver);
             logger.info("[{}] Deregistered JDBC driver: {}", applicationId, driver.getClass().getName());
         }
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
         if (!drivers.isEmpty()) {
             logger.info("[{}] Deregistered {} JDBC drivers", applicationId, drivers.size());
         }
@@ -246,7 +333,10 @@ public class ClassLoaderCleanupUtil {
 
     private int unregisterMatchingMBeans(MBeanServer mbs, Set<ObjectName> allMBeans) {
         int unregistered = 0;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
         for (ObjectName name : allMBeans) {
             if (!name.toString().contains(applicationId)) {
                 continue;
@@ -255,7 +345,10 @@ public class ClassLoaderCleanupUtil {
                 unregistered++;
             }
         }
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
         return unregistered;
     }
 
@@ -280,16 +373,25 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupShutdownHooks() {
         try {
+<<<<<<< Updated upstream
             List<Thread> toRemove = findApplicationShutdownHooks();
+=======
+            List<Thread> toRemove = findShutdownHooksForApp();
+>>>>>>> Stashed changes
             removeShutdownHooks(toRemove);
         } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
             logger.warn("[{}] Failed to cleanup shutdown hooks: {}", applicationId, e.getMessage());
         }
     }
 
+<<<<<<< Updated upstream
     private List<Thread> findApplicationShutdownHooks()
             throws NoSuchFieldException, IllegalAccessException {
         // Access Runtime.shutdownHooks field
+=======
+    private List<Thread> findShutdownHooksForApp()
+            throws NoSuchFieldException, IllegalAccessException {
+>>>>>>> Stashed changes
         Field hooksField = Runtime.class.getDeclaredField("shutdownHooks");
         hooksField.setAccessible(true);
         Map<Thread, Thread> hooks = (Map<Thread, Thread>) hooksField.get(Runtime.getRuntime());
@@ -303,6 +405,7 @@ public class ClassLoaderCleanupUtil {
         return toRemove;
     }
 
+<<<<<<< Updated upstream
     private void removeShutdownHooks(List<Thread> toRemove) {
         for (Thread hook : toRemove) {
             Runtime.getRuntime().removeShutdownHook(hook);
@@ -311,6 +414,15 @@ public class ClassLoaderCleanupUtil {
 
         if (!toRemove.isEmpty()) {
             logger.info("[{}] Removed {} shutdown hooks", applicationId, toRemove.size());
+=======
+    private void removeShutdownHooks(List<Thread> hooks) {
+        for (Thread hook : hooks) {
+            Runtime.getRuntime().removeShutdownHook(hook);
+            logger.debug("[{}] Removed shutdown hook: {}", applicationId, hook.getName());
+        }
+        if (!hooks.isEmpty()) {
+            logger.info("[{}] Removed {} shutdown hooks", applicationId, hooks.size());
+>>>>>>> Stashed changes
         }
     }
 
@@ -342,9 +454,13 @@ public class ClassLoaderCleanupUtil {
         if (cacheList == null) {
             return;
         }
+<<<<<<< Updated upstream
 
         synchronized (cacheList) {
             // Clear the cache (implementation varies by JDK version)
+=======
+        synchronized (cacheList) {
+>>>>>>> Stashed changes
             if (cacheList instanceof Map) {
                 ((Map<?, ?>) cacheList).clear();
                 logger.info("[{}] Cleared ResourceBundle cache", applicationId);

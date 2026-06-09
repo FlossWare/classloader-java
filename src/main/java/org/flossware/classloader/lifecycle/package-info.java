@@ -25,7 +25,7 @@
  *     public void onClassLoaded(ClassLoadEvent event) {
  *         System.out.println("Loaded: " + event.getClassName() +
  *                          " from " + event.getSource().getDescription() +
- *                          " in " + event.getLoadTimeNanos() / 1_000_000 + "ms");
+ *                          " in " + event.getLoadTimeMillis() + "ms");
  *     }
  * });
  * }</pre>
