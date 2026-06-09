@@ -39,8 +39,9 @@ class ClassLoadingCoordinator {
     private final BytecodeVerifier bytecodeVerifier;
     private final ClassLoaderEventDispatcher eventDispatcher;
 
-    ClassLoadingCoordinator(List<ClassSource> classSources, ClassCache cache, boolean useCache,
-                           BytecodeVerifier bytecodeVerifier, ClassLoaderEventDispatcher eventDispatcher) {
+    ClassLoadingCoordinator(List<ClassSource> classSources, ClassCache cache,
+            boolean useCache, BytecodeVerifier bytecodeVerifier,
+            ClassLoaderEventDispatcher eventDispatcher) {
         this.classSources = classSources;
         this.cache = cache;
         this.useCache = useCache;
@@ -57,16 +58,31 @@ class ClassLoadingCoordinator {
      */
     byte[] loadClass(String name) throws ClassNotFoundException {
         // Check cache first
-        if (useCache && cache != null) {
-            byte[] cachedData = cache.get(name);
-            if (cachedData != null) {
-                eventDispatcher.fireClassCacheHit(name);
-                verifyBytecode(name, cachedData);
-                return cachedData;
-            }
+        byte[] cachedData = loadFromCache(name);
+        if (cachedData != null) {
+            return cachedData;
         }
 
         // Load from sources
+        return loadFromSources(name);
+    }
+
+    private byte[] loadFromCache(String name) throws ClassNotFoundException {
+        if (!useCache || cache == null) {
+            return null;
+        }
+
+        byte[] cachedData = cache.get(name);
+        if (cachedData == null) {
+            return null;
+        }
+
+        eventDispatcher.fireClassCacheHit(name);
+        verifyBytecode(name, cachedData);
+        return cachedData;
+    }
+
+    private byte[] loadFromSources(String name) throws ClassNotFoundException {
         List<String> attemptedSources = new ArrayList<>();
         List<String> failureReasons = new ArrayList<>();
 
@@ -76,30 +92,44 @@ class ClassLoadingCoordinator {
             }
 
             attemptedSources.add(source.getDescription());
-
-            try {
-                long loadStartTime = System.nanoTime();
-                byte[] classData = source.loadClassData(name);
-
-                if (classData != null) {
-                    long loadTime = System.nanoTime() - loadStartTime;
-
-                    validateClassData(name, classData);
-                    verifyBytecode(name, classData);
-
-                    if (useCache && cache != null) {
-                        tryCacheClassData(name, classData);
-                    }
-
-                    eventDispatcher.fireClassLoaded(new ClassLoadEvent(name, source, loadTime, classData.length));
-                    return classData;
-                }
-            } catch (IOException e) {
-                failureReasons.add(source.getDescription() + ": " + e.getMessage());
+            byte[] result = tryLoadFromSource(name, source, failureReasons);
+            if (result != null) {
+                return result;
             }
         }
 
-        // Build detailed error message
+        throwClassNotFoundException(name, attemptedSources, failureReasons);
+        return null; // unreachable
+    }
+
+    private byte[] tryLoadFromSource(String name, ClassSource source, List<String> failureReasons)
+            throws ClassNotFoundException {
+        try {
+            long loadStartTime = System.nanoTime();
+            byte[] classData = source.loadClassData(name);
+
+            if (classData == null) {
+                return null;
+            }
+
+            long loadTime = System.nanoTime() - loadStartTime;
+            validateClassData(name, classData);
+            verifyBytecode(name, classData);
+
+            if (useCache && cache != null) {
+                tryCacheClassData(name, classData);
+            }
+
+            eventDispatcher.fireClassLoaded(new ClassLoadEvent(name, source, loadTime, classData.length));
+            return classData;
+        } catch (IOException e) {
+            failureReasons.add(source.getDescription() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void throwClassNotFoundException(String name, List<String> attemptedSources,
+            List<String> failureReasons) throws ClassNotFoundException {
         String errorMsg = "Class not found: " + name +
                          " (tried " + attemptedSources.size() + " sources";
         if (!failureReasons.isEmpty()) {
@@ -133,15 +163,17 @@ class ClassLoadingCoordinator {
      * Verifies bytecode if verifier is configured.
      */
     private void verifyBytecode(String name, byte[] classData) throws ClassNotFoundException {
-        if (bytecodeVerifier != null) {
-            try {
-                bytecodeVerifier.verify(name, classData);
-            } catch (SecurityException e) {
-                ClassNotFoundException ex = new ClassNotFoundException(
-                    "Bytecode verification failed: " + name, e);
-                eventDispatcher.fireClassLoadFailed(name, ex);
-                throw ex;
-            }
+        if (bytecodeVerifier == null) {
+            return;
+        }
+
+        try {
+            bytecodeVerifier.verify(name, classData);
+        } catch (SecurityException e) {
+            ClassNotFoundException ex = new ClassNotFoundException(
+                "Bytecode verification failed: " + name, e);
+            eventDispatcher.fireClassLoadFailed(name, ex);
+            throw ex;
         }
     }
 
@@ -157,9 +189,15 @@ class ClassLoadingCoordinator {
         } catch (IOException e) {
             ClassLoaderLogger.logError("Failed to cache class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
-        } catch (Throwable e) {
-            ClassLoaderLogger.logError("Unexpected error caching class " + name + ": " + e.getMessage());
+        } catch (RuntimeException e) {
+            ClassLoaderLogger.logError("Failed to cache class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
+        } catch (Error e) {
+            // Catch critical errors (OutOfMemoryError, StackOverflowError, etc.) to prevent
+            // cache failures from breaking class loading, but log them as unexpected
+            ClassLoaderLogger.logError("Critical error while caching class " + name + ": " + e.getMessage());
+            eventDispatcher.fireClassCacheFailed(name, e);
+            // Do not rethrow - allow class loading to continue despite cache failure
         }
     }
 }

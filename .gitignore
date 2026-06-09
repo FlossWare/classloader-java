@@ -18,3 +18,4 @@ buildNumber.properties
 *.log
 logs/
 *.backup*
+.claude

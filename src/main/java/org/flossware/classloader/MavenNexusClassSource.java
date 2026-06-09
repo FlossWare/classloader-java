@@ -119,50 +119,32 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
-
-        // Check cache first without locking (optimization for cache hits)
         byte[] cachedData = classCache.get(className);
-        if (cachedData != null) {
-            return cachedData;
-        }
+        if (cachedData != null) { return cachedData; }
 
-        // Acquire read lock to prevent close() from running while we create resources.
         closeLock.readLock().lock();
         try {
-            if (closed) {
-                throw new IllegalStateException("MavenNexusClassSource is closed");
-            }
-
-            // Double-check cache (another thread may have loaded it while we waited for lock)
+            if (closed) { throw new IllegalStateException("MavenNexusClassSource is closed"); }
             cachedData = classCache.get(className);
-            if (cachedData != null) {
-                return cachedData;
-            }
+            if (cachedData != null) { return cachedData; }
 
             String classFileName = ClassNameUtil.toClassFilePath(className);
             List<String> errorMessages = new ArrayList<>();
-
             for (MavenArtifact artifact : artifacts) {
                 try {
                     String jarUrl = buildJarUrl(artifact);
-                    String artifactKey = artifact.toString();
-                    JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
+                    JarFile jarFile = ensureJarCached(artifact.toString(), jarUrl);
                     byte[] classData = classExtractor.extractClassFromJar(jarFile, classFileName, jarUrl);
                     classCache.put(className, classData);
                     return classData;
                 } catch (IOException e) {
-                    errorMessages.add(String.format("Artifact %s - %s", artifact.toString(), e.getMessage()));
+                    errorMessages.add(String.format("Artifact %s - %s", artifact, e.getMessage()));
                 }
             }
-
             String allErrors = String.join("\n  - ", errorMessages);
-            throw new IOException(
-                "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
-                className + "\nAttempted artifacts:\n  - " + allErrors
-            );
-        } finally {
-            closeLock.readLock().unlock();
-        }
+            throw new IOException("Class not found in any of " + artifacts.size() +
+                " configured Maven artifacts: " + className + "\nAttempted artifacts:\n  - " + allErrors);
+        } finally { closeLock.readLock().unlock(); }
     }
 
     /** {@inheritDoc} */
@@ -328,59 +310,37 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         return authConfig;
     }
 
-    /**
-     * Closes all cached JAR files and deletes their temporary files.
-     *
-     * @throws IOException if an error occurs during cleanup
-     */
+    /** Closes all cached JAR files and deletes their temporary files.
+     * @throws IOException if an error occurs during cleanup */
     @Override
     public void close() throws IOException {
-        if (closed) {
-            return;
-        }
-
+        if (closed) { return; }
         closeLock.writeLock().lock();
         try {
-            if (closed) {
-                return;
-            }
+            if (closed) { return; }
             closed = true;
-
             List<IOException> exceptions = new ArrayList<>();
-
             for (FutureTask<JarFile> task : jarFileCache.values()) {
                 try {
-                    if (task.isDone() && !task.isCancelled()) {
-                        task.get().close();
-                    }
+                    if (task.isDone() && !task.isCancelled()) { task.get().close(); }
                 } catch (ExecutionException e) {
                     // Task failed during download -- nothing to close
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     exceptions.add(new IOException("Interrupted during close", e));
-                } catch (IOException e) {
-                    exceptions.add(e);
-                }
+                } catch (IOException e) { exceptions.add(e); }
             }
             jarFileCache.clear();
-
             for (Path tempPath : jarPathCache.values()) {
-                try {
-                    Files.deleteIfExists(tempPath);
-                } catch (IOException e) {
-                    exceptions.add(e);
-                }
+                try { Files.deleteIfExists(tempPath); } catch (IOException e) { exceptions.add(e); }
             }
             jarPathCache.clear();
-
             if (!exceptions.isEmpty()) {
                 IOException ex = new IOException("Failed to close MavenNexusClassSource");
                 exceptions.forEach(ex::addSuppressed);
                 throw ex;
             }
-        } finally {
-            closeLock.writeLock().unlock();
-        }
+        } finally { closeLock.writeLock().unlock(); }
     }
 
     /**

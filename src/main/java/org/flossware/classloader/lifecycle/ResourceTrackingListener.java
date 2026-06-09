@@ -90,24 +90,36 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
      */
     public void closeAllResources() {
         for (AutoCloseable resource : openResources) {
-            try {
-                resource.close();
-            } catch (IOException e) {
-                // IO errors during resource closure are suppressed
-                // to ensure we continue closing remaining resources
-            } catch (RuntimeException e) {
-                // Programming errors are suppressed to allow cleanup to continue
-            } catch (Exception e) {
-                // Other checked exceptions (rare but possible from custom AutoCloseable implementations)
-                // are suppressed to ensure we continue closing remaining resources
-            } catch (Error e) {
-                // Error subclasses (e.g., OutOfMemoryError, StackOverflowError, AssertionError)
-                // must also be caught to prevent breaking the cleanup loop and leaking
-                // remaining unclosed resources
-            }
+            closeResourceSuppressingErrors(resource);
         }
         openResources.clear();
         loadedClasses.clear();
+    }
+
+    /**
+     * Closes a single resource, suppressing all exceptions to ensure cleanup continues.
+     *
+     * <p>This is appropriate for cleanup operations where we want to close all resources
+     * even if some fail, rather than failing fast on the first error.</p>
+     *
+     * @param resource the AutoCloseable resource to close
+     */
+    private void closeResourceSuppressingErrors(AutoCloseable resource) {
+        try {
+            resource.close();
+        } catch (IOException e) {
+            // IO errors during resource closure are suppressed
+            // to ensure we continue closing remaining resources
+        } catch (RuntimeException e) {
+            // Programming errors are suppressed to allow cleanup to continue
+        } catch (Exception e) {
+            // Other checked exceptions (e.g., SQLException, InterruptedException)
+            // are suppressed to ensure we continue closing remaining resources
+        } catch (Error e) {
+            // Error subclasses (e.g., OutOfMemoryError, StackOverflowError, AssertionError)
+            // must also be caught to prevent breaking the cleanup loop and leaking
+            // remaining unclosed resources
+        }
     }
 
     /**

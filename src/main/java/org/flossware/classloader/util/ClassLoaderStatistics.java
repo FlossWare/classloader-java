@@ -17,6 +17,9 @@ package org.flossware.classloader.util;
  * }</pre>
  */
 public class ClassLoaderStatistics {
+    /** Multiplier to convert a ratio (0.0-1.0) to a percentage (0-100). */
+    private static final double PERCENTAGE_MULTIPLIER = 100.0;
+
     private final String name;
     private final int classesLoaded;
     private final long totalBytesLoaded;
@@ -92,6 +95,6 @@ public class ClassLoaderStatistics {
     @Override
     public String toString() {
         return String.format("ClassLoaderStatistics{name=%s, classes=%d, bytes=%d, cacheHits=%d, hitRate=%.2f%%}",
-                name, classesLoaded, totalBytesLoaded, cacheHits, getCacheHitRate() * 100);
+                name, classesLoaded, totalBytesLoaded, cacheHits, getCacheHitRate() * PERCENTAGE_MULTIPLIER);
     }
 }

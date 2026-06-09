@@ -43,31 +43,13 @@ class ClassLoaderResourceManager {
         // Close all closeable class sources
         for (ClassSource source : classSources) {
             if (source instanceof AutoCloseable) {
-                try {
-                    ((AutoCloseable) source).close();
-                } catch (IOException e) {
-                    exceptions.add(e);
-                } catch (RuntimeException e) {
-                    exceptions.add(e);
-                } catch (Exception e) {
-                    // Other checked exceptions from custom AutoCloseable implementations
-                    exceptions.add(e);
-                }
+                closeAutoCloseable((AutoCloseable) source, exceptions);
             }
         }
 
         // Close cache if closeable
         if (cache instanceof AutoCloseable) {
-            try {
-                ((AutoCloseable) cache).close();
-            } catch (IOException e) {
-                exceptions.add(e);
-            } catch (RuntimeException e) {
-                exceptions.add(e);
-            } catch (Exception e) {
-                // Other checked exceptions from custom AutoCloseable implementations
-                exceptions.add(e);
-            }
+            closeAutoCloseable((AutoCloseable) cache, exceptions);
         }
 
         // Notify listeners
@@ -82,6 +64,28 @@ class ClassLoaderResourceManager {
             IOException ex = new IOException("Failed to close ApplicationClassLoader");
             exceptions.forEach(ex::addSuppressed);
             throw ex;
+        }
+    }
+
+    /**
+     * Helper method to close an AutoCloseable resource and collect exceptions.
+     *
+     * @param closeable the AutoCloseable resource to close
+     * @param exceptions the exception collection to add any errors to
+     */
+    private void closeAutoCloseable(AutoCloseable closeable, List<Exception> exceptions) {
+        try {
+            closeable.close();
+        } catch (IOException e) {
+            // IOException: legitimate I/O failure during closure
+            exceptions.add(e);
+        } catch (RuntimeException e) {
+            // RuntimeException: programming error or resource state issue
+            exceptions.add(e);
+        } catch (Exception e) {
+            // Other checked exceptions from custom AutoCloseable implementations
+            // (e.g., InterruptedException, SQLException, etc.)
+            exceptions.add(e);
         }
     }
 }

@@ -44,6 +44,9 @@ public class ClassLoaderCleanupUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(ClassLoaderCleanupUtil.class);
 
+    /** Delay in milliseconds after triggering GC to allow garbage collection to complete. */
+    private static final long GC_SETTLE_DELAY_MS = 100;
+
     private final String applicationId;
     private final ClassLoader classLoader;
     private final WeakReference<ClassLoader> leakDetector;
@@ -277,28 +280,37 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupShutdownHooks() {
         try {
-            // Access Runtime.shutdownHooks field
-            Field hooksField = Runtime.class.getDeclaredField("shutdownHooks");
-            hooksField.setAccessible(true);
-            Map<Thread, Thread> hooks = (Map<Thread, Thread>) hooksField.get(Runtime.getRuntime());
-
-            List<Thread> toRemove = new ArrayList<>();
-            for (Thread hook : hooks.keySet()) {
-                if (hook.getName().contains(applicationId)) {
-                    toRemove.add(hook);
-                }
-            }
-
-            for (Thread hook : toRemove) {
-                Runtime.getRuntime().removeShutdownHook(hook);
-                logger.debug("[{}] Removed shutdown hook: {}", applicationId, hook.getName());
-            }
-
-            if (!toRemove.isEmpty()) {
-                logger.info("[{}] Removed {} shutdown hooks", applicationId, toRemove.size());
-            }
+            List<Thread> toRemove = findApplicationShutdownHooks();
+            removeShutdownHooks(toRemove);
         } catch (NoSuchFieldException | SecurityException | IllegalAccessException e) {
             logger.warn("[{}] Failed to cleanup shutdown hooks: {}", applicationId, e.getMessage());
+        }
+    }
+
+    private List<Thread> findApplicationShutdownHooks()
+            throws NoSuchFieldException, IllegalAccessException {
+        // Access Runtime.shutdownHooks field
+        Field hooksField = Runtime.class.getDeclaredField("shutdownHooks");
+        hooksField.setAccessible(true);
+        Map<Thread, Thread> hooks = (Map<Thread, Thread>) hooksField.get(Runtime.getRuntime());
+
+        List<Thread> toRemove = new ArrayList<>();
+        for (Thread hook : hooks.keySet()) {
+            if (hook.getName().contains(applicationId)) {
+                toRemove.add(hook);
+            }
+        }
+        return toRemove;
+    }
+
+    private void removeShutdownHooks(List<Thread> toRemove) {
+        for (Thread hook : toRemove) {
+            Runtime.getRuntime().removeShutdownHook(hook);
+            logger.debug("[{}] Removed shutdown hook: {}", applicationId, hook.getName());
+        }
+
+        if (!toRemove.isEmpty()) {
+            logger.info("[{}] Removed {} shutdown hooks", applicationId, toRemove.size());
         }
     }
 
@@ -310,23 +322,33 @@ public class ClassLoaderCleanupUtil {
      */
     public void cleanupResourceBundles() {
         try {
-            Class<?> bundleClass = Class.forName("java.util.ResourceBundle");
-            Field cacheListField = bundleClass.getDeclaredField("cacheList");
-            cacheListField.setAccessible(true);
-            Object cacheList = cacheListField.get(null);
-
-            if (cacheList != null) {
-                synchronized (cacheList) {
-                    // Clear the cache (implementation varies by JDK version)
-                    if (cacheList instanceof Map) {
-                        ((Map<?, ?>) cacheList).clear();
-                        logger.info("[{}] Cleared ResourceBundle cache", applicationId);
-                    }
-                }
-            }
+            Object cacheList = getResourceBundleCacheList();
+            clearResourceBundleCache(cacheList);
         } catch (ClassNotFoundException | NoSuchFieldException | SecurityException | IllegalAccessException e) {
             // ResourceBundle implementation details vary by JDK version
             logger.debug("[{}] Could not clear ResourceBundle cache: {}", applicationId, e.getMessage());
+        }
+    }
+
+    private Object getResourceBundleCacheList()
+            throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
+        Class<?> bundleClass = Class.forName("java.util.ResourceBundle");
+        Field cacheListField = bundleClass.getDeclaredField("cacheList");
+        cacheListField.setAccessible(true);
+        return cacheListField.get(null);
+    }
+
+    private void clearResourceBundleCache(Object cacheList) {
+        if (cacheList == null) {
+            return;
+        }
+
+        synchronized (cacheList) {
+            // Clear the cache (implementation varies by JDK version)
+            if (cacheList instanceof Map) {
+                ((Map<?, ?>) cacheList).clear();
+                logger.info("[{}] Cleared ResourceBundle cache", applicationId);
+            }
         }
     }
 
@@ -349,7 +371,7 @@ public class ClassLoaderCleanupUtil {
 
         // Small delay to allow GC to run
         try {
-            Thread.sleep(100);
+            Thread.sleep(GC_SETTLE_DELAY_MS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

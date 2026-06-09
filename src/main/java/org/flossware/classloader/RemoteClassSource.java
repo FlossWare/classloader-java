@@ -27,6 +27,12 @@ public class RemoteClassSource implements ClassSource {
     /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError from malicious sources */
     private static final int MAX_CLASS_SIZE = 100 * 1024 * 1024;
 
+    /** Start of the HTTP 2xx success status code range (inclusive). */
+    private static final int HTTP_SUCCESS_MIN = 200;
+
+    /** End of the HTTP 2xx success status code range (exclusive). */
+    private static final int HTTP_SUCCESS_MAX = 300;
+
     private final String baseUrl;
     private final AuthConfig authConfig;
 
@@ -138,7 +144,7 @@ public class RemoteClassSource implements ClassSource {
     private void validateHttpResponse(HttpURLConnection httpConnection, URL url) throws IOException {
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code
-        if (responseCode < 200 || responseCode >= 300) {
+        if (responseCode < HTTP_SUCCESS_MIN || responseCode >= HTTP_SUCCESS_MAX) {
             throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
         }
     }
@@ -224,7 +230,7 @@ public class RemoteClassSource implements ClassSource {
 
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code or 304 Not Modified
-        return (responseCode >= 200 && responseCode < 300) ||
+        return (responseCode >= HTTP_SUCCESS_MIN && responseCode < HTTP_SUCCESS_MAX) ||
                responseCode == HttpURLConnection.HTTP_NOT_MODIFIED;
     }
 

@@ -105,28 +105,32 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
     private void downloadJarFile() throws IOException {
         retryPolicy.execute(() -> {
-            URL url = new URL(jarUrl);
-            URLConnection connection = url.openConnection();
-            connection.setConnectTimeout(connectTimeoutMs);
-            connection.setReadTimeout(readTimeoutMs);
-
-            HttpURLConnection httpConnection = null;
-            try {
-                if (connection instanceof HttpURLConnection) {
-                    validateHttpJarResponse((HttpURLConnection) connection, url);
-                    httpConnection = (HttpURLConnection) connection;
-                }
-
-                try (InputStream in = connection.getInputStream()) {
-                    Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
-                }
-
-                validateDownloadedJarSize();
-                return null;
-            } finally {
-                safelyDisconnectHttpConnection(httpConnection);
-            }
+            performJarDownload();
+            return null;
         });
+    }
+
+    private void performJarDownload() throws IOException {
+        URL url = new URL(jarUrl);
+        URLConnection connection = url.openConnection();
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
+
+        HttpURLConnection httpConnection = null;
+        try {
+            if (connection instanceof HttpURLConnection) {
+                httpConnection = (HttpURLConnection) connection;
+                validateHttpJarResponse(httpConnection, url);
+            }
+
+            try (InputStream in = connection.getInputStream()) {
+                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            validateDownloadedJarSize();
+        } finally {
+            safelyDisconnectHttpConnection(httpConnection);
+        }
     }
 
     private void validateHttpJarResponse(HttpURLConnection httpConnection, URL url) throws IOException {

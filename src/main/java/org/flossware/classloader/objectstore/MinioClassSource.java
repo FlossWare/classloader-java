@@ -30,6 +30,18 @@ import java.util.concurrent.TimeUnit;
 public class MinioClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
 
+    /** Default HTTPS port number. */
+    private static final int DEFAULT_HTTPS_PORT = 443;
+
+    /** Default MinIO HTTP port number. */
+    private static final int DEFAULT_MINIO_HTTP_PORT = 9000;
+
+    /** Minimum valid port number. */
+    private static final int MIN_PORT = 1;
+
+    /** Maximum valid port number. */
+    private static final int MAX_PORT = 65535;
+
     private final MinioClient minioClient;
     private final String bucketName;
     private final String prefix;
@@ -251,7 +263,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         private String prefix;
         private String region;
         private boolean secure = true;
-        private int port = 443;  // Default HTTPS port
+        private int port = DEFAULT_HTTPS_PORT;
         private long maxClassSize = MAX_CLASS_SIZE;
 
         /**
@@ -348,8 +360,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
         public Builder secure(boolean secure) {
             this.secure = secure;
             // Adjust default port based on secure setting
-            if (!secure && this.port == 443) {
-                this.port = 9000;  // Default MinIO port for HTTP
+            if (!secure && this.port == DEFAULT_HTTPS_PORT) {
+                this.port = DEFAULT_MINIO_HTTP_PORT;
             }
             return this;
         }
@@ -369,8 +381,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
          * @throws IllegalArgumentException if port is outside valid range
          */
         public Builder port(int port) {
-            if (port < 1 || port > 65535) {
-                throw new IllegalArgumentException("Port must be 1-65535");
+            if (port < MIN_PORT || port > MAX_PORT) {
+                throw new IllegalArgumentException("Port must be " + MIN_PORT + "-" + MAX_PORT);
             }
             this.port = port;
             return this;

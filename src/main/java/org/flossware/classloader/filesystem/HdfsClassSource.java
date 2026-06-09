@@ -24,6 +24,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     private static final int DEFAULT_SOCKET_TIMEOUT = 30000; // 30 seconds
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
     private static final int DEFAULT_IPC_PING_INTERVAL = 10000; // 10 seconds
+    private static final int DEFAULT_IPC_CONNECT_MAX_RETRIES = 3;
 
     private final FileSystem hdfs;
     private final String basePath;
@@ -87,14 +88,10 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         int totalRead = 0;
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
-            if (n != -1) {
-                totalRead += n;
-            } else {
-                if (totalRead < size) {
-                    throw new IOException("Incomplete read: expected " + size + " bytes, got " + totalRead);
-                }
-                return totalRead;
+            if (n == -1) {
+                throw new IOException("Incomplete read: expected " + size + " bytes, got " + totalRead);
             }
+            totalRead += n;
         }
         return totalRead;
     }
@@ -328,7 +325,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
 
             // Configure timeouts to prevent hanging
             conf.setInt("ipc.client.connect.timeout", connectTimeout);
-            conf.setInt("ipc.client.connect.max.retries", 3);
+            conf.setInt("ipc.client.connect.max.retries", DEFAULT_IPC_CONNECT_MAX_RETRIES);
             conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL);
             conf.setInt("dfs.client.socket-timeout", socketTimeout);
 

@@ -137,16 +137,17 @@ public final class RetryPolicy {
                 return operation.get();
             } catch (IOException e) {
                 lastException = e;
-
-                if (attempt >= maxRetries) {
-                    continue;
-                }
-
-                performBackoffDelay(attempt);
+                delayIfNotLastAttempt(attempt);
             }
         }
 
         throw new IOException("Failed after " + (maxRetries + 1) + " attempts", lastException);
+    }
+
+    private void delayIfNotLastAttempt(int attempt) throws IOException {
+        if (attempt < maxRetries) {
+            performBackoffDelay(attempt);
+        }
     }
 
     private void performBackoffDelay(int attemptNumber) throws IOException {

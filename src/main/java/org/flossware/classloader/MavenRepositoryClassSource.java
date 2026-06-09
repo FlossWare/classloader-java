@@ -1,24 +1,18 @@
 package org.flossware.classloader;
 
+import org.flossware.classloader.jar.JarClassExtractor;
+import org.flossware.classloader.jar.JarDownloadManager;
 import org.flossware.classloader.util.ClassNameUtil;
 
-import java.io.ByteArrayOutputStream;
-
-import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 /**
@@ -35,8 +29,6 @@ import java.util.jar.JarFile;
  * and iteration during class loading operations.</p>
  */
 public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
-    private static final long MAX_JAR_SIZE = 100 * 1024 * 1024; // 100MB default max JAR size
-    private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default max class size
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
     private static final int DEFAULT_READ_TIMEOUT = 30000; // 30 seconds
 
@@ -46,10 +38,12 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     private final Map<String, byte[]> classCache;
     private final Map<String, JarFile> jarFileCache;
     private final Map<String, Path> jarPathCache;
-    private final int connectTimeout;
-    private final int readTimeout;
     private volatile boolean closed = false;
     private final Map<String, Object> perArtifactLocks = new ConcurrentHashMap<>();
+
+    // Helper components for JAR download and class extraction
+    private final JarDownloadManager downloadManager;
+    private final JarClassExtractor classExtractor;
 
     /**
      * Creates a Maven repository class source with full configuration including timeouts.
@@ -83,8 +77,8 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         this.classCache = new ConcurrentHashMap<>();
         this.jarFileCache = new ConcurrentHashMap<>();
         this.jarPathCache = new ConcurrentHashMap<>();
-        this.connectTimeout = connectTimeout;
-        this.readTimeout = readTimeout;
+        this.downloadManager = new JarDownloadManager(connectTimeout, readTimeout, this.authConfig);
+        this.classExtractor = new JarClassExtractor();
     }
 
     /**
@@ -113,48 +107,54 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      *
      * <p>Searches through all configured Maven artifacts in order, downloading JARs
      * and extracting the requested class file. Results are cached in memory.</p>
-     *
-     * <p><b>Thread Safety:</b> Uses CopyOnWriteArrayList for the artifacts collection to ensure
-     * thread-safe iteration even when artifacts are added via addArtifact(). Uses fine-grained
-     * per-artifact synchronization to allow concurrent downloads of different artifacts while
-     * maintaining cache consistency.</p>
      */
     @Override
     public byte[] loadClassData(String className) throws IOException {
-        // Check closed flag without synchronized block (volatile for visibility)
         if (closed) {
             throw new IllegalStateException("MavenRepositoryClassSource is closed");
         }
 
         Objects.requireNonNull(className, "className cannot be null");
-        String cacheKey = className;
-        // Atomic get() - avoids TOCTOU race condition with contains() + get()
-        byte[] cachedData = classCache.get(cacheKey);
+        byte[] cachedData = classCache.get(className);
         if (cachedData != null) {
             return cachedData;
         }
 
+        return searchArtifactsForClass(className);
+    }
+
+    private byte[] searchArtifactsForClass(String className) throws IOException {
         String classFileName = ClassNameUtil.toClassFilePath(className);
         List<String> errorMessages = new ArrayList<>();
 
-        // artifacts is CopyOnWriteArrayList - thread-safe for iteration during mutation
         for (MavenArtifact artifact : artifacts) {
-            try {
-                String jarUrl = buildJarUrl(artifact);
-                String artifactKey = artifact.toString();
-                JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
-                byte[] classData = extractClassFromCachedJar(jarFile, classFileName, jarUrl);
-                classCache.put(cacheKey, classData);
+            byte[] classData = tryLoadFromArtifact(artifact, classFileName, className, errorMessages);
+            if (classData != null) {
                 return classData;
-            } catch (IOException e) {
-                // Accumulate errors instead of silently swallowing
-                String errorMsg = String.format("Artifact %s - %s",
-                    artifact.toString(), e.getMessage());
-                errorMessages.add(errorMsg);
             }
         }
 
-        // Throw with ALL error details
+        throwClassNotFoundInArtifacts(className, errorMessages);
+        return null; // unreachable
+    }
+
+    private byte[] tryLoadFromArtifact(MavenArtifact artifact, String classFileName,
+            String className, List<String> errorMessages) {
+        try {
+            String jarUrl = buildJarUrl(artifact);
+            String artifactKey = artifact.toString();
+            JarFile jarFile = ensureJarCached(artifactKey, jarUrl);
+            byte[] classData = classExtractor.extractClassFromJar(jarFile, classFileName, jarUrl);
+            classCache.put(className, classData);
+            return classData;
+        } catch (IOException e) {
+            errorMessages.add(String.format("Artifact %s - %s", artifact.toString(), e.getMessage()));
+            return null;
+        }
+    }
+
+    private void throwClassNotFoundInArtifacts(String className, List<String> errorMessages)
+            throws IOException {
         String allErrors = String.join("\n  - ", errorMessages);
         throw new IOException(
             "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
@@ -187,13 +187,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
 
     /**
      * Ensures a JAR file is cached for the given artifact.
-     * Downloads the JAR once and reuses it for subsequent class extractions.
      * Uses per-artifact synchronization to allow concurrent downloads of different artifacts.
-     *
-     * @param artifactKey The artifact identifier
-     * @param jarUrl The URL to download the JAR from
-     * @return A JarFile instance opened on the cached JAR
-     * @throws IOException if download or JAR opening fails
      */
     private JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
         JarFile existing = jarFileCache.get(artifactKey);
@@ -201,154 +195,32 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             return existing;
         }
 
-        // Get or create per-artifact lock for fine-grained synchronization
         Object artifactLock = perArtifactLocks.computeIfAbsent(artifactKey, k -> new Object());
 
         synchronized (artifactLock) {
-            // Re-check closed flag after acquiring lock - close() may have run
-            // while this thread was waiting, cleaning up all cached resources.
             if (closed) {
                 throw new IllegalStateException("MavenRepositoryClassSource is closed");
             }
 
-            // Double-check pattern: another thread may have cached it while waiting for lock
             existing = jarFileCache.get(artifactKey);
             if (existing != null) {
                 return existing;
             }
 
-            // Download JAR to temp file
             Path tempJarPath = Files.createTempFile("jclassloader-maven-", ".jar");
             try {
-                downloadJarFile(jarUrl, tempJarPath);
+                downloadManager.downloadJarFile(jarUrl, tempJarPath);
                 JarFile jarFile = new JarFile(tempJarPath.toFile());
                 jarFileCache.put(artifactKey, jarFile);
                 jarPathCache.put(artifactKey, tempJarPath);
                 return jarFile;
             } catch (IOException e) {
-                // Clean up temp file on failure
                 try {
                     Files.deleteIfExists(tempJarPath);
                 } catch (IOException ignored) {
                     // Ignore cleanup errors
                 }
                 throw e;
-            }
-        }
-    }
-
-    private void downloadJarFile(String jarUrl, Path tempJarPath) throws IOException {
-        URL url = new URL(jarUrl);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        try {
-            connection.setConnectTimeout(connectTimeout);
-            connection.setReadTimeout(readTimeout);
-            AuthHelper.configureAuth(connection, authConfig);
-            connection.setRequestMethod("GET");
-
-            validateJarResponse(connection, jarUrl);
-
-            try (InputStream in = connection.getInputStream()) {
-                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            safelyDisconnect(connection);
-        }
-    }
-
-    private void validateJarResponse(HttpURLConnection connection, String jarUrl) throws IOException {
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP " + responseCode + " for JAR: " + jarUrl);
-        }
-
-        long contentLength = connection.getContentLengthLong();
-        if (contentLength > MAX_JAR_SIZE) {
-            throw new IOException(
-                "JAR too large: " + contentLength + " bytes (max " + MAX_JAR_SIZE + ")"
-            );
-        }
-    }
-
-    private byte[] extractClassFromCachedJar(JarFile jarFile, String classFileName, String jarUrl) throws IOException {
-        JarEntry entry = jarFile.getJarEntry(classFileName);
-        if (entry == null) {
-            throw new IOException("Class not found in JAR: " + classFileName + " (URL: " + jarUrl + ")");
-        }
-
-        long size = entry.getSize();
-        return extractClassDataFromEntry(jarFile, entry, size);
-    }
-
-    private byte[] extractClassDataFromEntry(JarFile jarFile, JarEntry entry, long size) throws IOException {
-        if (size < 0) {
-            // Unknown size - read with limit
-            return readWithSizeLimit(jarFile.getInputStream(entry), MAX_CLASS_SIZE);
-        }
-
-        validateClassSize(size);
-        return readClassDataWithKnownSize(jarFile, entry, size);
-    }
-
-    private void validateClassSize(long size) throws IOException {
-        if (size > MAX_CLASS_SIZE) {
-            throw new IOException(
-                "Class file too large: " + size + " bytes (max " + MAX_CLASS_SIZE + ")"
-            );
-        }
-
-        if (size > Integer.MAX_VALUE) {
-            throw new IOException("Class file exceeds Java array limit: " + size);
-        }
-    }
-
-    private byte[] readClassDataWithKnownSize(JarFile jarFile, JarEntry entry, long size) throws IOException {
-        try (InputStream in = jarFile.getInputStream(entry)) {
-            byte[] data = new byte[(int)size];
-            readFully(in, data, (int)size);
-            return data;
-        }
-    }
-
-    private void readFully(InputStream in, byte[] data, int size) throws IOException {
-        int totalRead = 0;
-        while (totalRead < size) {
-            int n = in.read(data, totalRead, size - totalRead);
-            if (n == -1) {
-                throw new IOException(
-                    "Unexpected end of stream: expected " + size +
-                    " bytes but only read " + totalRead
-                );
-            }
-            totalRead += n;
-        }
-    }
-
-    private byte[] readWithSizeLimit(InputStream in, long maxSize) throws IOException {
-        try (InputStream autoCloseIn = in;
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
-            long totalRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = autoCloseIn.read(buffer)) != -1) {
-                totalRead += bytesRead;
-                if (totalRead > maxSize) {
-                    throw new IOException("Entry exceeds maximum size: " + totalRead);
-                }
-                out.write(buffer, 0, bytesRead);
-            }
-
-            return out.toByteArray();
-        }
-    }
-
-    private void safelyDisconnect(HttpURLConnection connection) {
-        if (connection != null) {
-            try {
-                connection.disconnect();
-            } catch (RuntimeException e) {
-                // Suppress runtime exceptions during resource cleanup to avoid masking original exception
             }
         }
     }
@@ -395,25 +267,8 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     /**
      * Closes all cached JAR files and deletes their temporary files.
      *
-     * <p><b>Critical Synchronization Fix:</b> This method acquires ALL per-artifact lock objects
-     * to ensure mutual exclusion with ensureJarCached(). This prevents a critical race condition
-     * where close() clears caches while ensureJarCached() is in the middle of caching a JarFile.</p>
-     *
-     * <p><b>Race Condition Scenario (Without This Fix):</b></p>
-     * <ul>
-     *   <li>Thread B enters ensureJarCached(), passes closed check at line 223</li>
-     *   <li>Thread A enters close(), synchronizes on perArtifactLocks (the ConcurrentHashMap), sets closed=true</li>
-     *   <li>Thread A clears jarFileCache and jarPathCache, returns from close()</li>
-     *   <li>Thread B acquires artifactLock (a per-artifact Object), executes jarFileCache.put() and jarPathCache.put()</li>
-     *   <li>NEW JarFile and TEMP FILE are now leaked because close() already exited</li>
-     * </ul>
-     *
-     * <p><b>Root Cause:</b> The original code synchronized on perArtifactLocks (the map object)
-     * but ensureJarCached() synchronizes on individual Object values from the map (artifactLock).
-     * These are DIFFERENT monitors - no mutual exclusion!</p>
-     *
-     * <p><b>Solution:</b> Acquire all per-artifact lock objects before clearing caches, ensuring
-     * no thread can be between the closed check and the cache put() operations in ensureJarCached().</p>
+     * <p>Acquires ALL per-artifact lock objects to ensure mutual exclusion with
+     * ensureJarCached(), preventing resource leaks from concurrent close and load operations.</p>
      *
      * @throws IOException if an error occurs during cleanup
      */
@@ -423,61 +278,65 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             return;
         }
 
-        // Synchronize on perArtifactLocks map to prevent new lock objects from being added
         synchronized (perArtifactLocks) {
             if (closed) {
                 return;
             }
 
-            // Acquire ALL per-artifact lock objects to block any threads in ensureJarCached()
-            // This ensures mutual exclusion: no thread can execute the critical section of
-            // ensureJarCached() (lines 220-233, inside synchronized(artifactLock)) while we
-            // clear the caches. This prevents the race condition described above.
-            for (Object lock : perArtifactLocks.values()) {
-                synchronized (lock) {
-                    // Acquire each lock in sequence; the outer synchronized block on perArtifactLocks
-                    // prevents new locks from being added during this iteration
-                }
-            }
-
+            acquireAllArtifactLocks();
             closed = true;
+            closeAllResources();
+        }
+    }
 
-            List<IOException> exceptions = new ArrayList<>();
-
-            // Close all cached JAR files
-            for (JarFile jarFile : jarFileCache.values()) {
-                try {
-                    jarFile.close();
-                } catch (IOException e) {
-                    exceptions.add(e);
-                }
-            }
-            jarFileCache.clear();
-
-            // Delete all temp JAR files
-            for (Path tempPath : jarPathCache.values()) {
-                try {
-                    Files.deleteIfExists(tempPath);
-                } catch (IOException e) {
-                    exceptions.add(e);
-                }
-            }
-            jarPathCache.clear();
-            // Note: perArtifactLocks is intentionally NOT cleared. The lock objects
-            // are plain Object instances that hold no resources. Clearing them while
-            // other threads may still be synchronized on them creates a race condition:
-            // a new computeIfAbsent call would create a different lock object for the
-            // same artifact key, allowing two threads into the critical section in
-            // ensureJarCached() concurrently. The locks will be garbage-collected when
-            // this MavenRepositoryClassSource instance is collected.
-
-            // Throw aggregated exception if any occurred
-            if (!exceptions.isEmpty()) {
-                IOException ex = new IOException("Failed to close MavenRepositoryClassSource");
-                exceptions.forEach(ex::addSuppressed);
-                throw ex;
+    private void acquireAllArtifactLocks() {
+        for (Object lock : perArtifactLocks.values()) {
+            synchronized (lock) {
+                // Acquire each lock to block threads in ensureJarCached()
             }
         }
+    }
+
+    private void closeAllResources() throws IOException {
+        List<IOException> exceptions = new ArrayList<>();
+
+        closeCachedJarFiles(exceptions);
+        jarFileCache.clear();
+
+        deleteTempFiles(exceptions);
+        jarPathCache.clear();
+
+        throwAggregatedExceptions(exceptions, "Failed to close MavenRepositoryClassSource");
+    }
+
+    private void closeCachedJarFiles(List<IOException> exceptions) {
+        for (JarFile jarFile : jarFileCache.values()) {
+            try {
+                jarFile.close();
+            } catch (IOException e) {
+                exceptions.add(e);
+            }
+        }
+    }
+
+    private void deleteTempFiles(List<IOException> exceptions) {
+        for (Path tempPath : jarPathCache.values()) {
+            try {
+                Files.deleteIfExists(tempPath);
+            } catch (IOException e) {
+                exceptions.add(e);
+            }
+        }
+    }
+
+    private void throwAggregatedExceptions(List<IOException> exceptions, String message)
+            throws IOException {
+        if (exceptions.isEmpty()) {
+            return;
+        }
+        IOException ex = new IOException(message);
+        exceptions.forEach(ex::addSuppressed);
+        throw ex;
     }
 
     /**
@@ -501,59 +360,13 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
     /**
      * Builder for constructing MavenRepositoryClassSource instances with fluent API.
      *
-     * <p>Loads classes from Maven artifacts in any Maven-compatible repository
-     * (Maven Central, JCenter, Google, corporate Nexus/Artifactory, etc.).</p>
-     *
-     * <p><b>Basic Example (Maven Central):</b></p>
+     * <p><b>Example (Maven Central):</b></p>
      * <pre>{@code
      * MavenRepositoryClassSource source = MavenRepositoryClassSource.builder()
      *     .mavenCentral()
      *     .addArtifact("com.google.guava:guava:32.1.0-jre")
-     *     .addArtifact("org.apache.commons:commons-lang3:3.12.0")
      *     .build();
      * }</pre>
-     *
-     * <p><b>Advanced Example (Corporate Repository with Auth):</b></p>
-     * <pre>{@code
-     * MavenRepositoryClassSource source = MavenRepositoryClassSource.builder()
-     *     .repositoryUrl("https://nexus.example.com/repository/maven-releases/")
-     *     .auth(AuthConfig.basic("user", "password"))
-     *     .addArtifact("com.example", "my-lib", "1.0.0")
-     *     .addArtifact("com.example:another-lib:2.0.0")
-     *     .connectTimeout(15000)
-     *     .readTimeout(60000)
-     *     .build();
-     * }</pre>
-     *
-     * <p><b>Multiple Repositories:</b></p>
-     * <p>To load from multiple repositories, create multiple MavenRepositoryClassSource
-     * instances and add them to ApplicationClassLoader:</p>
-     * <pre>{@code
-     * ApplicationClassLoader loader = ApplicationClassLoader.builder()
-     *     .addClassSource(MavenRepositoryClassSource.builder()
-     *         .mavenCentral()
-     *         .addArtifact("com.google.guava:guava:32.1.0-jre")
-     *         .build())
-     *     .addClassSource(MavenRepositoryClassSource.builder()
-     *         .repositoryUrl("https://nexus.example.com/maven-releases/")
-     *         .addArtifact("com.example:my-lib:1.0.0")
-     *         .build())
-     *     .build();
-     * }</pre>
-     *
-     * <p><b>Common Repositories:</b></p>
-     * <ul>
-     *   <li>Maven Central: https://repo1.maven.org/maven2/</li>
-     *   <li>JCenter: https://jcenter.bintray.com/ (deprecated)</li>
-     *   <li>Google: https://maven.google.com/</li>
-     * </ul>
-     *
-     * <p><b>Defaults:</b></p>
-     * <ul>
-     *   <li>connectTimeout: 10000ms (10 seconds)</li>
-     *   <li>readTimeout: 30000ms (30 seconds)</li>
-     *   <li>auth: none</li>
-     * </ul>
      */
     public static class Builder {
         private String repositoryUrl;
@@ -562,101 +375,56 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
         private int readTimeout = DEFAULT_READ_TIMEOUT;
 
-        /**
-         * Sets a custom Maven repository URL.
-         *
-         * <p>URL should end with trailing slash and point to the repository root.</p>
-         *
-         * <p>Examples:</p>
-         * <ul>
-         *   <li>Nexus: "https://nexus.example.com/repository/maven-releases/"</li>
-         *   <li>Artifactory: "https://artifactory.example.com/artifactory/libs-release/"</li>
-         *   <li>Local: "file:///home/user/.m2/repository/"</li>
-         * </ul>
-         *
+        /** Sets a custom Maven repository URL.
          * @param repositoryUrl Maven repository URL
-         * @return this builder
-         * @throws NullPointerException if repositoryUrl is null
-         */
+         * @return this builder */
         public Builder repositoryUrl(String repositoryUrl) {
             this.repositoryUrl = Objects.requireNonNull(repositoryUrl, "repositoryUrl cannot be null");
             return this;
         }
 
-        /**
-         * Uses Maven Central as the repository.
-         *
-         * <p>Shortcut for {@code repositoryUrl("https://repo1.maven.org/maven2/")}</p>
-         *
-         * @return this builder
-         */
+        /** Uses Maven Central as the repository.
+         * @return this builder */
         public Builder mavenCentral() {
             this.repositoryUrl = "https://repo1.maven.org/maven2/";
             return this;
         }
 
-        /**
-         * Adds a Maven artifact to load classes from.
-         *
+        /** Adds a Maven artifact to load classes from.
          * @param artifact Maven artifact descriptor
-         * @return this builder
-         * @throws NullPointerException if artifact is null
-         */
+         * @return this builder */
         public Builder addArtifact(MavenArtifact artifact) {
             this.artifacts.add(Objects.requireNonNull(artifact, "artifact cannot be null"));
             return this;
         }
 
-        /**
-         * Adds a Maven artifact using individual coordinates.
-         *
-         * @param groupId Group ID (e.g., "com.google.guava")
-         * @param artifactId Artifact ID (e.g., "guava")
-         * @param version Version (e.g., "32.1.0-jre")
-         * @return this builder
-         */
+        /** Adds a Maven artifact using individual coordinates.
+         * @param groupId Group ID
+         * @param artifactId Artifact ID
+         * @param version Version
+         * @return this builder */
         public Builder addArtifact(String groupId, String artifactId, String version) {
             return addArtifact(new MavenArtifact(groupId, artifactId, version));
         }
 
-        /**
-         * Adds a Maven artifact using coordinate string.
-         *
-         * <p>Format: {@code "groupId:artifactId:version"}</p>
-         *
-         * <p>Examples:</p>
-         * <ul>
-         *   <li>"com.google.guava:guava:32.1.0-jre"</li>
-         *   <li>"org.apache.commons:commons-lang3:3.12.0"</li>
-         * </ul>
-         *
+        /** Adds a Maven artifact using coordinate string (format: "groupId:artifactId:version").
          * @param coordinates Maven coordinates string
-         * @return this builder
-         */
+         * @return this builder */
         public Builder addArtifact(String coordinates) {
             return addArtifact(MavenArtifact.parse(coordinates));
         }
 
-        /**
-         * Sets authentication for the repository.
-         *
-         * <p>Required for private corporate repositories.</p>
-         *
+        /** Sets authentication for the repository.
          * @param authConfig Authentication configuration (null = no auth)
-         * @return this builder
-         */
+         * @return this builder */
         public Builder auth(AuthConfig authConfig) {
             this.authConfig = authConfig;
             return this;
         }
 
-        /**
-         * Sets the connection timeout for repository requests.
-         *
+        /** Sets the connection timeout for repository requests.
          * @param timeoutMs Timeout in milliseconds (default: 10000ms, 0 = infinite)
-         * @return this builder
-         * @throws IllegalArgumentException if timeoutMs < 0
-         */
+         * @return this builder */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -665,13 +433,9 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
-        /**
-         * Sets the read timeout for downloading JARs.
-         *
+        /** Sets the read timeout for downloading JARs.
          * @param timeoutMs Timeout in milliseconds (default: 30000ms, 0 = infinite)
-         * @return this builder
-         * @throws IllegalArgumentException if timeoutMs < 0
-         */
+         * @return this builder */
         public Builder readTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("readTimeout must be >= 0");
@@ -680,12 +444,8 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
-        /**
-         * Builds the MavenRepositoryClassSource with configured settings.
-         *
-         * @return A new MavenRepositoryClassSource instance
-         * @throws NullPointerException if repositoryUrl not set
-         */
+        /** Builds the MavenRepositoryClassSource with configured settings.
+         * @return A new MavenRepositoryClassSource instance */
         public MavenRepositoryClassSource build() {
             Objects.requireNonNull(repositoryUrl, "repositoryUrl must be set");
             return new MavenRepositoryClassSource(repositoryUrl, artifacts, authConfig,
@@ -693,10 +453,7 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         }
     }
 
-    /**
-     * Maven Central repository URL.
-     * The primary public repository for open-source Maven artifacts.
-     */
+    /** Maven Central repository URL. */
     public static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
 
     /**
@@ -705,9 +462,6 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
      */
     public static final String JCENTER = "https://jcenter.bintray.com/";
 
-    /**
-     * Google Maven repository URL.
-     * Hosts Android libraries and Google-maintained dependencies.
-     */
+    /** Google Maven repository URL. */
     public static final String GOOGLE = "https://maven.google.com/";
 }

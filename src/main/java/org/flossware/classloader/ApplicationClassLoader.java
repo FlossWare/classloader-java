@@ -115,11 +115,11 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
 
         // Initialize helper components
         this.eventDispatcher = new ClassLoaderEventDispatcher(this.listeners);
-        this.loadingCoordinator = new ClassLoadingCoordinator(this.classSources, this.cache,
-                                                             this.useCache, this.bytecodeVerifier,
-                                                             this.eventDispatcher);
-        this.resourceManager = new ClassLoaderResourceManager(this.classSources, this.cache,
-                                                             this.eventDispatcher);
+        this.loadingCoordinator = new ClassLoadingCoordinator(
+            this.classSources, this.cache, this.useCache,
+            this.bytecodeVerifier, this.eventDispatcher);
+        this.resourceManager = new ClassLoaderResourceManager(
+            this.classSources, this.cache, this.eventDispatcher);
     }
 
     @Override
