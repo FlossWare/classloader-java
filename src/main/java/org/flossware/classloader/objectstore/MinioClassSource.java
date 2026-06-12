@@ -38,18 +38,6 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
     /** Maximum valid port number. */
     private static final int MAX_PORT = 65535;
 
-    /** Default HTTPS port number. */
-    private static final int DEFAULT_HTTPS_PORT = 443;
-
-    /** Default MinIO HTTP port number. */
-    private static final int DEFAULT_MINIO_HTTP_PORT = 9000;
-
-    /** Minimum valid port number. */
-    private static final int MIN_PORT = 1;
-
-    /** Maximum valid port number. */
-    private static final int MAX_PORT = 65535;
-
     private final MinioClient minioClient;
     private final String bucketName;
     private final String prefix;

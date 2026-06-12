@@ -26,7 +26,6 @@ public final class RetryPolicy {
      */
     private static final int JITTER_PERCENTAGE_DIVISOR = 4;
 
-<<<<<<< Updated upstream
     /** Minimum backoff multiplier: must be at least 1.0 to avoid zero or negative multipliers. */
     private static final double MIN_BACKOFF_MULTIPLIER = 1.0;
 
@@ -36,8 +35,6 @@ public final class RetryPolicy {
     /** Jitter range increment: added to upper bound in nextLong() to make it inclusive. */
     private static final int JITTER_RANGE_INCREMENT = 1;
 
-=======
->>>>>>> Stashed changes
     /** Default maximum retry attempts for standard retry policy. */
     private static final int DEFAULT_MAX_RETRIES = 3;
 
@@ -50,21 +47,9 @@ public final class RetryPolicy {
     /** Default exponential backoff multiplier. */
     private static final double DEFAULT_BACKOFF_MULTIPLIER = 2.0;
 
-<<<<<<< Updated upstream
-=======
     /** No backoff multiplier: used when backoff is disabled (1.0 means no exponential increase). */
     private static final double NO_BACKOFF_MULTIPLIER = 1.0;
 
-    /** Minimum backoff multiplier: must be at least 1.0 to avoid zero or negative multipliers. */
-    private static final double MIN_BACKOFF_MULTIPLIER = 1.0;
-
-    /** Minimum delay value: delays cannot be negative. */
-    private static final long MIN_DELAY_MS = 0;
-
-    /** Jitter range increment: added to upper bound in nextLong() to make it inclusive. */
-    private static final int JITTER_RANGE_INCREMENT = 1;
-
->>>>>>> Stashed changes
     /** Maximum retry attempts for aggressive retry policy. */
     private static final int AGGRESSIVE_MAX_RETRIES = 5;
 
@@ -127,11 +112,7 @@ public final class RetryPolicy {
      * @return No-retry policy
      */
     public static RetryPolicy noRetry() {
-<<<<<<< Updated upstream
-        return new RetryPolicy(0, 0, 0, MIN_BACKOFF_MULTIPLIER, false);
-=======
         return new RetryPolicy(0, 0, 0, NO_BACKOFF_MULTIPLIER, false);
->>>>>>> Stashed changes
     }
 
     /**
@@ -161,33 +142,18 @@ public final class RetryPolicy {
                 return operation.get();
             } catch (IOException e) {
                 lastException = e;
-<<<<<<< Updated upstream
-                delayIfNotLastAttempt(attempt);
-=======
                 waitBeforeNextRetry(attempt);
->>>>>>> Stashed changes
             }
         }
 
         throw new IOException("Failed after " + (maxRetries + 1) + " attempts", lastException);
     }
 
-<<<<<<< Updated upstream
-    private void delayIfNotLastAttempt(int attempt) throws IOException {
-        if (attempt < maxRetries) {
-            performBackoffDelay(attempt);
-        }
-    }
-
-    private void performBackoffDelay(int attemptNumber) throws IOException {
-        long delay = calculateDelay(attemptNumber);
-=======
     private void waitBeforeNextRetry(int attempt) throws IOException {
         if (attempt >= maxRetries) {
             return;
         }
         long delay = calculateDelay(attempt);
->>>>>>> Stashed changes
         try {
             Thread.sleep(delay);
         } catch (InterruptedException ie) {

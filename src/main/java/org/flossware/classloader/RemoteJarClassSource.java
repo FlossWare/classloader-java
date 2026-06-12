@@ -122,13 +122,8 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         HttpURLConnection httpConnection = null;
         try {
             if (connection instanceof HttpURLConnection) {
-<<<<<<< Updated upstream
                 httpConnection = (HttpURLConnection) connection;
                 validateHttpJarResponse(httpConnection, url);
-=======
-                validateHttpJarResponse((HttpURLConnection) connection, url);
-                httpConnection = (HttpURLConnection) connection;
->>>>>>> Stashed changes
             }
 
             try (InputStream in = connection.getInputStream()) {
@@ -137,15 +132,11 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
 
             validateDownloadedJarSize();
         } finally {
-<<<<<<< Updated upstream
-            safelyDisconnectHttpConnection(httpConnection);
-=======
             if (httpConnection != null) {
                 safelyDisconnectHttpConnection(httpConnection);
             } else {
                 safelyCloseUrlConnection(connection);
             }
->>>>>>> Stashed changes
         }
     }
 

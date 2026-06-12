@@ -19,3 +19,7 @@ buildNumber.properties
 logs/
 *.backup*
 .claude
+
+# Java compiled class files
+*.class
+**/*.class

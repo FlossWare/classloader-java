@@ -23,15 +23,10 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
     private static final long MAX_CLASS_SIZE = 10 * 1024 * 1024; // 10MB default
     private static final int DEFAULT_SOCKET_TIMEOUT = 30000; // 30 seconds
     private static final int DEFAULT_CONNECT_TIMEOUT = 10000; // 10 seconds
-<<<<<<< Updated upstream
-    private static final int DEFAULT_IPC_PING_INTERVAL = 10000; // 10 seconds
-    private static final int DEFAULT_IPC_CONNECT_MAX_RETRIES = 3;
-=======
     /** Default maximum IPC connection retries before failing. */
     private static final int DEFAULT_IPC_CONNECT_MAX_RETRIES = 3;
     /** Default IPC ping interval in milliseconds (10 seconds). */
     private static final int DEFAULT_IPC_PING_INTERVAL_MS = 10000;
->>>>>>> Stashed changes
 
     private final FileSystem hdfs;
     private final String basePath;
@@ -99,12 +94,8 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
         while (totalRead < size) {
             int n = in.read(data, totalRead, size - totalRead);
             if (n == -1) {
-<<<<<<< Updated upstream
-                throw new IOException("Incomplete read: expected " + size + " bytes, got " + totalRead);
-=======
                 validateCompleteRead(totalRead, size);
                 return totalRead;
->>>>>>> Stashed changes
             }
             totalRead += n;
         }
@@ -349,11 +340,7 @@ public class HdfsClassSource implements ClassSource, AutoCloseable {
             // Configure timeouts to prevent hanging
             conf.setInt("ipc.client.connect.timeout", connectTimeout);
             conf.setInt("ipc.client.connect.max.retries", DEFAULT_IPC_CONNECT_MAX_RETRIES);
-<<<<<<< Updated upstream
-            conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL);
-=======
             conf.setInt("ipc.ping.interval", DEFAULT_IPC_PING_INTERVAL_MS);
->>>>>>> Stashed changes
             conf.setInt("dfs.client.socket-timeout", socketTimeout);
 
             FileSystem hdfs = FileSystem.get(conf);

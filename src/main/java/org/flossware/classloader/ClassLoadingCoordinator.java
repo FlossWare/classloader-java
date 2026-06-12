@@ -40,18 +40,10 @@ class ClassLoadingCoordinator {
     private final BytecodeVerifier bytecodeVerifier;
     private final ClassLoaderEventDispatcher eventDispatcher;
 
-<<<<<<< Updated upstream
     ClassLoadingCoordinator(List<ClassSource> classSources, ClassCache cache,
             boolean useCache, BytecodeVerifier bytecodeVerifier,
             ClassLoaderEventDispatcher eventDispatcher) {
-        this.classSources = classSources;
-=======
-    ClassLoadingCoordinator(List<ClassSource> classSources,
-            ClassCache cache, boolean useCache,
-            BytecodeVerifier bytecodeVerifier,
-            ClassLoaderEventDispatcher eventDispatcher) {
         this.classSources = Objects.requireNonNull(classSources, "classSources cannot be null");
->>>>>>> Stashed changes
         this.cache = cache;
         this.useCache = useCache;
         this.bytecodeVerifier = bytecodeVerifier;
@@ -66,21 +58,13 @@ class ClassLoadingCoordinator {
      * @throws ClassNotFoundException if validation or verification fails
      */
     byte[] loadClass(String name) throws ClassNotFoundException {
-<<<<<<< Updated upstream
-        // Check cache first
-=======
         Objects.requireNonNull(name, "name cannot be null");
 
->>>>>>> Stashed changes
         byte[] cachedData = loadFromCache(name);
         if (cachedData != null) {
             return cachedData;
         }
 
-<<<<<<< Updated upstream
-        // Load from sources
-=======
->>>>>>> Stashed changes
         return loadFromSources(name);
     }
 
@@ -88,18 +72,10 @@ class ClassLoadingCoordinator {
         if (!useCache || cache == null) {
             return null;
         }
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
         byte[] cachedData = cache.get(name);
         if (cachedData == null) {
             return null;
         }
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
         eventDispatcher.fireClassCacheHit(name);
         verifyBytecode(name, cachedData);
         return cachedData;
@@ -110,43 +86,6 @@ class ClassLoadingCoordinator {
         List<String> failureReasons = new ArrayList<>();
 
         for (ClassSource source : classSources) {
-<<<<<<< Updated upstream
-            if (!source.canLoad(name)) {
-                continue;
-            }
-
-            attemptedSources.add(source.getDescription());
-            byte[] result = tryLoadFromSource(name, source, failureReasons);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        throwClassNotFoundException(name, attemptedSources, failureReasons);
-        return null; // unreachable
-    }
-
-    private byte[] tryLoadFromSource(String name, ClassSource source, List<String> failureReasons)
-            throws ClassNotFoundException {
-        try {
-            long loadStartTime = System.nanoTime();
-            byte[] classData = source.loadClassData(name);
-
-            if (classData == null) {
-                return null;
-            }
-
-            long loadTime = System.nanoTime() - loadStartTime;
-            validateClassData(name, classData);
-            verifyBytecode(name, classData);
-
-            if (useCache && cache != null) {
-                tryCacheClassData(name, classData);
-            }
-
-            eventDispatcher.fireClassLoaded(new ClassLoadEvent(name, source, loadTime, classData.length));
-            return classData;
-=======
             byte[] classData = tryLoadFromSource(name, source, attemptedSources, failureReasons);
             if (classData != null) {
                 return classData;
@@ -168,17 +107,12 @@ class ClassLoadingCoordinator {
 
         try {
             return loadAndValidateFromSource(name, source);
->>>>>>> Stashed changes
         } catch (IOException e) {
             failureReasons.add(source.getDescription() + ": " + e.getMessage());
             return null;
         }
     }
 
-<<<<<<< Updated upstream
-    private void throwClassNotFoundException(String name, List<String> attemptedSources,
-            List<String> failureReasons) throws ClassNotFoundException {
-=======
     private byte[] loadAndValidateFromSource(String name, ClassSource source)
             throws IOException, ClassNotFoundException {
         long loadStartTime = System.nanoTime();
@@ -202,7 +136,6 @@ class ClassLoadingCoordinator {
 
     private void throwClassNotFound(String name, List<String> attemptedSources,
                                     List<String> failureReasons) throws ClassNotFoundException {
->>>>>>> Stashed changes
         String errorMsg = "Class not found: " + name +
                          " (tried " + attemptedSources.size() + " sources";
         if (!failureReasons.isEmpty()) {
@@ -239,20 +172,11 @@ class ClassLoadingCoordinator {
         if (bytecodeVerifier == null) {
             return;
         }
-<<<<<<< Updated upstream
-
         try {
             bytecodeVerifier.verify(name, classData);
         } catch (SecurityException e) {
             ClassNotFoundException ex = new ClassNotFoundException(
                 "Bytecode verification failed: " + name, e);
-=======
-        try {
-            bytecodeVerifier.verify(name, classData);
-        } catch (SecurityException e) {
-            String msg = "Bytecode check failed: " + name;
-            ClassNotFoundException ex = new ClassNotFoundException(msg, e);
->>>>>>> Stashed changes
             eventDispatcher.fireClassLoadFailed(name, ex);
             throw ex;
         }
@@ -272,13 +196,8 @@ class ClassLoadingCoordinator {
         } catch (IOException e) {
             ClassLoaderLogger.logError("Failed to cache class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
-<<<<<<< Updated upstream
-        } catch (RuntimeException e) {
-            ClassLoaderLogger.logError("Failed to cache class " + name + ": " + e.getMessage());
-=======
         } catch (IllegalStateException | NullPointerException | UnsupportedOperationException e) {
             ClassLoaderLogger.logError("Error caching class " + name + ": " + e.getMessage());
->>>>>>> Stashed changes
             eventDispatcher.fireClassCacheFailed(name, e);
         } catch (Error e) {
             // Catch critical errors (OutOfMemoryError, StackOverflowError, etc.) to prevent

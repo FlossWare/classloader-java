@@ -45,11 +45,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private volatile boolean closed = false;
     private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock();
 
-<<<<<<< Updated upstream
-    // Helper components for JAR download and class extraction
-=======
     // Helper components for separation of concerns
->>>>>>> Stashed changes
     private final JarDownloadManager downloadManager;
     private final JarClassExtractor classExtractor;
 
@@ -87,13 +83,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         this.classCache = new ConcurrentHashMap<>();
         this.jarFileCache = new ConcurrentHashMap<>();
         this.jarPathCache = new ConcurrentHashMap<>();
-<<<<<<< Updated upstream
         this.downloadManager = new JarDownloadManager(connectTimeout, readTimeout, this.authConfig);
-=======
-        this.connectTimeout = connectTimeout;
-        this.readTimeout = readTimeout;
-        this.downloadManager = new JarDownloadManager(connectTimeout, readTimeout);
->>>>>>> Stashed changes
         this.classExtractor = new JarClassExtractor();
     }
 
@@ -133,34 +123,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     @Override
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
-        byte[] cachedData = classCache.get(className);
-        if (cachedData != null) { return cachedData; }
 
-<<<<<<< Updated upstream
-        closeLock.readLock().lock();
-        try {
-            if (closed) { throw new IllegalStateException("MavenNexusClassSource is closed"); }
-            cachedData = classCache.get(className);
-            if (cachedData != null) { return cachedData; }
-
-            String classFileName = ClassNameUtil.toClassFilePath(className);
-            List<String> errorMessages = new ArrayList<>();
-            for (MavenArtifact artifact : artifacts) {
-                try {
-                    String jarUrl = buildJarUrl(artifact);
-                    JarFile jarFile = ensureJarCached(artifact.toString(), jarUrl);
-                    byte[] classData = classExtractor.extractClassFromJar(jarFile, classFileName, jarUrl);
-                    classCache.put(className, classData);
-                    return classData;
-                } catch (IOException e) {
-                    errorMessages.add(String.format("Artifact %s - %s", artifact, e.getMessage()));
-                }
-            }
-            String allErrors = String.join("\n  - ", errorMessages);
-            throw new IOException("Class not found in any of " + artifacts.size() +
-                " configured Maven artifacts: " + className + "\nAttempted artifacts:\n  - " + allErrors);
-        } finally { closeLock.readLock().unlock(); }
-=======
         // Check closed flag before cache lookup to enforce post-close contract.
         // Without this, cached data could be returned from a closed source,
         // bypassing the closed check inside loadClassDataUnderLock().
@@ -183,7 +146,6 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         } finally {
             closeLock.readLock().unlock();
         }
->>>>>>> Stashed changes
     }
 
     private byte[] loadClassDataUnderLock(String className) throws IOException {
@@ -280,31 +242,9 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
      * the same Future.</p>
      */
     private JarFile ensureJarCached(String artifactKey, String jarUrl) throws IOException {
-<<<<<<< Updated upstream
-        FutureTask<JarFile> newTask = new FutureTask<>(new Callable<JarFile>() {
-            @Override
-            public JarFile call() throws IOException {
-                Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
-                jarPathCache.put(artifactKey, tempJarPath);
-                try {
-                    downloadManager.downloadJarFile(jarUrl, tempJarPath);
-                    return new JarFile(tempJarPath.toFile());
-                } catch (IOException e) {
-                    jarPathCache.remove(artifactKey);
-                    try {
-                        Files.deleteIfExists(tempJarPath);
-                    } catch (IOException ignored) {
-                        // Ignore cleanup errors
-                    }
-                    throw e;
-                }
-            }
-        });
-=======
         // Create a FutureTask that encapsulates the download work
         FutureTask<JarFile> newTask = new FutureTask<>(
             () -> downloadAndCacheJar(artifactKey, jarUrl));
->>>>>>> Stashed changes
 
         FutureTask<JarFile> existingTask = jarFileCache.putIfAbsent(artifactKey, newTask);
         if (existingTask == null) {
@@ -338,14 +278,12 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         }
     }
 
-<<<<<<< Updated upstream
-=======
     private JarFile downloadAndCacheJar(String artifactKey, String jarUrl) throws IOException {
         Path tempJarPath = Files.createTempFile("jclassloader-nexus-", ".jar");
         // Register temp file immediately so it can be cleaned up on cancellation or close()
         jarPathCache.put(artifactKey, tempJarPath);
         try {
-            downloadJarFile(jarUrl, tempJarPath);
+            downloadManager.downloadJarFile(jarUrl, tempJarPath);
             return new JarFile(tempJarPath.toFile());
         } catch (IOException e) {
             cleanupFailedDownload(artifactKey, tempJarPath);
@@ -362,16 +300,6 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         }
     }
 
-    private void downloadJarFile(String jarUrl, Path tempJarPath) throws IOException {
-        downloadManager.downloadJarFile(jarUrl, tempJarPath);
-    }
-
-
-    private void configureAuthentication(HttpURLConnection connection) {
-        AuthHelper.configureAuth(connection, authConfig);
-    }
-
->>>>>>> Stashed changes
     /**
      * Adds a Maven artifact to load classes from.
      * Thread-safe: synchronizes with {@link #loadClassData(String)} to prevent ConcurrentModificationException.
@@ -446,8 +374,10 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         return authConfig;
     }
 
-    /** Closes all cached JAR files and deletes their temporary files.
-     * @throws IOException if an error occurs during cleanup */
+    /**
+     * Closes all cached JAR files and deletes their temporary files.
+     * @throws IOException if an error occurs during cleanup
+     */
     @Override
     public void close() throws IOException {
         if (closed) { return; }
@@ -456,29 +386,6 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             if (closed) { return; }
             closed = true;
             List<IOException> exceptions = new ArrayList<>();
-<<<<<<< Updated upstream
-            for (FutureTask<JarFile> task : jarFileCache.values()) {
-                try {
-                    if (task.isDone() && !task.isCancelled()) { task.get().close(); }
-                } catch (ExecutionException e) {
-                    // Task failed during download -- nothing to close
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    exceptions.add(new IOException("Interrupted during close", e));
-                } catch (IOException e) { exceptions.add(e); }
-            }
-            jarFileCache.clear();
-            for (Path tempPath : jarPathCache.values()) {
-                try { Files.deleteIfExists(tempPath); } catch (IOException e) { exceptions.add(e); }
-            }
-            jarPathCache.clear();
-            if (!exceptions.isEmpty()) {
-                IOException ex = new IOException("Failed to close MavenNexusClassSource");
-                exceptions.forEach(ex::addSuppressed);
-                throw ex;
-            }
-        } finally { closeLock.writeLock().unlock(); }
-=======
 
             // Clear class cache to prevent stale data from being returned after close.
             // This is defense-in-depth alongside the closed check in loadClassData().
@@ -490,7 +397,6 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         } finally {
             closeLock.writeLock().unlock();
         }
->>>>>>> Stashed changes
     }
 
     private void closeAllCachedJarFiles(List<IOException> exceptions) {
@@ -576,35 +482,43 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
         private int connectTimeout = DEFAULT_CONNECT_TIMEOUT;
         private int readTimeout = DEFAULT_READ_TIMEOUT;
 
-        /** Sets the Nexus server URL.
+        /**
+         * Sets the Nexus server URL.
          * @param nexusUrl The Nexus URL
-         * @return this builder */
+         * @return this builder
+         */
         public Builder nexusUrl(String nexusUrl) {
             this.nexusUrl = Objects.requireNonNull(nexusUrl, "nexusUrl cannot be null");
             return this;
         }
 
-        /** Sets the Maven repository name in Nexus.
+        /**
+         * Sets the Maven repository name in Nexus.
          * @param repository The repository name
-         * @return this builder */
+         * @return this builder
+         */
         public Builder repository(String repository) {
             this.repository = Objects.requireNonNull(repository, "repository cannot be null");
             return this;
         }
 
-        /** Adds a Maven artifact to load classes from.
+        /**
+         * Adds a Maven artifact to load classes from.
          * @param artifact The Maven artifact descriptor
-         * @return this builder */
+         * @return this builder
+         */
         public Builder addArtifact(MavenArtifact artifact) {
             this.artifacts.add(Objects.requireNonNull(artifact, "artifact cannot be null"));
             return this;
         }
 
-        /** Adds a Maven artifact using individual coordinates.
+        /**
+         * Adds a Maven artifact using individual coordinates.
          * @param groupId The Maven group ID
          * @param artifactId The Maven artifact ID
          * @param version The artifact version
-         * @return this builder */
+         * @return this builder
+         */
         public Builder addArtifact(String groupId, String artifactId, String version) {
             Objects.requireNonNull(groupId, "groupId cannot be null");
             Objects.requireNonNull(artifactId, "artifactId cannot be null");
@@ -612,31 +526,32 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             return addArtifact(new MavenArtifact(groupId, artifactId, version));
         }
 
-        /** Adds a Maven artifact by coordinate string (format: "groupId:artifactId:version").
+        /**
+         * Adds a Maven artifact by coordinate string (format: "groupId:artifactId:version").
          * @param coordinates Maven coordinates string
-<<<<<<< Updated upstream
-         * @return this builder */
-=======
          * @return this builder
          * @throws NullPointerException if coordinates is null
          */
->>>>>>> Stashed changes
         public Builder addArtifact(String coordinates) {
             Objects.requireNonNull(coordinates, "coordinates cannot be null");
             return addArtifact(MavenArtifact.parse(coordinates));
         }
 
-        /** Sets the authentication configuration for accessing Nexus.
+        /**
+         * Sets the authentication configuration for accessing Nexus.
          * @param authConfig Authentication configuration (null for no auth)
-         * @return this builder */
+         * @return this builder
+         */
         public Builder auth(AuthConfig authConfig) {
             this.authConfig = authConfig;
             return this;
         }
 
-        /** Sets the connection timeout for Nexus requests.
+        /**
+         * Sets the connection timeout for Nexus requests.
          * @param timeoutMs Timeout in milliseconds (default: 10000ms, 0 = infinite)
-         * @return this builder */
+         * @return this builder
+         */
         public Builder connectTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("connectTimeout must be >= 0");
@@ -645,9 +560,11 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
-        /** Sets the read timeout for downloading JARs from Nexus.
+        /**
+         * Sets the read timeout for downloading JARs from Nexus.
          * @param timeoutMs Timeout in milliseconds (default: 30000ms, 0 = infinite)
-         * @return this builder */
+         * @return this builder
+         */
         public Builder readTimeout(int timeoutMs) {
             if (timeoutMs < 0) {
                 throw new IllegalArgumentException("readTimeout must be >= 0");
@@ -656,8 +573,10 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
             return this;
         }
 
-        /** Builds the MavenNexusClassSource with configured settings.
-         * @return a new MavenNexusClassSource instance */
+        /**
+         * Builds the MavenNexusClassSource with configured settings.
+         * @return a new MavenNexusClassSource instance
+         */
         public MavenNexusClassSource build() {
             Objects.requireNonNull(nexusUrl, "nexusUrl must be set");
             Objects.requireNonNull(repository, "repository must be set");

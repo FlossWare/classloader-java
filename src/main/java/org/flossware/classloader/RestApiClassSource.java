@@ -2,12 +2,7 @@ package org.flossware.classloader;
 
 import org.flossware.classloader.rest.ResponseProcessor;
 import org.flossware.classloader.rest.UrlBuilder;
-<<<<<<< Updated upstream
-
-import java.io.ByteArrayOutputStream;
-=======
 import org.flossware.classloader.rest.ResponseProcessor.ResponseFormat;
->>>>>>> Stashed changes
 
 import static org.flossware.classloader.util.ClassLoaderConstants.DEFAULT_BUFFER_SIZE;
 
@@ -17,10 +12,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-<<<<<<< Updated upstream
-=======
 import java.nio.charset.StandardCharsets;
->>>>>>> Stashed changes
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -42,11 +34,7 @@ public class RestApiClassSource implements ClassSource {
     private final int readTimeout;
     private final boolean enableCanLoadCheck;
 
-<<<<<<< Updated upstream
-    // Helper components for URL building and response processing
-=======
     // Helper components for separation of concerns
->>>>>>> Stashed changes
     private final UrlBuilder urlBuilder;
     private final ResponseProcessor responseProcessor;
 
@@ -78,11 +66,7 @@ public class RestApiClassSource implements ClassSource {
         this.connectTimeout = connectTimeout;
         this.readTimeout = readTimeout;
         this.enableCanLoadCheck = enableCanLoadCheck;
-<<<<<<< Updated upstream
         this.urlBuilder = new UrlBuilder(normalizedBaseUrl, normalizedTemplate, new HashMap<>(queryParams));
-=======
-        this.urlBuilder = new UrlBuilder(this.baseUrl, this.classPathTemplate, this.queryParams);
->>>>>>> Stashed changes
         this.responseProcessor = new ResponseProcessor();
     }
 
@@ -97,10 +81,7 @@ public class RestApiClassSource implements ClassSource {
     public byte[] loadClassData(String className) throws IOException {
         Objects.requireNonNull(className, "className cannot be null");
         String url = urlBuilder.buildUrl(className);
-<<<<<<< Updated upstream
-=======
         // HttpURLConnection does not implement AutoCloseable, so we use try/finally with disconnect()
->>>>>>> Stashed changes
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         try {
             connection.setConnectTimeout(connectTimeout);
@@ -129,11 +110,7 @@ public class RestApiClassSource implements ClassSource {
         try (InputStream in = connection.getInputStream();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             readWithSizeLimit(in, out);
-<<<<<<< Updated upstream
             ResponseProcessor.ResponseFormat format = toProcessorFormat(responseFormat);
-=======
-            ResponseProcessor.ResponseFormat format = convertResponseFormat(responseFormat);
->>>>>>> Stashed changes
             return responseProcessor.processResponse(out.toByteArray(), format);
         }
     }
@@ -154,19 +131,6 @@ public class RestApiClassSource implements ClassSource {
         }
     }
 
-    private ResponseProcessor.ResponseFormat convertResponseFormat(ResponseFormat format) {
-        switch (format) {
-            case BASE64_JSON_FIELD:
-                return ResponseProcessor.ResponseFormat.BASE64_JSON_FIELD;
-            case BINARY:
-                return ResponseProcessor.ResponseFormat.BINARY;
-            case DIRECT:
-                return ResponseProcessor.ResponseFormat.DIRECT;
-            default:
-                return ResponseProcessor.ResponseFormat.BINARY;
-        }
-    }
-
     /**
      * Safely disconnects an HTTP connection, suppressing specific exceptions.
      *
@@ -181,13 +145,8 @@ public class RestApiClassSource implements ClassSource {
         if (connection != null) {
             try {
                 connection.disconnect();
-<<<<<<< Updated upstream
-            } catch (RuntimeException e) {
-                // Suppress runtime exceptions during resource cleanup
-=======
             } catch (IllegalStateException | UncheckedIOException e) {
                 // Suppress exceptions during resource cleanup to avoid masking original exception
->>>>>>> Stashed changes
             }
         }
     }
@@ -232,7 +191,6 @@ public class RestApiClassSource implements ClassSource {
         AuthHelper.configureAuth(connection, authConfig);
     }
 
-<<<<<<< Updated upstream
     private static ResponseProcessor.ResponseFormat toProcessorFormat(ResponseFormat format) {
         switch (format) {
             case BINARY: return ResponseProcessor.ResponseFormat.BINARY;
@@ -241,8 +199,6 @@ public class RestApiClassSource implements ClassSource {
             default: return ResponseProcessor.ResponseFormat.BINARY;
         }
     }
-=======
->>>>>>> Stashed changes
 
     /**
      * Creates a new Builder for constructing RestApiClassSource instances.

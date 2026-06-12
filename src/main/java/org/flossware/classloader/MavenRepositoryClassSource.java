@@ -128,20 +128,12 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
         List<String> errorMessages = new ArrayList<>();
 
         for (MavenArtifact artifact : artifacts) {
-<<<<<<< Updated upstream
             byte[] classData = tryLoadFromArtifact(artifact, classFileName, className, errorMessages);
             if (classData != null) {
-=======
-            byte[] classData = tryLoadFromArtifact(
-                artifact, classFileName, errorMessages);
-            if (classData != null) {
-                classCache.put(cacheKey, classData);
->>>>>>> Stashed changes
                 return classData;
             }
         }
 
-<<<<<<< Updated upstream
         throwClassNotFoundInArtifacts(className, errorMessages);
         return null; // unreachable
     }
@@ -168,10 +160,6 @@ public class MavenRepositoryClassSource implements ClassSource, AutoCloseable {
             "Class not found in any of " + artifacts.size() + " configured Maven artifacts: " +
             className + "\nAttempted artifacts:\n  - " + allErrors
         );
-=======
-        // Throw with ALL error details
-        throw buildClassNotFoundException(className, errorMessages);
->>>>>>> Stashed changes
     }
 
     /** {@inheritDoc} */

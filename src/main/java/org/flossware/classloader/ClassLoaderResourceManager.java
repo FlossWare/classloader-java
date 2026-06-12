@@ -44,29 +44,21 @@ class ClassLoaderResourceManager {
         // Close all closeable class sources
         for (ClassSource source : classSources) {
             if (source instanceof AutoCloseable) {
-<<<<<<< Updated upstream
-                closeAutoCloseable((AutoCloseable) source, exceptions);
-=======
                 try {
                     closeAutoCloseable((AutoCloseable) source);
                 } catch (IOException e) {
                     exceptions.add(e);
                 }
->>>>>>> Stashed changes
             }
         }
 
         // Close cache if closeable
         if (cache instanceof AutoCloseable) {
-<<<<<<< Updated upstream
-            closeAutoCloseable((AutoCloseable) cache, exceptions);
-=======
             try {
                 closeAutoCloseable((AutoCloseable) cache);
             } catch (IOException e) {
                 exceptions.add(e);
             }
->>>>>>> Stashed changes
         }
 
         // Notify listeners - listener callbacks can throw any RuntimeException since
@@ -87,26 +79,6 @@ class ClassLoaderResourceManager {
     }
 
     /**
-<<<<<<< Updated upstream
-     * Helper method to close an AutoCloseable resource and collect exceptions.
-     *
-     * @param closeable the AutoCloseable resource to close
-     * @param exceptions the exception collection to add any errors to
-     */
-    private void closeAutoCloseable(AutoCloseable closeable, List<Exception> exceptions) {
-        try {
-            closeable.close();
-        } catch (IOException e) {
-            // IOException: legitimate I/O failure during closure
-            exceptions.add(e);
-        } catch (RuntimeException e) {
-            // RuntimeException: programming error or resource state issue
-            exceptions.add(e);
-        } catch (Exception e) {
-            // Other checked exceptions from custom AutoCloseable implementations
-            // (e.g., InterruptedException, SQLException, etc.)
-            exceptions.add(e);
-=======
      * Closes an AutoCloseable resource, converting checked exceptions to IOException.
      *
      * <p>AutoCloseable.close() declares {@code throws Exception}, which is intentionally
@@ -146,7 +118,6 @@ class ClassLoaderResourceManager {
             // our control (e.g., javax.naming.NamingException, javax.jms.JMSException).
             // This is the narrowest practical approach for AutoCloseable compliance.
             throw new IOException("Failed to close resource: " + closeable, e);
->>>>>>> Stashed changes
         }
     }
 }

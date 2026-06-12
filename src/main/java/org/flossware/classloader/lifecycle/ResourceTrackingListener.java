@@ -92,27 +92,13 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
      */
     public void closeAllResources() {
         for (AutoCloseable resource : openResources) {
-<<<<<<< Updated upstream
-            closeResourceSuppressingErrors(resource);
-=======
             closeQuietly(resource);
->>>>>>> Stashed changes
         }
         openResources.clear();
         loadedClasses.clear();
     }
 
     /**
-<<<<<<< Updated upstream
-     * Closes a single resource, suppressing all exceptions to ensure cleanup continues.
-     *
-     * <p>This is appropriate for cleanup operations where we want to close all resources
-     * even if some fail, rather than failing fast on the first error.</p>
-     *
-     * @param resource the AutoCloseable resource to close
-     */
-    private void closeResourceSuppressingErrors(AutoCloseable resource) {
-=======
      * Closes a resource, suppressing checked exceptions and runtime exceptions.
      *
      * <p>AutoCloseable.close() declares {@code throws Exception}, so after handling
@@ -130,23 +116,11 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
      * @param resource the resource to close
      */
     private static void closeQuietly(AutoCloseable resource) {
->>>>>>> Stashed changes
         try {
             resource.close();
         } catch (IOException e) {
             // IO errors during resource closure are suppressed
             // to ensure we continue closing remaining resources
-<<<<<<< Updated upstream
-        } catch (RuntimeException e) {
-            // Programming errors are suppressed to allow cleanup to continue
-        } catch (Exception e) {
-            // Other checked exceptions (e.g., SQLException, InterruptedException)
-            // are suppressed to ensure we continue closing remaining resources
-        } catch (Error e) {
-            // Error subclasses (e.g., OutOfMemoryError, StackOverflowError, AssertionError)
-            // must also be caught to prevent breaking the cleanup loop and leaking
-            // remaining unclosed resources
-=======
         } catch (InterruptedException e) {
             // Restore the interrupt flag so callers can detect the interruption
             Thread.currentThread().interrupt();
@@ -162,7 +136,6 @@ public class ResourceTrackingListener implements ClassLoaderLifecycleListener {
             // remaining domain-specific checked exceptions from implementations outside
             // our control (e.g., javax.naming.NamingException, javax.jms.JMSException).
             // This is the narrowest practical approach for AutoCloseable compliance.
->>>>>>> Stashed changes
         }
     }
 

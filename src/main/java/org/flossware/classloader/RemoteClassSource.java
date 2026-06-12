@@ -28,19 +28,11 @@ public class RemoteClassSource implements ClassSource {
     /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError from malicious sources */
     private static final int MAX_CLASS_SIZE = 100 * 1024 * 1024;
 
-<<<<<<< Updated upstream
     /** Start of the HTTP 2xx success status code range (inclusive). */
     private static final int HTTP_SUCCESS_MIN = 200;
 
     /** End of the HTTP 2xx success status code range (exclusive). */
     private static final int HTTP_SUCCESS_MAX = 300;
-=======
-    /** HTTP success response code range start (2xx class) */
-    private static final int HTTP_SUCCESS_START = 200;
-
-    /** HTTP success response code range end (exclusive, upper bound of 2xx class) */
-    private static final int HTTP_SUCCESS_END = 300;
->>>>>>> Stashed changes
 
     private final String baseUrl;
     private final AuthConfig authConfig;
@@ -161,11 +153,7 @@ public class RemoteClassSource implements ClassSource {
     private void validateHttpResponse(HttpURLConnection httpConnection, URL url) throws IOException {
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code
-<<<<<<< Updated upstream
         if (responseCode < HTTP_SUCCESS_MIN || responseCode >= HTTP_SUCCESS_MAX) {
-=======
-        if (responseCode < HTTP_SUCCESS_START || responseCode >= HTTP_SUCCESS_END) {
->>>>>>> Stashed changes
             throw new IOException("HTTP error code: " + responseCode + " for URL: " + url);
         }
     }
@@ -294,11 +282,7 @@ public class RemoteClassSource implements ClassSource {
 
         int responseCode = httpConnection.getResponseCode();
         // Accept any 2xx success code or 304 Not Modified
-<<<<<<< Updated upstream
         return (responseCode >= HTTP_SUCCESS_MIN && responseCode < HTTP_SUCCESS_MAX) ||
-=======
-        return (responseCode >= HTTP_SUCCESS_START && responseCode < HTTP_SUCCESS_END) ||
->>>>>>> Stashed changes
                responseCode == HttpURLConnection.HTTP_NOT_MODIFIED;
     }
 

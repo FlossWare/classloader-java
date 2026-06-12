@@ -39,32 +39,17 @@ public class AuthHelper {
         String username = authConfig.getUsername();
         String password = authConfig.getPassword();
         if (username == null || password == null) {
-<<<<<<< Updated upstream
             throw new IllegalArgumentException("Username and password must not be null for BASIC authentication");
         }
         String credentials = username + ":" + password;
         String encodedCredentials = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
         connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
-=======
-            throw new IllegalArgumentException(
-                "Username and password required with BASIC auth");
-        }
-        String credentials = username + ":" + password;
-        String encoded = Base64.getEncoder().encodeToString(
-            credentials.getBytes(StandardCharsets.UTF_8));
-        connection.setRequestProperty("Authorization", "Basic " + encoded);
->>>>>>> Stashed changes
     }
 
     private static void configureBearerAuth(HttpURLConnection connection, AuthConfig authConfig) {
         String token = authConfig.getToken();
         if (token == null) {
-<<<<<<< Updated upstream
             throw new IllegalArgumentException("Token must not be null for BEARER authentication");
-=======
-            throw new IllegalArgumentException(
-                "Token required with BEARER auth");
->>>>>>> Stashed changes
         }
         connection.setRequestProperty("Authorization", "Bearer " + token);
     }
