@@ -131,4 +131,23 @@ public interface ClassSource {
      * @return A description string, never null
      */
     String getDescription();
+
+    /**
+     * Loads a non-class resource by its path (e.g., "com/example/config.properties").
+     *
+     * <p>Unlike {@link #loadClassData(String)}, which takes a fully qualified class name
+     * and converts it to a path internally, this method takes a resource path directly
+     * (using '/' separators, no leading '/').</p>
+     *
+     * <p>The default implementation returns {@code null}, meaning this source does not
+     * support resource loading. Implementations that store resources alongside classes
+     * (e.g., filesystem, JAR, cloud storage) should override this method.</p>
+     *
+     * @param resourceName The resource path (e.g., "com/example/config.properties")
+     * @return The resource data as a byte array, or null if the resource is not found
+     * @throws IOException if an I/O error occurs while loading the resource
+     */
+    default byte[] loadResourceData(String resourceName) throws IOException {
+        return null;
+    }
 }

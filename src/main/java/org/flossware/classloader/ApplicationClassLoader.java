@@ -5,7 +5,10 @@ import org.flossware.classloader.delegation.DelegationStrategy;
 import org.flossware.classloader.delegation.ParentFirstDelegation;
 import org.flossware.classloader.lifecycle.ClassLoaderLifecycleListener;
 
+import org.flossware.classloader.util.ByteArrayURLStreamHandler;
+
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -151,6 +154,27 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
         // Use the loading coordinator to handle all class loading logic
         byte[] classData = loadingCoordinator.loadClass(name);
         return defineClass(name, classData, 0, classData.length);
+    }
+
+    @Override
+    protected URL findResource(String name) {
+        if (closed || name == null) {
+            return null;
+        }
+
+        for (ClassSource source : classSources) {
+            try {
+                byte[] data = source.loadResourceData(name);
+                if (data != null) {
+                    return new URL(null, "flossware://resource/" + name,
+                        new ByteArrayURLStreamHandler(data));
+                }
+            } catch (IOException e) {
+                // Continue to next source
+            }
+        }
+
+        return null;
     }
 
     /**

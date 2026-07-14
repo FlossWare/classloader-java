@@ -11,13 +11,17 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -611,5 +615,107 @@ class ApplicationClassLoaderTest {
             .build();
 
         assertTrue(loader.isCacheEnabled());
+    }
+
+    @Test
+    void testFindResource(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Path resourceDir = classDir.resolve("com/example");
+        Files.createDirectories(resourceDir);
+        byte[] resourceData = "hello=world".getBytes();
+        Files.write(resourceDir.resolve("test.properties"), resourceData);
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        URL url = loader.findResource("com/example/test.properties");
+        assertNotNull(url);
+
+        try (InputStream is = url.openStream()) {
+            byte[] loaded = is.readAllBytes();
+            assertArrayEquals(resourceData, loaded);
+        }
+    }
+
+    @Test
+    void testGetResourceAsStream(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Path resourceDir = classDir.resolve("config");
+        Files.createDirectories(resourceDir);
+        byte[] resourceData = "db.url=jdbc:test".getBytes();
+        Files.write(resourceDir.resolve("app.properties"), resourceData);
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        try (InputStream is = loader.getResourceAsStream("config/app.properties")) {
+            assertNotNull(is);
+            byte[] loaded = is.readAllBytes();
+            assertArrayEquals(resourceData, loaded);
+        }
+    }
+
+    @Test
+    void testFindResourceNotFound(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        URL url = loader.findResource("nonexistent/resource.txt");
+        assertNull(url);
+    }
+
+    @Test
+    void testFindResourceAfterClose(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Files.write(classDir.resolve("test.txt"), "data".getBytes());
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        loader.close();
+
+        URL url = loader.findResource("test.txt");
+        assertNull(url);
+    }
+
+    @Test
+    void testFindResourceMultipleSources(@TempDir Path tempDir) throws Exception {
+        Path classDir1 = tempDir.resolve("classes1");
+        Path classDir2 = tempDir.resolve("classes2");
+        Files.createDirectories(classDir1);
+        Files.createDirectories(classDir2);
+
+        byte[] data1 = "source1".getBytes();
+        byte[] data2 = "source2".getBytes();
+        Files.write(classDir1.resolve("shared.txt"), data1);
+        Files.write(classDir2.resolve("shared.txt"), data2);
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir1.toString())
+            .addLocalSource(classDir2.toString())
+            .useCache(false)
+            .build();
+
+        URL url = loader.findResource("shared.txt");
+        assertNotNull(url);
+
+        try (InputStream is = url.openStream()) {
+            byte[] loaded = is.readAllBytes();
+            assertArrayEquals(data1, loaded, "First source should take priority");
+        }
     }
 }

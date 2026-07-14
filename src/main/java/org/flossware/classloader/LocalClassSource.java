@@ -115,6 +115,31 @@ public class LocalClassSource implements ClassSource {
         return resolvedPath;
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public byte[] loadResourceData(String resourceName) throws IOException {
+        Objects.requireNonNull(resourceName, "resourceName cannot be null");
+
+        Path resourceFile = basePath.resolve(resourceName).normalize();
+
+        if (!resourceFile.startsWith(basePath)) {
+            throw new IOException("Path traversal attempt detected: " + resourceName);
+        }
+
+        if (!Files.exists(resourceFile) || !Files.isRegularFile(resourceFile)) {
+            return null;
+        }
+
+        long size = Files.size(resourceFile);
+        if (size > maxClassSize) {
+            throw new IOException(
+                "Resource file too large: " + size + " bytes (max " + maxClassSize + ")"
+            );
+        }
+
+        return Files.readAllBytes(resourceFile);
+    }
+
     /**
      * Gets the base directory path for this class source.
      *

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -155,6 +156,56 @@ class LocalClassSourceTest {
 
         byte[] loaded = source.loadClassData("com.example.deep.nested.pkg.DeepClass");
         assertArrayEquals(classData, loaded);
+    }
+
+    @Test
+    void testLoadResourceData(@TempDir Path tempDir) throws IOException {
+        Path resourceDir = tempDir.resolve("com/example");
+        Files.createDirectories(resourceDir);
+        byte[] resourceData = "key=value".getBytes();
+        Files.write(resourceDir.resolve("config.properties"), resourceData);
+
+        LocalClassSource source = new LocalClassSource(tempDir);
+
+        byte[] loaded = source.loadResourceData("com/example/config.properties");
+        assertArrayEquals(resourceData, loaded);
+    }
+
+    @Test
+    void testLoadResourceDataNotFound(@TempDir Path tempDir) throws IOException {
+        LocalClassSource source = new LocalClassSource(tempDir);
+
+        byte[] result = source.loadResourceData("com/example/missing.properties");
+        assertNull(result);
+    }
+
+    @Test
+    void testLoadResourceDataPathTraversal(@TempDir Path tempDir) {
+        LocalClassSource source = new LocalClassSource(tempDir);
+
+        assertThrows(IOException.class, () -> {
+            source.loadResourceData("../../../etc/passwd");
+        });
+    }
+
+    @Test
+    void testLoadResourceDataNullThrows(@TempDir Path tempDir) {
+        LocalClassSource source = new LocalClassSource(tempDir);
+
+        assertThrows(NullPointerException.class, () -> {
+            source.loadResourceData(null);
+        });
+    }
+
+    @Test
+    void testLoadResourceDataDirectory(@TempDir Path tempDir) throws IOException {
+        Path dir = tempDir.resolve("com/example");
+        Files.createDirectories(dir);
+
+        LocalClassSource source = new LocalClassSource(tempDir);
+
+        byte[] result = source.loadResourceData("com/example");
+        assertNull(result);
     }
 
     @Test
