@@ -99,7 +99,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
     private final ClassLoadingCoordinator loadingCoordinator;
     private final ClassLoaderResourceManager resourceManager;
 
-    private ApplicationClassLoader(ApplicationClassLoaderBuilder builder) {
+    ApplicationClassLoader(ApplicationClassLoaderBuilder builder) {
         super(builder.getParent() != null ? builder.getParent() : getSystemClassLoader());
 
         if (builder.getClassSources().isEmpty()) {

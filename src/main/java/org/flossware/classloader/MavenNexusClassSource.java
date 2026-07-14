@@ -43,7 +43,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     private final ConcurrentHashMap<String, FutureTask<JarFile>> jarFileCache;
     private final ConcurrentHashMap<String, Path> jarPathCache;
     private volatile boolean closed = false;
-    private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock closeLock = new ReentrantReadWriteLock(true);
 
     // Helper components for separation of concerns
     private final JarDownloadManager downloadManager;
@@ -202,12 +202,7 @@ public class MavenNexusClassSource implements ClassSource, AutoCloseable {
     @Override
     public boolean canLoad(String className) {
         Objects.requireNonNull(className, "className cannot be null");
-        try {
-            loadClassData(className);
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
+        return !closed;
     }
 
     /** {@inheritDoc} */

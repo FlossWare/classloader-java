@@ -93,8 +93,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build());
         } catch (MinioException e) {
             throw new IOException("MinIO error getting object stats: " + objectName, e);
-        } catch (IOException e) {
-            throw new IOException("IO error getting object stats: " + objectName, e);
+        } catch (Exception e) {
+            throw new IOException("Error getting object stats: " + objectName, e);
         }
     }
 
@@ -165,8 +165,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build()
             );
             return true;
-        } catch (MinioException | IOException e) {
-            // Object doesn't exist, auth failure, or other error
+        } catch (Exception e) {
             return false;
         }
     }

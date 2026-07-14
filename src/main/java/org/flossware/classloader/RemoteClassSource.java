@@ -12,7 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Objects;
-import javax.net.ssl.HttpsURLConnection;
+
 
 /**
  * ClassSource implementation for loading classes from remote HTTP/HTTPS servers.
@@ -25,8 +25,8 @@ public class RemoteClassSource implements ClassSource {
     /** Default read timeout in milliseconds (30 seconds) */
     private static final int DEFAULT_READ_TIMEOUT_MS = 30000;
 
-    /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError from malicious sources */
-    private static final int MAX_CLASS_SIZE = 100 * 1024 * 1024;
+    /** Maximum class file size in bytes (10MB) - prevents OutOfMemoryError from malicious sources */
+    private static final int MAX_CLASS_SIZE = 10 * 1024 * 1024;
 
     /** Start of the HTTP 2xx success status code range (inclusive). */
     private static final int HTTP_SUCCESS_MIN = 200;
@@ -140,7 +140,6 @@ public class RemoteClassSource implements ClassSource {
     }
 
     private byte[] downloadFromHttpConnection(HttpURLConnection httpConnection, URLConnection connection, String className, URL url) throws IOException {
-        configureSSL(httpConnection);
         configureAuthentication(httpConnection);
         validateHttpResponse(httpConnection, url);
         return readResponseData(connection, className);
@@ -211,27 +210,11 @@ public class RemoteClassSource implements ClassSource {
     }
 
     /**
-     * Safely closes a non-HTTP URLConnection by closing its input stream.
-     *
-     * <p>URLConnection does not have a disconnect() method, so the standard practice
-     * is to close its input stream to release the underlying socket/resources.
-     * This method is used in finally blocks for non-HTTP connections (e.g., FTP, file)
-     * that would otherwise leak their underlying resources.</p>
-     *
-     * @param connection the URLConnection to close (may be null)
+     * No-op for non-HTTP URLConnections. The InputStream is closed via try-with-resources
+     * in readResponseData(). Calling getInputStream() here would risk opening a new connection
+     * on error paths where the stream was never obtained.
      */
     private void safelyCloseUrlConnection(URLConnection connection) {
-        if (connection == null) {
-            return;
-        }
-        try {
-            InputStream in = connection.getInputStream();
-            if (in != null) {
-                in.close();
-            }
-        } catch (IOException | IllegalStateException | UncheckedIOException e) {
-            // Suppress exceptions during resource cleanup to avoid masking original exception
-        }
     }
 
     /**
@@ -277,7 +260,6 @@ public class RemoteClassSource implements ClassSource {
 
     private boolean checkHttpResourceExists(HttpURLConnection httpConnection) throws IOException {
         httpConnection.setRequestMethod("HEAD");
-        configureSSL(httpConnection);
         configureAuthentication(httpConnection);
 
         int responseCode = httpConnection.getResponseCode();
@@ -290,17 +272,6 @@ public class RemoteClassSource implements ClassSource {
     @Override
     public String getDescription() {
         return "RemoteClassSource[" + baseUrl + ", auth=" + authConfig.getAuthType() + "]";
-    }
-
-    private void configureSSL(HttpURLConnection connection) {
-        // Ensure SSL/TLS certificate validation for HTTPS connections
-        if (connection instanceof HttpsURLConnection) {
-            HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
-            // Use default hostname verifier (performs proper hostname verification)
-            httpsConnection.setHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
-            // Use default SSL socket factory (validates certificates against system trust store)
-            httpsConnection.setSSLSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
-        }
     }
 
     private void configureAuthentication(HttpURLConnection connection) {

@@ -23,8 +23,8 @@ import java.util.stream.Stream;
  * Thread-safe for concurrent read/write operations using atomic file operations.
  */
 public class FileSystemCache implements ClassCache {
-    /** Maximum class file size in bytes (100MB) - prevents OutOfMemoryError */
-    private static final long MAX_CLASS_FILE_SIZE = 100 * 1024 * 1024;
+    /** Maximum class file size in bytes (10MB) - prevents OutOfMemoryError */
+    private static final long MAX_CLASS_FILE_SIZE = 10 * 1024 * 1024;
 
     private final Path cacheDirectory;
     private final Lock writeLock = new ReentrantLock();

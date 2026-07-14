@@ -29,11 +29,11 @@
         <message>Automated Version Bump ${project.version} [ci skip]</message>
 
         <!-- FlossWare dependency versions -->
-        <flossware.jcloudstorage.version>1.0</flossware.jcloudstorage.version>
-        <flossware.jfiletransfer.version>1.0</flossware.jfiletransfer.version>
-        <flossware.jmessaging.version>1.0</flossware.jmessaging.version>
-        <flossware.jcontainer.version>1.0</flossware.jcontainer.version>
-        <flossware.jvcs.version>1.0</flossware.jvcs.version>
+        <flossware.cloudstorage.version>1.0</flossware.cloudstorage.version>
+        <flossware.filetransfer.version>1.0</flossware.filetransfer.version>
+        <flossware.messaging.version>1.0</flossware.messaging.version>
+        <flossware.container.version>1.0</flossware.container.version>
+        <flossware.vcs.version>2.0</flossware.vcs.version>
     </properties>
 
     <scm>
@@ -85,40 +85,12 @@
 
     <dependencies>
         <!-- FlossWare Libraries -->
-        <dependency>
-            <groupId>org.flossware</groupId>
-            <artifactId>jcloudstorage</artifactId>
-            <version>${flossware.jcloudstorage.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.flossware</groupId>
-            <artifactId>jfiletransfer</artifactId>
-            <version>${flossware.jfiletransfer.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.flossware</groupId>
-            <artifactId>jmessaging</artifactId>
-            <version>${flossware.jmessaging.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.flossware</groupId>
-            <artifactId>jcontainer</artifactId>
-            <version>${flossware.jcontainer.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.flossware</groupId>
-            <artifactId>jvcs</artifactId>
-            <version>${flossware.jvcs.version}</version>
-            <optional>true</optional>
-        </dependency>
+        <!--
+            FlossWare optional dependencies (cloudstorage-java, filetransfer-java,
+            messaging-java, container-java, vcs-java) are activated via the
+            'flossware-extensions' profile. Build with -Pflossware-extensions
+            when these artifacts are available in your local Maven repository.
+        -->
 
         <!-- Database/JDBC Support -->
         <!-- Users provide their own JDBC driver -->
@@ -213,6 +185,22 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.12.1</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/CloudStorageClassSource.java</exclude>
+                        <exclude>**/FileTransferClassSource.java</exclude>
+                        <exclude>**/MessageClientClassSource.java</exclude>
+                        <exclude>**/ContainerClientClassSource.java</exclude>
+                        <exclude>**/VcsClientClassSource.java</exclude>
+                    </excludes>
+                    <testExcludes>
+                        <exclude>**/CloudStorageClassSourceTest.java</exclude>
+                        <exclude>**/FileTransferClassSourceTest.java</exclude>
+                        <exclude>**/MessageClientClassSourceTest.java</exclude>
+                        <exclude>**/ContainerClientClassSourceTest.java</exclude>
+                        <exclude>**/VcsClientClassSourceTest.java</exclude>
+                    </testExcludes>
+                </configuration>
             </plugin>
 
             <plugin>
@@ -400,6 +388,56 @@
                             <serverId>ossrh</serverId>
                             <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- FlossWare extensions profile - activate with -Pflossware-extensions -->
+        <profile>
+            <id>flossware-extensions</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.flossware</groupId>
+                    <artifactId>cloudstorage-java</artifactId>
+                    <version>${flossware.cloudstorage.version}</version>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>org.flossware</groupId>
+                    <artifactId>filetransfer-java</artifactId>
+                    <version>${flossware.filetransfer.version}</version>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>org.flossware</groupId>
+                    <artifactId>messaging-java</artifactId>
+                    <version>${flossware.messaging.version}</version>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>org.flossware</groupId>
+                    <artifactId>container-java</artifactId>
+                    <version>${flossware.container.version}</version>
+                    <optional>true</optional>
+                </dependency>
+                <dependency>
+                    <groupId>org.flossware</groupId>
+                    <artifactId>vcs-java</artifactId>
+                    <version>${flossware.vcs.version}</version>
+                    <optional>true</optional>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.12.1</version>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <testExcludes combine.self="override"/>
                         </configuration>
                     </plugin>
                 </plugins>

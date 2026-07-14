@@ -232,7 +232,7 @@ public class ClassLoaderCleanupUtil {
             if (unregistered > 0) {
                 logger.info("[{}] Unregistered {} MBeans", applicationId, unregistered);
             }
-        } catch (javax.management.MalformedObjectNameException | javax.management.ReflectionException e) {
+        } catch (Exception e) {
             logger.warn("[{}] Failed to cleanup MBeans: {}", applicationId, e.getMessage());
         }
     }

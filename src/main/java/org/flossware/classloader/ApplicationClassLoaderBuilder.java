@@ -281,19 +281,6 @@ public class ApplicationClassLoaderBuilder {
     }
 
     /**
-     * Adds a cloud storage provider as a class source.
-     * Supports S3, Azure Blob Storage, GCS, Google Drive, Dropbox, and OneDrive.
-     *
-     * @param client The cloud storage client to use
-     * @return this builder
-     * @throws NullPointerException if client is null
-     */
-    public ApplicationClassLoaderBuilder addCloudStorage(org.flossware.cloud.storage.CloudStorageClient client) {
-        Objects.requireNonNull(client, "client cannot be null");
-        return addClassSource(new CloudStorageClassSource(client));
-    }
-
-    /**
      * Sets the class cache implementation for caching loaded class bytecode.
      * If not set, an in-memory cache is used when caching is enabled.
      *

@@ -200,11 +200,9 @@ class ClassLoadingCoordinator {
             ClassLoaderLogger.logError("Error caching class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
         } catch (Error e) {
-            // Catch critical errors (OutOfMemoryError, StackOverflowError, etc.) to prevent
-            // cache failures from breaking class loading, but log them as unexpected
             ClassLoaderLogger.logError("Critical error while caching class " + name + ": " + e.getMessage());
             eventDispatcher.fireClassCacheFailed(name, e);
-            // Do not rethrow - allow class loading to continue despite cache failure
+            throw e;
         }
     }
 }
