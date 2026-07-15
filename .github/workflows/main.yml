@@ -61,6 +61,14 @@ jobs:
       - name: Building
         run: "mvn -U clean install"
 
+      - name: Cache OWASP Dependency Check Database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-owasp-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-owasp-
+
       - name: OWASP Dependency Check
         run: "mvn org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7"
         continue-on-error: true
