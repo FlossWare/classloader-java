@@ -143,11 +143,22 @@ public class RestApiClassSource implements ClassSource {
      */
     private void safelyDisconnect(HttpURLConnection connection) {
         if (connection != null) {
+            drainErrorStream(connection);
             try {
                 connection.disconnect();
             } catch (IllegalStateException | UncheckedIOException e) {
                 // Suppress exceptions during resource cleanup to avoid masking original exception
             }
+        }
+    }
+
+    private void drainErrorStream(HttpURLConnection connection) {
+        try (InputStream err = connection.getErrorStream()) {
+            if (err != null) {
+                byte[] buf = new byte[1024];
+                while (err.read(buf) != -1) { }
+            }
+        } catch (IOException ignored) {
         }
     }
 

@@ -93,7 +93,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build());
         } catch (MinioException e) {
             throw new IOException("MinIO error getting object stats: " + objectName, e);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new IOException("Error getting object stats: " + objectName, e);
         }
     }
@@ -112,8 +112,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
 
         } catch (MinioException e) {
             throw new IOException("MinIO error loading class: " + objectName, e);
-        } catch (IOException e) {
-            throw new IOException("IO error loading class: " + objectName, e);
+        } catch (RuntimeException e) {
+            throw new IOException("Runtime error loading class: " + objectName, e);
         }
     }
 
@@ -165,7 +165,7 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
                     .build()
             );
             return true;
-        } catch (Exception e) {
+        } catch (MinioException | RuntimeException e) {
             return false;
         }
     }
