@@ -112,6 +112,8 @@ public class MinioClassSource implements ClassSource, AutoCloseable {
 
         } catch (MinioException e) {
             throw new IOException("MinIO error loading class: " + objectName, e);
+        } catch (IOException e) {
+            throw new IOException("IO error loading class: " + objectName, e);
         } catch (RuntimeException e) {
             throw new IOException("Runtime error loading class: " + objectName, e);
         }

@@ -15,6 +15,14 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -690,6 +698,123 @@ class ApplicationClassLoaderTest {
 
         URL url = loader.findResource("test.txt");
         assertNull(url);
+    }
+
+    @Test
+    void testConcurrentFindClass(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+
+        int threadCount = 10;
+        Path sourceDir = tempDir.resolve("src");
+        Files.createDirectories(sourceDir);
+        for (int i = 0; i < threadCount; i++) {
+            Path sourceFile = sourceDir.resolve("ConcTest" + i + ".java");
+            Files.writeString(sourceFile, "public class ConcTest" + i + " { }");
+            ProcessBuilder pb = new ProcessBuilder("javac", "-d", classDir.toString(), sourceFile.toString());
+            assertEquals(0, pb.start().waitFor());
+        }
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        List<Future<Class<?>>> futures = new ArrayList<>();
+
+        for (int i = 0; i < threadCount; i++) {
+            int idx = i;
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                return loader.loadClass("ConcTest" + idx);
+            }));
+        }
+
+        for (int i = 0; i < threadCount; i++) {
+            Class<?> clazz = futures.get(i).get(10, TimeUnit.SECONDS);
+            assertNotNull(clazz);
+            assertEquals("ConcTest" + i, clazz.getSimpleName());
+        }
+
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void testConcurrentFindResource(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Files.write(classDir.resolve("concurrent-test.txt"), "data".getBytes());
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        int threadCount = 10;
+        CyclicBarrier barrier = new CyclicBarrier(threadCount);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        List<Future<URL>> futures = new ArrayList<>();
+
+        for (int i = 0; i < threadCount; i++) {
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                return loader.findResource("concurrent-test.txt");
+            }));
+        }
+
+        for (Future<URL> future : futures) {
+            URL url = future.get(10, TimeUnit.SECONDS);
+            assertNotNull(url);
+        }
+
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void testConcurrentCloseWhileLoading(@TempDir Path tempDir) throws Exception {
+        Path classDir = tempDir.resolve("classes");
+        Files.createDirectories(classDir);
+        Files.write(classDir.resolve("close-test.txt"), "data".getBytes());
+
+        ApplicationClassLoader loader = ApplicationClassLoader.builder()
+            .addLocalSource(classDir.toString())
+            .useCache(false)
+            .build();
+
+        int threadCount = 5;
+        CountDownLatch startLatch = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount + 1);
+
+        List<Future<?>> futures = new ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+            futures.add(executor.submit(() -> {
+                startLatch.await();
+                for (int j = 0; j < 100; j++) {
+                    loader.findResource("close-test.txt");
+                }
+                return null;
+            }));
+        }
+
+        futures.add(executor.submit(() -> {
+            startLatch.await();
+            Thread.sleep(5);
+            loader.close();
+            return null;
+        }));
+
+        startLatch.countDown();
+
+        for (Future<?> future : futures) {
+            assertDoesNotThrow(() -> future.get(10, TimeUnit.SECONDS));
+        }
+
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
 
     @Test
