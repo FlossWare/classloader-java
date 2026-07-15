@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Custom ClassLoader supporting multiple class sources with caching and lifecycle management.
@@ -95,6 +96,7 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
     private final DelegationStrategy delegationStrategy;
     private final List<ClassLoaderLifecycleListener> listeners;
     private final BytecodeVerifier bytecodeVerifier;
+    private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock(true);
     private volatile boolean closed = false;
 
     // Helper components
@@ -147,13 +149,17 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
     @Override
     protected Class<?> findClass(String name) throws ClassNotFoundException {
         Objects.requireNonNull(name, "name cannot be null");
-        if (closed) {
-            throw new IllegalStateException("ApplicationClassLoader is closed");
-        }
+        rwLock.readLock().lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("ApplicationClassLoader is closed");
+            }
 
-        // Use the loading coordinator to handle all class loading logic
-        byte[] classData = loadingCoordinator.loadClass(name);
-        return defineClass(name, classData, 0, classData.length);
+            byte[] classData = loadingCoordinator.loadClass(name);
+            return defineClass(name, classData, 0, classData.length);
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     @Override
@@ -162,19 +168,28 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return null;
         }
 
-        for (ClassSource source : classSources) {
-            try {
-                byte[] data = source.loadResourceData(name);
-                if (data != null) {
-                    return new URL(null, "flossware://resource/" + name,
-                        new ByteArrayURLStreamHandler(data));
-                }
-            } catch (IOException e) {
-                // Continue to next source
+        rwLock.readLock().lock();
+        try {
+            if (closed) {
+                return null;
             }
-        }
 
-        return null;
+            for (ClassSource source : classSources) {
+                try {
+                    byte[] data = source.loadResourceData(name);
+                    if (data != null) {
+                        return new URL(null, "flossware://resource/" + name,
+                            new ByteArrayURLStreamHandler(data));
+                    }
+                } catch (IOException e) {
+                    // Continue to next source
+                }
+            }
+
+            return null;
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     /**
@@ -190,14 +205,16 @@ public class ApplicationClassLoader extends ClassLoader implements AutoCloseable
             return;
         }
 
-        synchronized (this) {
+        rwLock.writeLock().lock();
+        try {
             if (closed) {
                 return;
             }
             closed = true;
 
-            // Use resource manager to handle all cleanup
             resourceManager.closeResources();
+        } finally {
+            rwLock.writeLock().unlock();
         }
     }
 

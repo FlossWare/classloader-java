@@ -17,9 +17,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Objects;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import javax.net.ssl.HttpsURLConnection;
 
 /**
  * ClassSource implementation for loading classes from remote JAR files.
@@ -40,6 +40,7 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
     private final int readTimeoutMs;
     private final RetryPolicy retryPolicy;
 
+    private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock(true);
     private JarFile jarFile;
     private Path tempJarPath;
     private volatile boolean closed = false;
@@ -100,10 +101,15 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
             return;
         }
 
-        // Download JAR to temp file
         tempJarPath = Files.createTempFile("jclassloader-jar-", ".jar");
-        downloadJarFile();
-        jarFile = new JarFile(tempJarPath.toFile());
+        try {
+            downloadJarFile();
+            jarFile = new JarFile(tempJarPath.toFile());
+        } catch (IOException | RuntimeException e) {
+            try { Files.deleteIfExists(tempJarPath); } catch (IOException ignored) {}
+            tempJarPath = null;
+            throw e;
+        }
     }
 
     private void downloadJarFile() throws IOException {
@@ -141,7 +147,6 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
     }
 
     private void validateHttpJarResponse(HttpURLConnection httpConnection, URL url) throws IOException {
-        configureSSL(httpConnection);
         configureAuthentication(httpConnection);
 
         int responseCode = httpConnection.getResponseCode();
@@ -188,27 +193,11 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
     }
 
     /**
-     * Safely closes a non-HTTP URLConnection by closing its input stream.
-     *
-     * <p>URLConnection does not have a disconnect() method, so the standard practice
-     * is to close its input stream to release the underlying socket/resources.
-     * This method is used in finally blocks for non-HTTP connections (e.g., FTP, file)
-     * that would otherwise leak their underlying resources.</p>
-     *
-     * @param connection the URLConnection to close (may be null)
+     * No-op for non-HTTP URLConnections. The InputStream is closed via try-with-resources
+     * in the download method. Calling getInputStream() here would risk opening a new connection
+     * on error paths where the stream was never obtained.
      */
     private void safelyCloseUrlConnection(URLConnection connection) {
-        if (connection == null) {
-            return;
-        }
-        try {
-            InputStream in = connection.getInputStream();
-            if (in != null) {
-                in.close();
-            }
-        } catch (IOException | IllegalStateException | UncheckedIOException e) {
-            // Suppress exceptions during resource cleanup to avoid masking original exception
-        }
     }
 
     /**
@@ -222,15 +211,24 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         Objects.requireNonNull(className, "className cannot be null");
         ensureJarReady();
 
-        String entryName = ClassNameUtil.toClassFilePath(className);
-        JarEntry entry = jarFile.getJarEntry(entryName);
+        rwLock.readLock().lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("RemoteJarClassSource is closed");
+            }
 
-        if (entry == null) {
-            throw new IOException("Class not found in JAR: " + className);
+            String entryName = ClassNameUtil.toClassFilePath(className);
+            JarEntry entry = jarFile.getJarEntry(entryName);
+
+            if (entry == null) {
+                throw new IOException("Class not found in JAR: " + className);
+            }
+
+            long size = entry.getSize();
+            return extractClassDataFromEntry(entry, size);
+        } finally {
+            rwLock.readLock().unlock();
         }
-
-        long size = entry.getSize();
-        return extractClassDataFromEntry(entry, size);
     }
 
     private byte[] extractClassDataFromEntry(JarEntry entry, long size) throws IOException {
@@ -315,10 +313,19 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
         Objects.requireNonNull(className, "className cannot be null");
         try {
             ensureJarReady();
-            String entryName = ClassNameUtil.toClassFilePath(className);
-            return jarFile.getJarEntry(entryName) != null;
         } catch (IOException e) {
             return false;
+        }
+
+        rwLock.readLock().lock();
+        try {
+            if (closed) {
+                return false;
+            }
+            String entryName = ClassNameUtil.toClassFilePath(className);
+            return jarFile.getJarEntry(entryName) != null;
+        } finally {
+            rwLock.readLock().unlock();
         }
     }
 
@@ -339,7 +346,8 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
             return;
         }
 
-        synchronized (this) {
+        rwLock.writeLock().lock();
+        try {
             if (closed) {
                 return;
             }
@@ -357,18 +365,11 @@ public class RemoteJarClassSource implements ClassSource, AutoCloseable {
                 try {
                     Files.deleteIfExists(tempJarPath);
                 } catch (IOException e) {
-                    // Log but don't throw
                     logger.warn("Failed to delete temp file: {} - {}", tempJarPath, e.getMessage());
                 }
             }
-        }
-    }
-
-    private void configureSSL(HttpURLConnection connection) {
-        if (connection instanceof HttpsURLConnection) {
-            HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
-            httpsConnection.setHostnameVerifier(HttpsURLConnection.getDefaultHostnameVerifier());
-            httpsConnection.setSSLSocketFactory(HttpsURLConnection.getDefaultSSLSocketFactory());
+        } finally {
+            rwLock.writeLock().unlock();
         }
     }
 

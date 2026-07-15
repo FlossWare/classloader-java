@@ -77,12 +77,8 @@ public class FileSystemCache implements ClassCache {
 
     private byte[] loadClassFileIfValid(Path classFile) throws IOException {
         Objects.requireNonNull(classFile, "classFile cannot be null");
-        // Validate file size before loading to prevent OutOfMemoryError
         long fileSize = Files.size(classFile);
         if (fileSize > MAX_CLASS_FILE_SIZE) {
-            // File is too large - possibly corrupted or malicious
-            // Delete it and return null to force re-fetch from source
-            Files.deleteIfExists(classFile);
             return null;
         }
         return Files.readAllBytes(classFile);

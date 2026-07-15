@@ -5,12 +5,14 @@ import org.flossware.classloader.AuthHelper;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 
 /**
@@ -70,8 +72,20 @@ public class JarDownloadManager {
 
             validateJarResponse(connection, jarUrl);
 
-            try (InputStream in = connection.getInputStream()) {
-                Files.copy(in, tempJarPath, StandardCopyOption.REPLACE_EXISTING);
+            try (InputStream in = connection.getInputStream();
+                 OutputStream out = Files.newOutputStream(tempJarPath,
+                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                byte[] buffer = new byte[8192];
+                long totalRead = 0;
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    totalRead += bytesRead;
+                    if (totalRead > MAX_JAR_SIZE) {
+                        throw new IOException(
+                            "JAR download exceeds size limit: " + totalRead + " bytes (max " + MAX_JAR_SIZE + ")");
+                    }
+                    out.write(buffer, 0, bytesRead);
+                }
             }
         } finally {
             safelyDisconnect(connection);

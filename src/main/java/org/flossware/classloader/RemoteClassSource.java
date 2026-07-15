@@ -113,7 +113,9 @@ public class RemoteClassSource implements ClassSource {
 
     private byte[] downloadClass(String className) throws IOException {
         String classPath = ClassNameUtil.toClassFilePath(className);
-        // Use URL(URL, String) constructor for proper path joining
+        if (classPath.startsWith("/") || classPath.contains("..")) {
+            throw new IOException("Invalid class name: " + className);
+        }
         URL baseURL = new URL(baseUrl);
         URL url = new URL(baseURL, classPath);
 
@@ -229,7 +231,9 @@ public class RemoteClassSource implements ClassSource {
         URLConnection connection = null;
         try {
             String classPath = ClassNameUtil.toClassFilePath(className);
-            // Use URL(URL, String) constructor for proper path joining
+            if (classPath.startsWith("/") || classPath.contains("..")) {
+                return false;
+            }
             URL baseURL = new URL(baseUrl);
             URL url = new URL(baseURL, classPath);
 

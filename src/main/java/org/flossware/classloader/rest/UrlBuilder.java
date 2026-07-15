@@ -45,9 +45,9 @@ public class UrlBuilder {
         }
 
         String path = classPathTemplate
-            .replace("{package}", packagePath)
-            .replace("{class}", simpleClassName)
-            .replace("{fullclass}", className.replace('.', '/'));
+            .replace("{package}", URLEncoder.encode(packagePath, StandardCharsets.UTF_8).replace("%2F", "/"))
+            .replace("{class}", URLEncoder.encode(simpleClassName, StandardCharsets.UTF_8))
+            .replace("{fullclass}", URLEncoder.encode(className.replace('.', '/'), StandardCharsets.UTF_8).replace("%2F", "/"));
 
         StringBuilder urlBuilder = new StringBuilder(baseUrl);
         urlBuilder.append(path);
